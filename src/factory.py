@@ -9,6 +9,7 @@ and configurations for different MCP services like Notion, GitHub, and PostgreSQ
 
 import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, Optional, Type
 
 from dotenv import load_dotenv
@@ -160,6 +161,41 @@ class PostgreSQLServiceFactory(ServiceFactory):
         raise NotImplementedError("PostgreSQL login helper not yet implemented.")
 
 
+class FilesystemServiceFactory(ServiceFactory):
+    """Factory for creating Filesystem-specific managers."""
+
+    def create_task_manager(self, config: ServiceConfig, **kwargs) -> BaseTaskManager:
+        from src.mcp_services.filesystem.filesystem_task_manager import FilesystemTaskManager
+
+        return FilesystemTaskManager(
+            tasks_root=kwargs.get("tasks_root"),
+            model_name=kwargs.get("model_name"),
+            api_key=kwargs.get("api_key"),
+            base_url=kwargs.get("base_url"),
+            test_directory=config.config.get("test_root"),
+            timeout=kwargs.get("timeout", 600),
+        )
+
+    def create_state_manager(self, config: ServiceConfig, **kwargs) -> BaseStateManager:
+        from src.mcp_services.filesystem.filesystem_state_manager import FilesystemStateManager
+
+        test_root = None
+        if "test_root" in config.config:
+            test_root = Path(config.config["test_root"])
+
+        return FilesystemStateManager(
+            test_root=test_root,
+            cleanup_on_exit=kwargs.get("cleanup_on_exit", True),
+        )
+
+    def create_login_helper(self, config: ServiceConfig, **kwargs) -> BaseLoginHelper:
+        from src.mcp_services.filesystem.filesystem_login_helper import FilesystemLoginHelper
+
+        return FilesystemLoginHelper(
+            state_path=kwargs.get("state_path"),
+        )
+
+
 class MCPServiceFactory:
     """
     Main factory for creating MCP service components.
@@ -191,11 +227,18 @@ class MCPServiceFactory:
                 "username": "POSTGRES_USERNAME",
             },
         },
+        "filesystem": {
+            "api_key_var": None,  # No authentication needed
+            "additional_vars": {
+                "test_root": "FILESYSTEM_TEST_ROOT",  # Optional: root directory for tests
+            },
+        },
     }
 
     SERVICE_FACTORIES = {
         "notion": NotionServiceFactory(),
         "github": GitHubServiceFactory(),
+        "filesystem": FilesystemServiceFactory(),
         # "postgres": PostgreSQLServiceFactory(),
     }
 
