@@ -63,16 +63,12 @@ class PlaywrightTaskManager(BaseTaskManager):
             except AttributeError:
                 page = None
 
-            # If last page is None but浏览器 context 仍在，开一个新 tab 保持同 session
-            if page is None:
-                try:
-                    ctx = self.state_manager.get_current_context()
-                    if ctx is not None:
-                        page = ctx.new_page()
-                        # 也记到 state_manager 方便后续调用
-                        self.state_manager._remember_page(page)  # type: ignore
-                except Exception:
-                    page = None
+            print(
+                f"[PlaywrightTaskManager] run_verification page={id(page) if page else None} "
+                f"url={page.url if page else 'N/A'}"
+            )
+
+            # 不再创建新的标签页；如果没有 live page，就保持 None，让 verify 脚本自行处理
 
         # Call verify_task – fall back gracefully if signature mismatch
         try:

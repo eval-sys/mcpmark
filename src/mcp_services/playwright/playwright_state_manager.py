@@ -73,6 +73,7 @@ class PlaywrightStateManager(BaseStateManager):
         # Browser management
         self._playwright = None
         self._browser = None
+        self._browser_server = None
         self._current_context: Optional[BrowserContext] = None
         
         # Task-specific tracking
@@ -117,18 +118,19 @@ class PlaywrightStateManager(BaseStateManager):
         try:
             logger.info(f"Setting up browser context for task: {task.name}")
             
-            # Start Playwright if not already running
-            if not self._playwright:
-                self._playwright = sync_playwright().start()
-                browser_type = getattr(self._playwright, self.browser_name)
-                self._browser = browser_type.launch(headless=self.headless)
+            # NOTE: We no longer launch a local Playwright browser during Stage 1.
+            # The actual browser session will be started by the Playwright MCP
+            # server in Stage 2. Here we only resolve the test URL so the agent
+            # knows which page to work with.
+
+            test_url = self.test_environments.get(task.category)
+            if not test_url:
+                logger.warning(f"No test environment defined for category: {task.category}")
+                test_url = None
             
-            # Create isolated context for this task
-            context_options = self._get_context_options(task)
-            self._current_context = self._browser.new_context(**context_options)
-            
-            # Set up test environment based on task category
-            test_url = self._setup_test_environment(task)
+            # We intentionally do NOT launch or connect to any browser here.
+            # All browser operations happen inside the Playwright MCP server
+            # during Stage 2.
             
             # Track the context for cleanup
             context_id = f"context_{task.category}_{task.task_id}_{int(time.time())}"
@@ -216,10 +218,103 @@ class PlaywrightStateManager(BaseStateManager):
         if page not in self._current_task_pages:
             self._current_task_pages.append(page)
         self._last_active_page = page
+        try:
+            print(
+                f"[PlaywrightStateManager] Remember page id={id(page)} url={page.url if page else '<no url>'} "
+                f"(total tracked={len(self._current_task_pages)})"
+            )
+        except Exception:
+            pass
 
     def get_last_page(self) -> Optional[Page]:
         """Return the most recently used Playwright Page (if any)."""
-        return self._last_active_page
+        if self._last_active_page and not self._last_active_page.is_closed():
+            return self._last_active_page
+
+        # Fallback: try to pick the last page from any existing context – this
+        # helps when the MCP server (connected over CDP) created new pages that
+        # we didn't explicitly track via _remember_page.
+        try:
+            if self._browser:
+                for context in self._browser.contexts:
+                    if context.pages:
+                        return context.pages[-1]
+        except Exception:
+            pass
+
+        # ---------------------------------------------------------------
+        # If we haven't connected to any browser yet, but Stage 2 (MCP
+        # server) has written its wsEndpoint to a well-known file, attempt to
+        # connect now so that verification can reuse the same session.
+        # ---------------------------------------------------------------
+        import os
+        from pathlib import Path
+        try:
+            ws_file = os.environ.get("MCP_PW_WS_FILE")
+            if ws_file:
+                ws_path = Path(ws_file)
+
+                # ------------------------------------------------------------------
+                # 1. Legacy path – server wrote plain text wsEndpoint to file.
+                # ------------------------------------------------------------------
+                if ws_path.exists():
+                    try:
+                        endpoint = ws_path.read_text().strip()
+                        if endpoint:
+                            if not self._playwright:
+                                from playwright.sync_api import sync_playwright
+                                self._playwright = sync_playwright().start()
+                            self._browser = self._playwright.chromium.connect(endpoint)
+                    except Exception:
+                        pass
+
+                # ------------------------------------------------------------------
+                # 2. Newer @playwright/mcp path – session information is stored in
+                #    a JSON file inside the output directory (specified via
+                #    --save-session).  Try to locate and parse that file to obtain
+                #    "wsEndpoint" / "cdpEndpoint" value.
+                # ------------------------------------------------------------------
+                if not self._browser:
+                    try:
+                        from json import loads
+                        base_dir = ws_path.parent
+                        # 2a. Direct session.json inside output_dir
+                        candidates: List[Path] = [base_dir / "session.json"]
+                        # 2b. Any session-*/session.json created by Playwright MCP
+                        candidates.extend(base_dir.glob("session-*/session.json"))
+
+                        for session_json_path in candidates:
+                            if not session_json_path.exists():
+                                continue
+                            try:
+                                data = loads(session_json_path.read_text())
+                            except Exception:
+                                continue
+                            endpoint = (
+                                data.get("wsEndpoint")
+                                or data.get("cdpEndpoint")
+                                or data.get("browserServerEndpoint")
+                            )
+                            if endpoint:
+                                if not self._playwright:
+                                    from playwright.sync_api import sync_playwright
+                                    self._playwright = sync_playwright().start()
+                                self._browser = self._playwright.chromium.connect(endpoint)
+                                break
+                    except Exception:
+                        pass
+
+                if self._browser and self._browser.contexts and self._browser.contexts[0].pages:
+                    try:
+                        page = self._browser.contexts[0].pages[-1]
+                        self._remember_page(page)
+                        return page
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        return None
 
     def _get_context_options(self, task: BaseTask) -> Dict[str, Any]:
         """Get browser context options based on task requirements."""
@@ -283,6 +378,15 @@ class PlaywrightStateManager(BaseStateManager):
 
     def get_test_page(self) -> Optional[Page]:
         """Get a page for testing (creates new one if needed)."""
+        # First, try to reuse the most recently active page so that automation
+        # and verification share EXACTLY the same browser tab (maintains
+        # in-memory form state for pure-frontend pages).
+        if self._last_active_page and not self._last_active_page.is_closed():
+            return self._last_active_page
+
+        # If no page was recorded yet (or the previous one was closed), fall
+        # back to creating a new tab within the *same* browser context so we
+        # still stay inside the current browser/session.
         if self._current_context:
             try:
                 page = self._current_context.new_page()
@@ -290,6 +394,9 @@ class PlaywrightStateManager(BaseStateManager):
                 return page
             except Exception as e:
                 logger.error(f"Failed to create test page: {e}")
+
+        # No browser context available – caller should make sure set_up() has
+        # been invoked before requesting a page.
         return None
 
     def navigate_to_test_url(self, task: BaseTask) -> Optional[Page]:
@@ -321,6 +428,15 @@ class PlaywrightStateManager(BaseStateManager):
             "browser": self.browser_name,
             "headless": self.headless,
         }
+
+        # If we already launched a browser, expose its CDP endpoint so that the
+        # MCP server can connect to the SAME browser instead of launching a new
+        # one. This requires @playwright/mcp to be started with --cdp-endpoint …
+        try:
+            if self._browser_server and hasattr(self._browser_server, "ws_endpoint"):
+                config["cdp_endpoint"] = self._browser_server.ws_endpoint
+        except Exception:
+            pass
         
         # Add browser state file if it exists
         if self.state_path.exists():

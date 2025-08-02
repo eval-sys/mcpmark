@@ -11,6 +11,7 @@ import sys
 import asyncio
 from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from playwright.sync_api import sync_playwright, Page
 
 # =============================================================================
@@ -63,13 +64,7 @@ def verify_form_fields(page: Optional[Page] = None) -> Dict[str, Any]:
         try:
             form_fields_found = {}
 
-            # Ensure我们正位于目标页
-            if not page.url.rstrip("/").endswith("forms"):
-                try:
-                    page.goto(TARGET_URL, wait_until="networkidle")
-                except Exception:
-                    pass  # 如果导航失败就照当前页检查
-
+            # 不再进行任何导航操作；直接在当前页面检查所需元素。
             for field_name in EXPECTED_FORM_FIELDS.keys():
                 selectors = [
                     f"input[name='{field_name}']",
@@ -219,17 +214,8 @@ def test_form_submission(page: Optional[Page] = None) -> Dict[str, Any]:
             submit_attempted = False
             submission_success = False
 
-            # If the agent already navigated to /result keep that page,
-            # otherwise open a new tab inside the same context.
+            # 不再打开新标签或导航；只在当前页面判断结果。
             result_page = page
-            if not result_page.url.rstrip("/").endswith("forms/result"):
-                try:
-                    result_page = page.context.new_page()
-                    result_page.goto(RESULT_URL, wait_until="networkidle")
-                except Exception:
-                    # Fallback: if navigation failed we'll still base decision
-                    # only on filled fields.
-                    result_page = None
 
             # Determine if the submission data is present on result page
             if result_page:
@@ -241,6 +227,8 @@ def test_form_submission(page: Optional[Page] = None) -> Dict[str, Any]:
                         found_any = True
                         break
                 submission_success = found_any
+                # 无论是否找到值，都打印当前页 URL，方便调试
+                print(f"🌐 Active page final URL: {result_page.url}")
             else:
                 # Could not load result page; fall back heuristic
                 submission_success = fields_filled_count >= 4
@@ -332,6 +320,23 @@ def test_form_submission(page: Optional[Page] = None) -> Dict[str, Any]:
             except Exception as e:
                 print(f"⚠️  Form submission attempt failed: {e}")
             
+            # Wait for redirect to result page (if any) and then print URL
+            try:
+                page.wait_for_url("**/forms/result", timeout=3000)
+            except Exception:
+                # If no redirect, continue with current URL
+                pass
+
+            print(f"🌐 Result page URL: {page.url}")
+
+            # 保存当前验证页面截图，便于人工查看
+            try:
+                screenshot_path = Path(__file__).parent / "verification_page.png"
+                page.screenshot(path=str(screenshot_path), full_page=True)
+                print(f"📸 Verification screenshot saved to {screenshot_path}")
+            except Exception as exc:
+                print(f"⚠️  Failed to capture verification screenshot: {exc}")
+
             browser.close()
             
             return {
@@ -407,6 +412,21 @@ def verify_task(active_page: Optional[Page] = None) -> bool:
     a temporary headless browser."""
     print("🔍 Verifying Playwright Form Interaction Task")
     print("=" * 50)
+
+    # ------------------------------------------------------------------
+    # Capture a screenshot of the *final* page state produced by the agent
+    # before we begin any verification steps. This helps diagnose failures
+    # that may be caused by DOM state differences.
+    # ------------------------------------------------------------------
+    if active_page is not None:
+        try:
+            print(f"[verify.py] active_page id={id(active_page)} url={active_page.url}")
+            screenshot_path = Path(__file__).parent / "last_page.png"
+            # Use full_page to capture the whole document for easier debugging
+            active_page.screenshot(path=str(screenshot_path), full_page=True)
+            print(f"📸 Screenshot saved to {screenshot_path}")
+        except Exception as exc:
+            print(f"⚠️  Failed to capture screenshot: {exc}")
     
     # Step 1: Independent verification
     print("\n🎭 Running independent Playwright verification...")

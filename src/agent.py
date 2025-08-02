@@ -204,12 +204,41 @@ class MCPAgent:
             headless = cfg.get("headless", True)
             viewport_width = cfg.get("viewport_width", 1280)
             viewport_height = cfg.get("viewport_height", 720)
+            cdp_endpoint = cfg.get("cdp_endpoint")
+
+            # Prepare a file to receive browser wsEndpoint so that Python side
+            # (PlaywrightStateManager) can connect to the same browser in Stage 3.
+            import tempfile, os
+            ws_file = cfg.get("ws_file") or os.path.join(tempfile.gettempdir(), f"mcp_pw_ws_{os.getpid()}.txt")
+            # Expose to current process so StateManager can locate it later
+            os.environ["MCP_PW_WS_FILE"] = ws_file
 
             args = ["-y", "@playwright/mcp@latest"]
             if headless:
                 args.append("--headless")
             args.append("--isolated")
             args.extend(["--browser", browser, "--viewport-size", f"{viewport_width},{viewport_height}"])
+
+            # Persist session metadata (including browser CDP endpoint) so that
+            # Stage 3 verification code can re-attach to the SAME browser.  The
+            # session is saved inside the same temp directory that hosts our
+            # placeholder ws_file path – this lets PlaywrightStateManager look
+            # it up later even though --browser-ws-endpoint-file no longer
+            # exists in newer @playwright/mcp versions.
+            output_dir = os.path.dirname(ws_file)
+            args.extend(["--output-dir", output_dir, "--save-session"])
+
+            # Note: Recent versions of @playwright/mcp removed the
+            # "--browser-ws-endpoint-file" flag. Passing it causes the
+            # server to exit with an "unknown option" error. We therefore
+            # skip adding this flag and rely on the default Playwright MCP
+            # behaviour instead.
+
+            if cdp_endpoint:
+                args.extend(["--cdp-endpoint", cdp_endpoint])
+
+            # Store ws_file path so other components (if refreshed) see it
+            cfg["ws_file"] = ws_file
 
             return MCPServerStdio(
                 params={
@@ -444,6 +473,70 @@ class MCPAgent:
                 "turn_count": 0,
                 "execution_time": self.timeout,
                 "error": f"Execution timed out after {self.timeout} seconds",
+            }
+
+    async def execute_async_with_server(self, instruction: str, server) -> Dict[str, Any]:
+        """Asynchronously run *instruction* using an already running MCP *server*."""
+
+        from agents import Agent, Runner, RunConfig, ModelSettings
+
+        start_time = time.time()
+        conversation = [{"content": instruction, "role": "user"}]
+        ModelSettings.tool_choice = "required"
+
+        try:
+            agent = Agent(name=f"{self.service.title()} Agent", mcp_servers=[server])
+
+            result = Runner.run_streamed(
+                agent,
+                max_turns=50,
+                input=conversation,
+                run_config=RunConfig(model_provider=self.model_provider),
+            )
+
+            # Drain the async event stream to completion so that raw_responses populate.
+            async for _ in result.stream_events():
+                pass
+
+            # Populate token statistics
+            token_usage = {}
+            total_input_tokens = 0
+            total_output_tokens = 0
+            total_tokens = 0
+            if hasattr(result, "raw_responses") and result.raw_responses:
+                for response in result.raw_responses:
+                    if hasattr(response, "usage") and response.usage:
+                        total_input_tokens += response.usage.input_tokens
+                        total_output_tokens += response.usage.output_tokens
+                        total_tokens += response.usage.total_tokens
+                token_usage = {
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
+                    "total_tokens": total_tokens,
+                }
+
+            turn_count = getattr(result, "current_turn", None)
+            execution_time = time.time() - start_time
+
+            return {
+                "success": True,
+                "output": result.to_input_list(),
+                "token_usage": token_usage,
+                "turn_count": turn_count,
+                "execution_time": execution_time,
+                "error": None,
+                "model_output": conversation,
+            }
+
+        except Exception as exc:
+            execution_time = time.time() - start_time
+            return {
+                "success": False,
+                "output": "",
+                "token_usage": {},
+                "turn_count": 0,
+                "execution_time": execution_time,
+                "error": str(exc),
             }
 
     def get_usage_stats(self) -> Dict[str, Any]:

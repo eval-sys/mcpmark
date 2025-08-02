@@ -42,8 +42,19 @@ class MCPEvaluator:
         self.api_key = model_config.api_key
 
         # Initialize managers using the factory pattern (simplified)
-        self.task_manager = MCPServiceFactory.create_task_manager(service)
+        # NOTE: State manager must be created *before* task manager so that
+        # both share the SAME instance (important for services like Playwright
+        # where we need to reuse the live Page between execution and
+        # verification).
+
+        # 1) Create a shared state manager first
         self.state_manager = MCPServiceFactory.create_state_manager(service)
+
+        # 2) Pass this instance to the task manager so it reuses the same
+        #    browser/context instead of spawning a separate one.
+        self.task_manager = MCPServiceFactory.create_task_manager(
+            service, state_manager=self.state_manager
+        )
 
         # Obtain static service configuration from state manager (e.g., notion_key)
         self.service_config = self.state_manager.get_service_config_for_agent()
@@ -174,21 +185,22 @@ class MCPEvaluator:
                 task_id=task.task_id,
             )
 
-        # Stage 2: Execute the task using the agent
+        # Stage 2 & 3 combined – keep the SAME MCP server alive across both.
         logger.info("\n==================== Stage 2: Executing Task =======================")
 
-        # NOTE: The agent now refreshes its service configuration internally, so
-        # we no longer need to perform that step here.
-
-        # Get task instruction from task manager
         task_instruction = self.task_manager.get_task_instruction(task)
 
-        # Execute with agent
-        agent_result = self.agent.execute_sync(task_instruction)
-        
-        # Stage 3: Verify the task result using task manager
-        logger.info("\n==================== Stage 3: Verifying Task =======================")
-        result = self.task_manager.execute_task(task, agent_result)
+        async def _run_with_shared_server():
+            async with await self.agent._create_mcp_server() as server:
+                # 2️⃣ Execute task
+                agent_result = await self.agent.execute_async_with_server(task_instruction, server)
+
+                # 3️⃣ Verify within the same live browser session
+                logger.info("\n==================== Stage 3: Verifying Task =======================")
+                return self.task_manager.execute_task(task, agent_result)
+
+        # Synchronously run the coroutine (evaluator is sync code)
+        result = __import__("asyncio").run(_run_with_shared_server())
         
         # Stage 4: Clean up the temporary task state
         logger.info("\n==================== Stage 4: Cleaning Up =========================")
