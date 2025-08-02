@@ -32,6 +32,11 @@ class PlaywrightStateManager(BaseStateManager):
     for web automation evaluation.
     """
 
+    # Keep a reference to the most recently created instance so that other
+    # components (e.g. TaskManager instantiated later) can reuse the same
+    # browser/context and avoid launching a separate one.
+    _GLOBAL_INSTANCE: Optional["PlaywrightStateManager"] = None
+
     def __init__(
         self,
         browser: str = "chromium",
@@ -57,7 +62,8 @@ class PlaywrightStateManager(BaseStateManager):
         super().__init__(service_name="playwright")
         
         self.browser_name = browser
-        self.headless = headless
+        # self.headless = headless
+        self.headless = False
         self.state_path = state_path or Path.cwd() / "playwright_state.json"
         self.network_origins = network_origins
         self.user_profile = user_profile
@@ -71,6 +77,11 @@ class PlaywrightStateManager(BaseStateManager):
         
         # Task-specific tracking
         self._current_task_pages: List[Page] = []
+        # Track the most recently active Playwright page so that verification can
+        # reuse the exact same browser instance / DOM state created during task
+        # execution. This avoids launching a brand-new browser for verification
+        # which would miss in-memory changes (e.g. form submission results).
+        self._last_active_page: Optional[Page] = None
         
         # Test environment URLs for different task categories
         self.test_environments = {
@@ -80,6 +91,18 @@ class PlaywrightStateManager(BaseStateManager):
         }
         
         logger.info("Playwright state manager initialized")
+
+        # Register global singleton reference (best-effort)
+        PlaywrightStateManager._GLOBAL_INSTANCE = self
+
+    # ------------------------------------------------------------------
+    # Singleton helper
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def get_global_instance(cls) -> Optional["PlaywrightStateManager"]:
+        """Return the last instantiated PlaywrightStateManager (if any)."""
+        return cls._GLOBAL_INSTANCE
 
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
         """
@@ -184,6 +207,20 @@ class PlaywrightStateManager(BaseStateManager):
             logger.error(f"Failed to cleanup resource {resource}: {e}")
             return False
 
+    # =========================================================================
+    # Page tracking helpers
+    # =========================================================================
+
+    def _remember_page(self, page: Page) -> None:
+        """Record Page object for later verification and mark it as last active."""
+        if page not in self._current_task_pages:
+            self._current_task_pages.append(page)
+        self._last_active_page = page
+
+    def get_last_page(self) -> Optional[Page]:
+        """Return the most recently used Playwright Page (if any)."""
+        return self._last_active_page
+
     def _get_context_options(self, task: BaseTask) -> Dict[str, Any]:
         """Get browser context options based on task requirements."""
         options = {
@@ -223,8 +260,8 @@ class PlaywrightStateManager(BaseStateManager):
                 page.goto(test_url, wait_until="networkidle", timeout=30000)
                 logger.info(f"Test environment ready: {test_url}")
                 
-                # Track the page for cleanup
-                self._current_task_pages.append(page)
+                # Track the page and mark it as active
+                self._remember_page(page)
                 
                 # Verify page loaded correctly
                 title = page.title()
@@ -249,7 +286,7 @@ class PlaywrightStateManager(BaseStateManager):
         if self._current_context:
             try:
                 page = self._current_context.new_page()
-                self._current_task_pages.append(page)
+                self._remember_page(page)
                 return page
             except Exception as e:
                 logger.error(f"Failed to create test page: {e}")
