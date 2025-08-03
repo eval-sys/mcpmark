@@ -35,7 +35,7 @@ class FilesystemTaskManager(BaseTaskManager):
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
 
         super().__init__(tasks_root, service="filesystem", task_class=FilesystemTask,
-                         task_organization="file")
+                         task_organization="directory")
 
     # Override only what's needed for filesystem-specific behavior
 
@@ -49,11 +49,11 @@ class FilesystemTaskManager(BaseTaskManager):
         if hasattr(task, 'test_directory') and task.test_directory:
             test_dir = task.test_directory
         else:
-            test_dir = os.getenv('FILESYSTEM_TEST_ROOT')
+            test_dir = os.getenv('FILESYSTEM_TEST_DIR')
 
         if test_dir:
-            env['FILESYSTEM_TEST_ROOT'] = test_dir
-            logger.debug(f"Setting FILESYSTEM_TEST_ROOT to: {test_dir}")
+            env['FILESYSTEM_TEST_DIR'] = test_dir
+            logger.debug(f"Setting FILESYSTEM_TEST_DIR to: {test_dir}")
 
         return subprocess.run(
             self._get_verification_command(task),
