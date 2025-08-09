@@ -79,5 +79,5 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 ENV PIPX_HOME=/root/.local/pipx
 ENV PIPX_BIN_DIR=/root/.local/bin
 
-# Default command
+# Default command (shows help, override when running)
 CMD ["python3", "-m", "pipeline", "--help"]

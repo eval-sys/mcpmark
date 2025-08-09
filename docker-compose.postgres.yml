@@ -1,7 +1,7 @@
 version: '3.8'
 
 # Standalone PostgreSQL service for postgres MCP tasks
-# Usage: docker-compose -f docker-compose.postgres.yml up -d
+# Usage: docker compose -f docker-compose.postgres.yml up -d
 
 services:
   postgres:

@@ -1,7 +1,7 @@
 version: '3.8'
 
 # Task runner configuration for non-postgres services
-# Usage: docker-compose -f docker-compose.task.yml run --rm mcp-task [ARGS]
+# Usage: docker compose -f docker-compose.task.yml run --rm mcp-task [ARGS]
 
 services:
   mcp-task:
