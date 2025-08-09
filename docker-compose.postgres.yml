@@ -1,0 +1,33 @@
+version: '3.8'
+
+# Standalone PostgreSQL service for postgres MCP tasks
+# Usage: docker-compose -f docker-compose.postgres.yml up -d
+
+services:
+  postgres:
+    image: ghcr.io/cloudnative-pg/postgresql:17-bookworm
+    container_name: mcp-postgres-standalone
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DATABASE: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+    volumes:
+      - postgres_standalone_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mcp-postgres-network
+
+networks:
+  mcp-postgres-network:
+    driver: bridge
+    name: mcp-postgres-network
+
+volumes:
+  postgres_standalone_data:
+    name: mcp-postgres-standalone-data

@@ -1,15 +1,55 @@
+version: '3.8'
+
 services:
+  # PostgreSQL database service
   postgres:
     image: ghcr.io/cloudnative-pg/postgresql:17-bookworm
+    container_name: mcp-postgres
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
       POSTGRES_DATABASE: postgres
-      POSTGRES_PASSWORD: '123456'
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
     volumes:
-      - ./.postgres/data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [CMD-SHELL, pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER]
+      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - mcp-network
+
+  # MCP Arena application
+  mcp-arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-arena
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Only set PostgreSQL host to point to the postgres container
+      # All other env vars will be loaded from .mcp_env file by Python
+      POSTGRES_HOST: postgres
+    volumes:
+      # Mount results directory
+      - ./results:/app/results
+      # Mount .mcp_env if it exists
+      - ./.mcp_env:/app/.mcp_env:ro
+      # Mount notion_state.json if it exists
+      - ./notion_state.json:/app/notion_state.json:ro
+    networks:
+      - mcp-network
+    stdin_open: true
+    tty: true
+    command: ["python3", "-m", "pipeline", "--help"]
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

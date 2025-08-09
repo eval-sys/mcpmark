@@ -65,15 +65,19 @@ COPY . .
 RUN python3 -m playwright install chromium
 
 # Install pipx (for running Python-based MCP servers)
-RUN pip install --no-cache-dir pipx
+RUN pip install --no-cache-dir pipx && \
+    pipx ensurepath
 
 # Create results directory
 RUN mkdir -p /app/results
 
 # Set environment
-ENV PATH="/root/.local/bin:${PATH}"
+# Include both Python user packages and pipx binaries in PATH
+ENV PATH="/root/.local/bin:/root/.local/pipx/venvs/*/bin:${PATH}"
 ENV PYTHONPATH="/app:${PYTHONPATH}"
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+ENV PIPX_HOME=/root/.local/pipx
+ENV PIPX_BIN_DIR=/root/.local/bin
 
 # Default command
 CMD ["python3", "-m", "pipeline", "--help"]
