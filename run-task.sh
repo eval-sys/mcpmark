@@ -5,6 +5,8 @@ set -e
 
 # Default values
 SERVICE="notion"
+NETWORK_NAME="mcp-network"
+POSTGRES_CONTAINER="mcp-postgres"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -38,32 +40,47 @@ if ! docker images mcp-arena:latest -q | grep -q .; then
     docker build -t mcp-arena:latest .
 fi
 
+# Create network if doesn't exist
+if ! docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
+    echo "Creating Docker network: $NETWORK_NAME"
+    docker network create $NETWORK_NAME
+fi
+
 # For postgres service, ensure PostgreSQL container is running
 if [ "$SERVICE" = "postgres" ]; then
-    if ! docker ps --format '{{.Names}}' | grep -q "^mcp-postgres$"; then
+    if ! docker ps --format '{{.Names}}' | grep -q "^${POSTGRES_CONTAINER}$"; then
         echo "Starting PostgreSQL container..."
         docker run -d \
-            --name mcp-postgres \
+            --name $POSTGRES_CONTAINER \
+            --network $NETWORK_NAME \
             -e POSTGRES_DATABASE=postgres \
             -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
-            -p 5432:5432 \
             ghcr.io/cloudnative-pg/postgresql:17-bookworm
         
         echo "Waiting for PostgreSQL to be ready..."
-        sleep 5
+        for i in {1..10}; do
+            if docker exec $POSTGRES_CONTAINER pg_isready -U postgres >/dev/null 2>&1; then
+                echo "PostgreSQL is ready!"
+                break
+            fi
+            sleep 1
+        done
+    else
+        echo "PostgreSQL container already running"
     fi
     
-    # Run with POSTGRES_HOST pointing to host machine
+    # Run task with network connection to postgres
     docker run --rm \
-        -e POSTGRES_HOST=host.docker.internal \
+        --network $NETWORK_NAME \
+        -e POSTGRES_HOST=$POSTGRES_CONTAINER \
         -v $(pwd)/results:/app/results \
         -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         mcp-arena:latest \
         python3 -m pipeline --service "$SERVICE" "$@"
 else
-    # For other services: just run the container
+    # For other services: just run the container (no network needed)
     docker run --rm \
         -v $(pwd)/results:/app/results \
         -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
@@ -71,3 +88,5 @@ else
         mcp-arena:latest \
         python3 -m pipeline --service "$SERVICE" "$@"
 fi
+
+echo "Task completed!"
