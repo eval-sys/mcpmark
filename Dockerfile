@@ -20,7 +20,7 @@ FROM python:3.11-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # PostgreSQL runtime library (required for psycopg2)
+    # PostgreSQL runtime library (only for postgres service, ~200KB)
     libpq5 \
     # Git (required for version control tasks)
     git \
