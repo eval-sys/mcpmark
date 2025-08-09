@@ -64,6 +64,9 @@ COPY . .
 # Install Playwright with chromium only (smaller than installing all browsers)
 RUN python3 -m playwright install chromium
 
+# Install pipx (for running Python-based MCP servers)
+RUN pip install --no-cache-dir pipx
+
 # Create results directory
 RUN mkdir -p /app/results
 
