@@ -1,0 +1,74 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files (contain secrets)
+.env
+.mcp_env
+notion_state.json
+
+# Test and development files
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Results and logs
+results/
+*.log
+logs/
+
+# PostgreSQL data
+.postgres/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Documentation images
+asset/
+
+# Temporary files
+*.tmp
+tmp/
+temp/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Node modules (if any locally installed)
+node_modules/
+
+# Pixi lock file
+pixi.lock
