@@ -38,16 +38,32 @@ if ! docker images mcp-arena:latest -q | grep -q .; then
     docker build -t mcp-arena:latest .
 fi
 
-# Run based on service type
+# For postgres service, ensure PostgreSQL container is running
 if [ "$SERVICE" = "postgres" ]; then
-    # For postgres: use docker-compose for both postgres and task
-    echo "Starting PostgreSQL and running task..."
-    docker compose run --rm \
-        mcp-arena \
-        python3 -m pipeline --service postgres "$@"
+    if ! docker ps --format '{{.Names}}' | grep -q "^mcp-postgres$"; then
+        echo "Starting PostgreSQL container..."
+        docker run -d \
+            --name mcp-postgres \
+            -e POSTGRES_DATABASE=postgres \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
+            -p 5432:5432 \
+            ghcr.io/cloudnative-pg/postgresql:17-bookworm
+        
+        echo "Waiting for PostgreSQL to be ready..."
+        sleep 5
+    fi
+    
+    # Run with POSTGRES_HOST pointing to host machine
+    docker run --rm \
+        -e POSTGRES_HOST=host.docker.internal \
+        -v $(pwd)/results:/app/results \
+        -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
+        $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
+        mcp-arena:latest \
+        python3 -m pipeline --service "$SERVICE" "$@"
 else
     # For other services: just run the container
-    echo "Running $SERVICE task..."
     docker run --rm \
         -v $(pwd)/results:/app/results \
         -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
