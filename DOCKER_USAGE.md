@@ -2,26 +2,26 @@
 
 ## Overview
 
-The MCP Arena Docker setup now supports efficient task execution with smart dependency management. Each task runs in an isolated container, and PostgreSQL is only started when needed.
+The MCP Arena Docker setup provides a simple way to run evaluation tasks in isolated containers. PostgreSQL is automatically handled when needed.
 
 ## Quick Start
 
 ### Using the Task Runner Script (Recommended)
 
-The `run-task.sh` script handles all Docker complexity for you:
+The `run-task.sh` script simplifies Docker usage:
 
 ```bash
-# Run notion tasks (no postgres needed)
+# Run notion tasks
 ./run-task.sh --service notion --models o3 --exp-name test-1 --tasks all
 
-# Run postgres tasks (automatically starts postgres)
+# Run postgres tasks (automatically starts postgres via docker-compose)
 ./run-task.sh --service postgres --models gpt-4 --exp-name pg-test --tasks basic_queries
 
 # Run specific GitHub task
 ./run-task.sh --service github --models claude-3 --exp-name gh-test --tasks harmony/fix_conflict
 
-# Force rebuild Docker image
-./run-task.sh --build --service notion --models o3 --exp-name test-2 --tasks all
+# The script passes all arguments to the pipeline
+./run-task.sh --service playwright --models o3 --exp-name web-test --tasks web_search --timeout 600
 ```
 
 ### Manual Docker Commands
@@ -78,17 +78,22 @@ docker stop mcp-postgres && docker rm mcp-postgres
 | playwright | No | Web automation tasks |
 | postgres | Yes | PostgreSQL database tasks |
 
-## Script Options
+## Script Usage
 
 ```
---service SERVICE    MCP service to use (default: notion)
---models MODELS     Comma-separated list of models (required)
---tasks TASKS       Tasks to run: "all", category, or "category/task" (default: all)
---exp-name NAME     Experiment name for results (required)
---timeout SECONDS   Timeout per task (default: 300)
---build            Force rebuild Docker image
---no-cleanup       Don't cleanup containers after completion
---help             Show help message
+./run-task.sh [--service SERVICE] [PIPELINE_ARGS]
+
+Options:
+    --service SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
+                        Default: notion
+    
+All other arguments are passed directly to the pipeline command.
+
+Pipeline arguments (see python3 -m pipeline --help):
+    --models MODELS     Comma-separated list of models (required)
+    --tasks TASKS       Tasks to run: "all", category, or "category/task"
+    --exp-name NAME     Experiment name for results (required)
+    --timeout SECONDS   Timeout per task in seconds
 ```
 
 ## Benefits
