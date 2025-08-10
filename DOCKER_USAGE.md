@@ -6,7 +6,14 @@ The MCP Arena Docker setup provides a simple way to run evaluation tasks in isol
 
 ## Quick Start
 
-### Using the Task Runner Script (Recommended)
+### 1. Build Docker Image
+
+First, build the Docker image:
+```bash
+./build-docker.sh
+```
+
+### 2. Using the Task Runner Script (Recommended)
 
 The `run-task.sh` script simplifies Docker usage:
 
@@ -14,7 +21,7 @@ The `run-task.sh` script simplifies Docker usage:
 # Run notion tasks
 ./run-task.sh --service notion --models o3 --exp-name test-1 --tasks all
 
-# Run postgres tasks (automatically starts postgres via docker-compose)
+# Run postgres tasks (automatically starts postgres)
 ./run-task.sh --service postgres --models gpt-4 --exp-name pg-test --tasks basic_queries
 
 # Run specific GitHub task
@@ -30,8 +37,8 @@ If you prefer manual control:
 
 #### For Non-Postgres Services
 ```bash
-# Build the image
-docker build -t mcp-arena:latest .
+# Build the image first
+./build-docker.sh
 
 # Run a task
 docker run --rm \

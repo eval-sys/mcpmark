@@ -34,10 +34,11 @@ EOF
     esac
 done
 
-# Build image if doesn't exist
+# Check if Docker image exists
 if ! docker images mcp-arena:latest -q | grep -q .; then
-    echo "Building Docker image..."
-    docker build -t mcp-arena:latest .
+    echo "Error: Docker image 'mcp-arena:latest' not found!"
+    echo "Please build it first by running: ./build-docker.sh"
+    exit 1
 fi
 
 # Create network if doesn't exist
