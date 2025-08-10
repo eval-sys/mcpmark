@@ -1,5 +1,5 @@
 # MCPBench Docker image with multi-stage build
-FROM python:3.11-slim as builder
+FROM python:3.12-slim as builder
 
 # Install build essentials for compiling Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt && \
     pip install --no-cache-dir --user -e .
 
 # Final stage
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
