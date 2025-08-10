@@ -209,6 +209,7 @@ class MCPAgent:
             if headless:
                 args.append("--headless")
             args.append("--isolated")
+            args.append("--no-sandbox")  # Required for Docker
             args.extend(["--browser", browser, "--viewport-size", f"{viewport_width},{viewport_height}"])
 
             return MCPServerStdio(
