@@ -76,7 +76,7 @@ RUN mkdir -p /app/results
 # Set environment
 # Include both Python user packages and pipx binaries in PATH
 ENV PATH="/root/.local/bin:/root/.local/pipx/venvs/*/bin:${PATH}"
-ENV PYTHONPATH="/app:${PYTHONPATH}"
+ENV PYTHONPATH="/app"
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 ENV PIPX_HOME=/root/.local/pipx
 ENV PIPX_BIN_DIR=/root/.local/bin

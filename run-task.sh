@@ -8,6 +8,20 @@ SERVICE="notion"
 NETWORK_NAME="mcp-network"
 POSTGRES_CONTAINER="mcp-postgres"
 
+# Cleanup function
+cleanup() {
+    if [ "$SERVICE" = "postgres" ]; then
+        if docker ps --format '{{.Names}}' | grep -q "^${POSTGRES_CONTAINER}$"; then
+            echo "Cleaning up PostgreSQL container..."
+            docker stop $POSTGRES_CONTAINER >/dev/null 2>&1 || true
+            docker rm $POSTGRES_CONTAINER >/dev/null 2>&1 || true
+        fi
+    fi
+}
+
+# Set up cleanup on exit
+trap cleanup EXIT
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -39,6 +53,11 @@ if ! docker images mcp-arena:latest -q | grep -q .; then
     echo "Error: Docker image 'mcp-arena:latest' not found!"
     echo "Please build it first by running: ./build-docker.sh"
     exit 1
+fi
+
+# Check if .mcp_env exists (warn but don't fail)
+if [ ! -f .mcp_env ]; then
+    echo "Warning: .mcp_env file not found. Some tasks may fail without API credentials."
 fi
 
 # Create network if doesn't exist
@@ -80,7 +99,7 @@ if [ "$SERVICE" = "postgres" ]; then
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
         -e POSTGRES_DATABASE=postgres \
         -v $(pwd)/results:/app/results \
-        -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
+        $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         mcp-arena:latest \
         python3 -m pipeline --service "$SERVICE" "$@"
@@ -88,7 +107,7 @@ else
     # For other services: just run the container (no network needed)
     docker run --rm \
         -v $(pwd)/results:/app/results \
-        -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
+        $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         mcp-arena:latest \
         python3 -m pipeline --service "$SERVICE" "$@"
