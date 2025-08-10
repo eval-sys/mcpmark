@@ -69,7 +69,7 @@ def main():
 
     # Load arguments and environment variables
     args = parser.parse_args()
-    load_dotenv(dotenv_path=".mcp_env", override=True)
+    load_dotenv(dotenv_path=".mcp_env", override=False)
 
     # Parse and validate models
     model_list = [m.strip() for m in args.models.split(",") if m.strip()]
