@@ -145,21 +145,15 @@ class FilesystemStateManager(BaseStateManager):
         
         base_test_path = Path(base_test_root)
         
-        # If task has a category, append it to the base path
-        if task.category:
-            self.test_root = base_test_path / task.category
-            logger.info(f"Setting test root to category-specific directory: {self.test_root}")
-        else:
-            # Use the base test environments directory
-            self.test_root = base_test_path
-            logger.info(f"Setting test root to base directory: {self.test_root}")
+        # Always use the desktop directory which contains the actual test data
+        # The tasks expect files that are located in the desktop test environment
+        self.test_root = base_test_path / "desktop"
+        logger.info(f"Setting test root to desktop directory (contains test data): {self.test_root}")
         
         # Ensure the directory exists
         if not self.test_root.exists():
-            logger.warning(f"Test directory does not exist: {self.test_root}")
-            # Create the directory if it doesn't exist
-            self.test_root.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created test directory: {self.test_root}")
+            logger.error(f"Test directory does not exist: {self.test_root}")
+            raise FileNotFoundError(f"Test environment not found at {self.test_root}. Please ensure test data is properly set up.")
 
     def clean_up(self, task: Optional[BaseTask] = None, **kwargs) -> bool:
         """
