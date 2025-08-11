@@ -13,7 +13,33 @@ First, build the Docker image:
 ./build-docker.sh
 ```
 
-### 2. Using the Task Runner Script (Recommended)
+### 2. Running Full Benchmarks
+
+Use the `run-benchmark.sh` script to evaluate models across all MCP services:
+
+```bash
+# Run all services with Docker (recommended)
+./run-benchmark.sh --models o3,gpt-4.1 --exp-name benchmark-1 --docker
+
+# Run specific services
+./run-benchmark.sh --models o3 --exp-name test-1 --services filesystem,postgres --docker
+
+# Run with parallel execution for faster results
+./run-benchmark.sh --models claude-4 --exp-name parallel-test --docker --parallel
+
+# Run locally without Docker
+./run-benchmark.sh --models gpt-4o --exp-name local-bench --services notion,github
+```
+
+The benchmark script:
+- Runs all or selected MCP services automatically
+- Provides colored progress tracking and timing
+- Generates summary reports and logs
+- Supports parallel service execution
+- Continues running even if some services fail
+- Automatically generates performance dashboards
+
+### 3. Running Individual Services
 
 The `run-task.sh` script simplifies Docker usage:
 
@@ -87,6 +113,25 @@ docker stop mcp-postgres && docker rm mcp-postgres
 
 ## Script Usage
 
+### Benchmark Runner (`run-benchmark.sh`)
+
+```
+./run-benchmark.sh --models MODELS --exp-name NAME [OPTIONS]
+
+Required Options:
+    --models MODELS      Comma-separated list of models to evaluate
+    --exp-name NAME     Experiment name for organizing results
+
+Optional Options:
+    --docker            Run tasks in Docker containers (recommended)
+    --services SERVICES Comma-separated list of services to test
+                        Default: filesystem,notion,github,postgres,playwright
+    --parallel          Run services in parallel (experimental)
+    --timeout SECONDS   Timeout per task in seconds (default: 300)
+```
+
+### Individual Task Runner (`run-task.sh`)
+
 ```
 ./run-task.sh [--service SERVICE] [PIPELINE_ARGS]
 
@@ -109,7 +154,10 @@ Pipeline arguments (see python3 -m pipeline --help):
 2. **Isolation**: Each task runs in a fresh container
 3. **Resource Management**: Automatic cleanup of containers and networks
 4. **Smart Dependencies**: PostgreSQL only starts for postgres service
-5. **Parallel Support**: Can run multiple non-postgres tasks simultaneously
+5. **Parallel Support**: Can run multiple services simultaneously for faster benchmarks
+6. **Comprehensive Testing**: Benchmark script runs all services with one command
+7. **Progress Tracking**: Colored output with timing and status information
+8. **Automatic Reporting**: Generates summary reports and performance dashboards
 
 ## Troubleshooting
 
