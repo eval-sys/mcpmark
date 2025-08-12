@@ -10,6 +10,7 @@ scripts
 .nfs*
 .mcp_env
 .idea
+github_cc/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
