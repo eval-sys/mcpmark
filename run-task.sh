@@ -9,6 +9,10 @@ SERVICE="notion"
 NETWORK_NAME="mcp-network"
 POSTGRES_CONTAINER="mcp-postgres"
 
+# Resource limits (can be overridden by environment variables)
+DOCKER_MEMORY_LIMIT="${DOCKER_MEMORY_LIMIT:-4g}"
+DOCKER_CPU_LIMIT="${DOCKER_CPU_LIMIT:-2}"
+
 # Cleanup function
 cleanup() {
     if [ "${SERVICE:-}" = "postgres" ]; then
@@ -36,6 +40,10 @@ Run MCP Arena tasks in Docker containers.
 Options:
     --service SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
                         Default: notion
+    
+Environment Variables:
+    DOCKER_MEMORY_LIMIT  Memory limit for container (default: 4g)
+    DOCKER_CPU_LIMIT     CPU limit for container (default: 2)
     
 All other arguments are passed directly to the pipeline.
 
@@ -94,8 +102,10 @@ if [ "$SERVICE" = "postgres" ]; then
         echo "PostgreSQL container already running"
     fi
     
-    # Run task with network connection to postgres
+    # Run task with network connection to postgres and resource limits
     docker run --rm \
+        --memory="$DOCKER_MEMORY_LIMIT" \
+        --cpus="$DOCKER_CPU_LIMIT" \
         --network "$NETWORK_NAME" \
         -e POSTGRES_HOST="$POSTGRES_CONTAINER" \
         -e POSTGRES_PORT=5432 \
@@ -108,8 +118,10 @@ if [ "$SERVICE" = "postgres" ]; then
         mcp-arena:latest \
         python3 -m pipeline --service "$SERVICE" "$@"
 else
-    # For other services: just run the container (no network needed)
+    # For other services: run container with resource limits (no network needed)
     docker run --rm \
+        --memory="$DOCKER_MEMORY_LIMIT" \
+        --cpus="$DOCKER_CPU_LIMIT" \
         -v "$(pwd)/results:/app/results" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
