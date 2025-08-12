@@ -174,16 +174,21 @@ echo ""
 RESULTS_DIR="./results/${EXP_NAME}"
 mkdir -p "$RESULTS_DIR"
 
-# Log file for this run
-LOG_FILE="${RESULTS_DIR}/benchmark.log"
-echo "Benchmark started at $(date)" > "$LOG_FILE"
+# Log file for this run with timestamp and models
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+LOG_FILE="${RESULTS_DIR}/benchmark_${TIMESTAMP}.log"
+echo "Benchmark started at $(date '+%Y-%m-%d %H:%M:%S')" > "$LOG_FILE"
+echo "Models: $MODELS" >> "$LOG_FILE"
+echo "Services: ${SERVICE_ARRAY[*]}" >> "$LOG_FILE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >> "$LOG_FILE"
 
 # Function to run a single service
 run_service() {
     local service=$1
     local start_time=$(date +%s)
+    local start_time_formatted=$(date '+%Y-%m-%d %H:%M:%S')
     
-    print_status "Running $service tasks..."
+    print_status "[$start_time_formatted] Starting $service tasks..."
     
     if [ "$USE_DOCKER" = true ]; then
         # Run with Docker
@@ -208,10 +213,10 @@ run_service() {
     
     if [ $exit_code -eq 0 ]; then
         print_success "$service completed in ${duration}s"
-        echo "$service: SUCCESS (${duration}s)" >> "${RESULTS_DIR}/summary.txt"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] $service: SUCCESS (${duration}s)" >> "${RESULTS_DIR}/summary.txt"
     else
         print_error "$service failed with exit code $exit_code"
-        echo "$service: FAILED (exit code $exit_code)" >> "${RESULTS_DIR}/summary.txt"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] $service: FAILED (exit code $exit_code)" >> "${RESULTS_DIR}/summary.txt"
     fi
     
     return $exit_code
@@ -265,11 +270,13 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 print_status "Benchmark Summary"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Completed at:      $(date '+%Y-%m-%d %H:%M:%S')"
 echo "Total Services:    $TOTAL_SERVICES"
 echo "Completed:         $COMPLETED_SERVICES"
 echo "Failed:            $FAILED_SERVICES"
-echo "Total Duration:    ${TOTAL_DURATION}s"
+echo "Total Duration:    ${TOTAL_DURATION}s ($(($TOTAL_DURATION / 60))m $(($TOTAL_DURATION % 60))s)"
 echo "Results saved to:  $RESULTS_DIR"
+echo "Log file:          $LOG_FILE"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Check if results parser is available and generate dashboard
