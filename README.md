@@ -69,8 +69,18 @@ You only need to set the variables for the model providers you plan to use. Curr
 
 ## 3 · Installation
 
+### Option A: Local Installation
 ```bash
 pip install -e .
+```
+
+### Option B: Docker (Recommended)
+```bash
+# Build Docker image
+./build-docker.sh
+
+# Run with Docker
+./run-task.sh --service notion --models o3 --exp-name run-1 --tasks all
 ```
 
 ## 4 · Authenticate with Your MCP Service
@@ -84,6 +94,7 @@ The verification script will tell you which browser is working properly. The pip
 
 ## 5 · Run the Evaluation
 
+### Using Local Installation
 ```bash
 # Evaluate ALL 20 tasks
 python -m pipeline --exp-name run-1 --service notion --tasks all --models o3
@@ -96,6 +107,15 @@ python -m pipeline --exp-name run-1 --service notion --tasks online_resume/task_
 
 # Evaluate multiple models
 python -m pipeline --exp-name run-1 --service notion --tasks all --models o3,gpt-4.1,claude-4-sonnet
+```
+
+### Using Docker
+```bash
+# Run all tasks for a service
+./run-task.sh --service notion --models o3 --exp-name run-1 --tasks all
+
+# Run comprehensive benchmark across all services
+./run-benchmark.sh --models o3,gpt-4.1 --exp-name benchmark-1 --docker
 ```
 
 **Auto-resume is supported:** When you rerun an evaluation command, only unfinished tasks will be executed. Tasks that previously failed due to pipeline errors (such as `State Duplication Error` or `MCP Network Error`) will also be retried automatically.
