@@ -121,12 +121,16 @@ if [ "$USE_DOCKER" = true ]; then
         exit 1
     fi
     
-    # Check if Docker image exists
-    if ! docker images mcp-arena:latest -q | grep -q .; then
-        print_warning "Docker image 'mcp-arena:latest' not found"
-        echo "Building Docker image..."
-        ./build-docker.sh || {
-            print_error "Failed to build Docker image"
+    # Check if Docker image exists (try both tags)
+    if ! docker images mcpmark:latest -q | grep -q . && ! docker images evalsysorg/mcpmark:latest -q | grep -q .; then
+        print_warning "Docker image 'mcpmark:latest' not found"
+        echo "You can either:"
+        echo "  1. Build locally: ./build-docker.sh"
+        echo "  2. Pull from Docker Hub: docker pull evalsysorg/mcpmark:latest"
+        echo ""
+        echo "Attempting to pull from Docker Hub..."
+        docker pull evalsysorg/mcpmark:latest || {
+            print_error "Failed to pull Docker image. Please build locally with ./build-docker.sh"
             exit 1
         }
     fi

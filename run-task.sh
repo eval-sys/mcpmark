@@ -57,11 +57,19 @@ EOF
     esac
 done
 
-# Check if Docker image exists
-if ! docker images mcp-arena:latest -q | grep -q .; then
-    echo "Error: Docker image 'mcp-arena:latest' not found!"
+# Check if Docker image exists (try both tags)
+if ! docker images mcpmark:latest -q | grep -q . && ! docker images evalsysorg/mcpmark:latest -q | grep -q .; then
+    echo "Error: Docker image 'mcpmark:latest' not found!"
     echo "Please build it first by running: ./build-docker.sh"
+    echo "Or pull from Docker Hub: docker pull evalsysorg/mcpmark:latest"
     exit 1
+fi
+
+# Use local tag if available, otherwise use Docker Hub tag
+if docker images mcpmark:latest -q | grep -q .; then
+    DOCKER_IMAGE="mcpmark:latest"
+else
+    DOCKER_IMAGE="evalsysorg/mcpmark:latest"
 fi
 
 # Check if .mcp_env exists (warn but don't fail)
@@ -115,7 +123,7 @@ if [ "$SERVICE" = "postgres" ]; then
         -v "$(pwd)/results:/app/results" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
-        mcp-arena:latest \
+        "$DOCKER_IMAGE" \
         python3 -m pipeline --service "$SERVICE" "$@"
 else
     # For other services: run container with resource limits (no network needed)
@@ -125,7 +133,7 @@ else
         -v "$(pwd)/results:/app/results" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
-        mcp-arena:latest \
+        "$DOCKER_IMAGE" \
         python3 -m pipeline --service "$SERVICE" "$@"
 fi
 

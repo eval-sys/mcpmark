@@ -6,9 +6,14 @@ The MCP Arena Docker setup provides a simple way to run evaluation tasks in isol
 
 ## Quick Start
 
-### 1. Build Docker Image
+### 1. Get Docker Image
 
-First, build the Docker image:
+**Option A: Pull from Docker Hub (recommended):**
+```bash
+docker pull evalsysorg/mcpmark:latest
+```
+
+**Option B: Build locally:**
 ```bash
 ./build-docker.sh
 ```
