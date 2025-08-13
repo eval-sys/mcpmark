@@ -6,15 +6,20 @@ Simple Error Handling for MCPMark
 Provides basic error standardization and retry logic.
 """
 
-from typing import Optional, Set
+from typing import Optional
 
 
 # Retryable error patterns
 RETRYABLE_PATTERNS = {
-    "timeout", "timed out", "etimedout",
-    "econnrefused", "connection refused",
-    "network error", "mcp network error",
-    "state duplication error", "already exists"
+    "timeout",
+    "timed out",
+    "etimedout",
+    "econnrefused",
+    "connection refused",
+    "network error",
+    "mcp network error",
+    "state duplication error",
+    "already exists",
 }
 
 
@@ -24,14 +29,16 @@ def is_retryable_error(error: str) -> bool:
     return any(pattern in error_lower for pattern in RETRYABLE_PATTERNS)
 
 
-def standardize_error_message(error: str, service: Optional[str] = None) -> str:
+def standardize_error_message(error: str, mcp_service: Optional[str] = None) -> str:
     """Standardize error messages for consistent reporting."""
     error_str = str(error).strip()
-    
+
     # Common standardizations
     if "timeout" in error_str.lower():
         base_msg = "Operation timed out"
-    elif "connection refused" in error_str.lower() or "econnrefused" in error_str.lower():
+    elif (
+        "connection refused" in error_str.lower() or "econnrefused" in error_str.lower()
+    ):
         base_msg = "Connection refused"
     elif "authentication" in error_str.lower() or "unauthorized" in error_str.lower():
         base_msg = "Authentication failed"
@@ -44,11 +51,11 @@ def standardize_error_message(error: str, service: Optional[str] = None) -> str:
     else:
         # Return original message if no standardization applies
         return error_str
-    
-    # Add service prefix if provided
-    if service:
-        return f"{service.title()} {base_msg}"
-    
+
+    # Add MCP service prefix if provided
+    if mcp_service:
+        return f"{mcp_service.title()} {base_msg}"
+
     return base_msg
 
 

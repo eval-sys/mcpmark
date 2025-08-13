@@ -22,7 +22,9 @@ def _get_main_page_id(notion: Client, main_id: str | None) -> str | None:
     return notion_utils.find_page(notion, "It Trouble Shooting Hub")
 
 
-def _fetch_database_id(notion: Client, parent_page_id: str, db_title: str) -> str | None:
+def _fetch_database_id(
+    notion: Client, parent_page_id: str, db_title: str
+) -> str | None:
     """Locate a child database by title inside a given page."""
     return notion_utils.find_database_in_block(notion, parent_page_id, db_title)
 
@@ -48,7 +50,9 @@ def _expired_pages(notion: Client, db_id: str) -> list[dict]:
 
 def _check_callout_present(notion: Client, page_id: str) -> bool:
     """Verify the specified callout is the first child block of the page."""
-    children = notion.blocks.children.list(block_id=page_id, page_size=1).get("results", [])
+    children = notion.blocks.children.list(block_id=page_id, page_size=1).get(
+        "results", []
+    )
     if not children:
         return False
     first_block = children[0]
@@ -74,10 +78,7 @@ def _find_request_page(notion: Client, db_id: str) -> dict | None:
     # Use a simple search inside database
     res = notion.databases.query(
         database_id=db_id,
-        filter={
-            "property": "Task name",
-            "title": {"equals": REQUEST_TITLE}
-        }
+        filter={"property": "Task name", "title": {"equals": REQUEST_TITLE}},
     ).get("results", [])
     return res[0] if res else None
 
@@ -85,12 +86,20 @@ def _find_request_page(notion: Client, db_id: str) -> dict | None:
 def _check_request_properties(page: dict) -> bool:
     props = page.get("properties", {})
     priority = props.get("Priority", {}).get("select", {}).get("name")
-    status = props.get("Status", {}).get("status", {}).get("name") if props.get("Status", {}).get("status") else props.get("Status", {}).get("select", {}).get("name")
+    status = (
+        props.get("Status", {}).get("status", {}).get("name")
+        if props.get("Status", {}).get("status")
+        else props.get("Status", {}).get("select", {}).get("name")
+    )
     return priority == PRIORITY_HIGH and status == STATUS_IN_PROGRESS
 
 
-def _request_page_contains_mentions(notion: Client, request_page_id: str, expected_page_ids: list[str]) -> bool:
-    children = notion.blocks.children.list(block_id=request_page_id, page_size=100).get("results", [])
+def _request_page_contains_mentions(
+    notion: Client, request_page_id: str, expected_page_ids: list[str]
+) -> bool:
+    children = notion.blocks.children.list(block_id=request_page_id, page_size=100).get(
+        "results", []
+    )
     bullet_blocks = [b for b in children if b.get("type") == "bulleted_list_item"]
     mentioned_ids: set[str] = set()
     for block in bullet_blocks:
@@ -108,33 +117,46 @@ def _request_page_contains_mentions(notion: Client, request_page_id: str, expect
 def verify(notion: Client, main_id: str | None = None) -> bool:
     main_page_id = _get_main_page_id(notion, main_id)
     if not main_page_id:
-        print("Error: Could not locate the main page 'It Trouble Shooting Hub'.", file=sys.stderr)
+        print(
+            "Error: Could not locate the main page 'It Trouble Shooting Hub'.",
+            file=sys.stderr,
+        )
         return False
 
     # Locate required databases
     it_home_db_id = _fetch_database_id(notion, main_page_id, IT_HOMEPAGE_DB_TITLE)
     it_req_db_id = _fetch_database_id(notion, main_page_id, IT_REQUESTS_DB_TITLE)
     if not all([it_home_db_id, it_req_db_id]):
-        print("Error: Required databases not found under the main page.", file=sys.stderr)
+        print(
+            "Error: Required databases not found under the main page.", file=sys.stderr
+        )
         return False
 
     # Identify expired pages
     expired_pages = _expired_pages(notion, it_home_db_id)
     if not expired_pages:
-        print("Failure: No expired pages found; expected at least one for this task.", file=sys.stderr)
+        print(
+            "Failure: No expired pages found; expected at least one for this task.",
+            file=sys.stderr,
+        )
         return False
 
     # Verify callout on each expired page
     for pg in expired_pages:
         pid = pg["id"]
         if not _check_callout_present(notion, pid):
-            print(f"Failure: Callout missing or incorrect on page {pid}.", file=sys.stderr)
+            print(
+                f"Failure: Callout missing or incorrect on page {pid}.", file=sys.stderr
+            )
             return False
 
     # Verify IT Request entry
     request_page = _find_request_page(notion, it_req_db_id)
     if not request_page:
-        print("Failure: IT Request 'Batch Verification Update Required' not found.", file=sys.stderr)
+        print(
+            "Failure: IT Request 'Batch Verification Update Required' not found.",
+            file=sys.stderr,
+        )
         return False
     if not _check_request_properties(request_page):
         print("Failure: Priority or Status incorrect on IT Request.", file=sys.stderr)
@@ -148,8 +170,13 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
         if title_text:
             expired_titles.append(title_text)
     expected_page_ids = [p["id"] for p in expired_pages]
-    if not _request_page_contains_mentions(notion, request_page["id"], expected_page_ids):
-        print("Failure: IT Request body does not contain mentions for all affected pages.", file=sys.stderr)
+    if not _request_page_contains_mentions(
+        notion, request_page["id"], expected_page_ids
+    ):
+        print(
+            "Failure: IT Request body does not contain mentions for all affected pages.",
+            file=sys.stderr,
+        )
         return False
 
     print("Success: All verification checks passed.")
@@ -165,4 +192,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

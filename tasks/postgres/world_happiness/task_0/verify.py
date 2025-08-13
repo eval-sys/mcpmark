@@ -5,8 +5,7 @@ Verification script for PostgreSQL Task 1: Employee Query
 import os
 import sys
 import psycopg2
-from typing import List, Tuple
-from decimal import Decimal
+
 
 def get_connection_params() -> dict:
     """Get database connection parameters."""
@@ -15,8 +14,9 @@ def get_connection_params() -> dict:
         "port": int(os.getenv("POSTGRES_PORT", 5432)),
         "database": os.getenv("POSTGRES_DATABASE"),
         "user": os.getenv("POSTGRES_USERNAME"),
-        "password": os.getenv("POSTGRES_PASSWORD")
+        "password": os.getenv("POSTGRES_PASSWORD"),
     }
+
 
 def verify_query_results(conn) -> bool:
     """Verify the query was executed correctly."""
@@ -31,19 +31,19 @@ def verify_query_results(conn) -> bool:
 
         # Expected results
         expected = [
-            ('Guatemala', 6.44, 0.80),
-            ('El Salvador', 6.25, 0.79),
-            ('Uzbekistan', 6.17, 0.75),
-            ('Nicaragua', 6.11, 0.69),
-            ('Kosovo', 6.10, 0.88),
-            ('Jamaica', 5.89, 0.83),
-            ('Honduras', 5.86, 0.64),
-            ('Bolivia', 5.78, 0.78),
-            ('Paraguay', 5.74, 0.86),
-            ('Pakistan', 5.65, 0.68),
-            ('Philippines', 5.63, 0.81),
-            ('Moldova', 5.53, 0.69),
-            ('Tajikistan', 5.47, 0.49)
+            ("Guatemala", 6.44, 0.80),
+            ("El Salvador", 6.25, 0.79),
+            ("Uzbekistan", 6.17, 0.75),
+            ("Nicaragua", 6.11, 0.69),
+            ("Kosovo", 6.10, 0.88),
+            ("Jamaica", 5.89, 0.83),
+            ("Honduras", 5.86, 0.64),
+            ("Bolivia", 5.78, 0.78),
+            ("Paraguay", 5.74, 0.86),
+            ("Pakistan", 5.65, 0.68),
+            ("Philippines", 5.63, 0.81),
+            ("Moldova", 5.53, 0.69),
+            ("Tajikistan", 5.47, 0.49),
         ]
 
         if len(results) != len(expected):
@@ -51,12 +51,17 @@ def verify_query_results(conn) -> bool:
             return False
 
         for i, (actual, exp) in enumerate(zip(results, expected)):
-            if actual[0] != exp[0] or float(actual[1]) != exp[1] or float(actual[2]) != exp[2]:
-                print(f"❌ Row {i+1} mismatch: expected {exp}, got {actual}")
+            if (
+                actual[0] != exp[0]
+                or float(actual[1]) != exp[1]
+                or float(actual[2]) != exp[2]
+            ):
+                print(f"❌ Row {i + 1} mismatch: expected {exp}, got {actual}")
                 return False
 
         print("✅ Query results are correct")
         return True
+
 
 def main():
     """Main verification function."""
@@ -91,6 +96,7 @@ def main():
     except Exception as e:
         print(f"❌ Verification error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

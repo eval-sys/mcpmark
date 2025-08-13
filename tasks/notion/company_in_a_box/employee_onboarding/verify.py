@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, List, Set
+from typing import Dict, Set
 from notion_client import Client
 from tasks.utils import notion_utils
 
@@ -8,7 +8,9 @@ def _check_db_schema(db_props: Dict[str, Dict], required: Dict[str, str]) -> boo
     """Return True if every required property exists with the correct type."""
     for prop_name, expected_type in required.items():
         if prop_name not in db_props:
-            print(f"Error: Property '{prop_name}' missing from database.", file=sys.stderr)
+            print(
+                f"Error: Property '{prop_name}' missing from database.", file=sys.stderr
+            )
             return False
         actual_type = db_props[prop_name]["type"]
         if actual_type != expected_type:
@@ -25,7 +27,13 @@ def verify(notion: Client, main_id: str | None = None) -> bool:  # noqa: C901
 
     DB_TITLE = "Employee Onboarding Checklist"
     HUB_PAGE_TITLE = "Onboarding Hub"
-    DEPARTMENT_OPTIONS: Set[str] = {"Product", "Marketing", "Sales", "HR", "Engineering"}
+    DEPARTMENT_OPTIONS: Set[str] = {
+        "Product",
+        "Marketing",
+        "Sales",
+        "HR",
+        "Engineering",
+    }
     REQUIRED_DB_PROPERTIES = {
         "Employee Name": "title",
         "Start Date": "date",
@@ -64,7 +72,10 @@ def verify(notion: Client, main_id: str | None = None) -> bool:  # noqa: C901
         print(f"Error querying database: {exc}", file=sys.stderr)
         return False
     if len(db_pages) < 3:
-        print("Error: Less than 3 onboarding entries found in the database.", file=sys.stderr)
+        print(
+            "Error: Less than 3 onboarding entries found in the database.",
+            file=sys.stderr,
+        )
         return False
 
     # 2. Locate Onboarding Hub page
@@ -101,13 +112,20 @@ def verify(notion: Client, main_id: str | None = None) -> bool:  # noqa: C901
             continue
 
         # Rich-text mentions inside content blocks
-        if blk_type in {"paragraph", "numbered_list_item", "bulleted_list_item", "to_do"}:
+        if blk_type in {
+            "paragraph",
+            "numbered_list_item",
+            "bulleted_list_item",
+            "to_do",
+        }:
             content = blk.get(blk_type, {})
             for rt in content.get("rich_text", []):
                 if rt.get("type") == "mention":
                     mention = rt.get("mention", {})
                     if mention.get("type") in {"page", "database"}:
-                        target_id = mention.get("page", {}).get("id") or mention.get("database", {}).get("id")
+                        target_id = mention.get("page", {}).get("id") or mention.get(
+                            "database", {}
+                        ).get("id")
                         if target_id:
                             seen_link_targets.add(target_id)
 
@@ -127,14 +145,22 @@ def verify(notion: Client, main_id: str | None = None) -> bool:  # noqa: C901
         return False
 
     if numbered_list_count < 7:
-        print("Error: Numbered list contains fewer than 7 steps in the 30-Day Timeline section.", file=sys.stderr)
+        print(
+            "Error: Numbered list contains fewer than 7 steps in the 30-Day Timeline section.",
+            file=sys.stderr,
+        )
         return False
 
     if todo_count < 3:
-        print("Error: Feedback Form section contains fewer than 3 to-do items.", file=sys.stderr)
+        print(
+            "Error: Feedback Form section contains fewer than 3 to-do items.",
+            file=sys.stderr,
+        )
         return False
 
-    print("Success: Verified Employee Onboarding Checklist database, Onboarding Hub page, and all required sections.")
+    print(
+        "Success: Verified Employee Onboarding Checklist database, Onboarding Hub page, and all required sections."
+    )
     return True
 
 
@@ -148,4 +174,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

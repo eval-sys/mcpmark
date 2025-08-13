@@ -27,7 +27,7 @@ from agents import (
     OpenAIChatCompletionsModel,
     RunConfig,
     Runner,
-    set_tracing_export_api_key,
+    set_tracing_disabled,
 )
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseTextDeltaEvent
@@ -44,7 +44,9 @@ from src.logger import get_logger
 # Initialize logger
 logger = get_logger(__name__)
 import nest_asyncio
+
 nest_asyncio.apply()
+
 
 class MCPAgent:
     """
@@ -61,7 +63,7 @@ class MCPAgent:
         model_name: str,
         api_key: str,
         base_url: str,
-        service: str,
+        mcp_service: str,
         agent_framework: str = "openai_agents",
         timeout: int = 600,
         max_retries: int = 3,
@@ -76,7 +78,7 @@ class MCPAgent:
             model_name: Name of the LLM model to use
             api_key: API key for the model provider
             base_url: Base URL for the model provider
-            service: MCP service type (notion, github, postgres)
+            mcp_service: MCP service type (notion, github, postgres)
             agent_framework: Agent framework to use (default: openai_agents)
             timeout: Execution timeout in seconds
             max_retries: Maximum number of retries for transient errors
@@ -85,7 +87,7 @@ class MCPAgent:
         self.model_name = model_name
         self.api_key = api_key
         self.base_url = base_url
-        self.service = service
+        self.mcp_service = mcp_service
         self.agent_framework = agent_framework
         self.timeout = timeout
         self.max_retries = max_retries
@@ -109,8 +111,11 @@ class MCPAgent:
             "failed_executions": 0,
         }
 
-        logger.debug(f"Initialized MCPAgent for service '{service}' with model '{model_name}'")
-        set_tracing_export_api_key(os.getenv("OPENAI_TRACE_API_KEY"))
+        logger.debug(
+            f"Initialized MCPAgent for mcp service '{mcp_service}' with model '{model_name}'"
+        )
+        # Disable tracing to avoid warnings and unnecessary uploads
+        set_tracing_disabled(True)
 
     def _create_model_provider(self) -> ModelProvider:
         """Create and return a model provider for the specified model."""
@@ -142,10 +147,12 @@ class MCPAgent:
 
         cfg = self.service_config  # shorthand
 
-        if self.service == "notion":
+        if self.mcp_service == "notion":
             notion_key = cfg.get("notion_key")
             if not notion_key:
-                raise ValueError("Notion API key (notion_key) is required for Notion MCP server")
+                raise ValueError(
+                    "Notion API key (notion_key) is required for Notion MCP server"
+                )
 
             return MCPServerStdio(
                 params={
@@ -162,10 +169,12 @@ class MCPAgent:
                 cache_tools_list=True,
             )
 
-        elif self.service == "github":
+        elif self.mcp_service == "github":
             github_token = cfg.get("github_token")
             if not github_token:
-                raise ValueError("GitHub token (github_token) is required for GitHub MCP server")
+                raise ValueError(
+                    "GitHub token (github_token) is required for GitHub MCP server"
+                )
 
             params = MCPServerStreamableHttpParams(
                 url="https://api.githubcopilot.com/mcp/",
@@ -183,22 +192,28 @@ class MCPAgent:
                 client_session_timeout_seconds=120,
             )
 
-        elif self.service == "filesystem":
+        elif self.mcp_service == "filesystem":
             # Filesystem MCP server
             test_directory = cfg.get("test_directory")
             if not test_directory:
-                raise ValueError("filesystem service requires 'test_directory' in service_config")
+                raise ValueError(
+                    "filesystem service requires 'test_directory' in service_config"
+                )
 
             return MCPServerStdio(
                 params={
                     "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-filesystem", str(test_directory)],
+                    "args": [
+                        "-y",
+                        "@modelcontextprotocol/server-filesystem",
+                        str(test_directory),
+                    ],
                 },
                 client_session_timeout_seconds=120,
                 cache_tools_list=True,
             )
 
-        elif self.service == "playwright":
+        elif self.mcp_service == "playwright":
             # Playwright MCP server
             browser = cfg.get("browser", "chromium")
             headless = cfg.get("headless", True)
@@ -210,7 +225,14 @@ class MCPAgent:
                 args.append("--headless")
             args.append("--isolated")
             args.append("--no-sandbox")  # Required for Docker
-            args.extend(["--browser", browser, "--viewport-size", f"{viewport_width},{viewport_height}"])
+            args.extend(
+                [
+                    "--browser",
+                    browser,
+                    "--viewport-size",
+                    f"{viewport_width},{viewport_height}",
+                ]
+            )
 
             return MCPServerStdio(
                 params={
@@ -221,7 +243,7 @@ class MCPAgent:
                 cache_tools_list=True,
             )
 
-        elif self.service == "playwright_webarena":
+        elif self.mcp_service == "playwright_webarena":
             # Playwright WebArena MCP server (same as playwright but with base_url support)
             browser = cfg.get("browser", "chromium")
             headless = cfg.get("headless", True)
@@ -232,7 +254,14 @@ class MCPAgent:
             if headless:
                 args.append("--headless")
             args.append("--isolated")
-            args.extend(["--browser", browser, "--viewport-size", f"{viewport_width},{viewport_height}"])
+            args.extend(
+                [
+                    "--browser",
+                    browser,
+                    "--viewport-size",
+                    f"{viewport_width},{viewport_height}",
+                ]
+            )
 
             return MCPServerStdio(
                 params={
@@ -243,7 +272,7 @@ class MCPAgent:
                 cache_tools_list=True,
             )
 
-        elif self.service == "postgres":
+        elif self.mcp_service == "postgres":
             host = cfg.get("host", "localhost")
             port = cfg.get("port", 5432)
             username = cfg.get("username")
@@ -252,9 +281,13 @@ class MCPAgent:
             database = cfg.get("current_database") or cfg.get("database")
 
             if not all([username, password, database]):
-                raise ValueError("PostgreSQL service requires username, password, and database in service_config")
+                raise ValueError(
+                    "PostgreSQL service requires username, password, and database in service_config"
+                )
 
-            database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+            database_url = (
+                f"postgresql://{username}:{password}@{host}:{port}/{database}"
+            )
 
             return MCPServerStdio(
                 params={
@@ -269,7 +302,7 @@ class MCPAgent:
             )
 
         else:
-            raise ValueError(f"Unsupported service: {self.service}")
+            raise ValueError(f"Unsupported MCP service: {self.mcp_service}")
 
     async def _execute_with_streaming(self, instruction: str) -> Dict[str, Any]:
         """
@@ -291,7 +324,9 @@ class MCPAgent:
             # Create MCP server
             async with await self._create_mcp_server() as server:
                 # Create agent
-                agent = Agent(name=f"{self.service.title()} Agent", mcp_servers=[server])
+                agent = Agent(
+                    name=f"{self.mcp_service.title()} Agent", mcp_servers=[server]
+                )
 
                 # Configure model settings
                 ModelSettings.tool_choice = "required"
@@ -329,9 +364,18 @@ class MCPAgent:
                                 print(delta_text, end="", flush=True)
 
                         elif event.type == "run_item_stream_event":
-                            if hasattr(event, "item") and getattr(event.item, "type", "") == "tool_call_item":
-                                tool_name = getattr(getattr(event.item, "raw_item", None), "name", "Unknown")
-                                logger.info(f"\n-- Calling {self.service.title()} Tool: {tool_name}...")
+                            if (
+                                hasattr(event, "item")
+                                and getattr(event.item, "type", "") == "tool_call_item"
+                            ):
+                                tool_name = getattr(
+                                    getattr(event.item, "raw_item", None),
+                                    "name",
+                                    "Unknown",
+                                )
+                                logger.info(
+                                    f"\n-- Calling {self.mcp_service.title()} Tool: {tool_name}..."
+                                )
 
                 # Extract token usage from raw responses
                 token_usage = {}
@@ -367,8 +411,12 @@ class MCPAgent:
                 execution_time = time.time() - start_time
 
                 # Update usage statistics
-                self._usage_stats["total_input_tokens"] += token_usage.get("input_tokens", 0)
-                self._usage_stats["total_output_tokens"] += token_usage.get("output_tokens", 0)
+                self._usage_stats["total_input_tokens"] += token_usage.get(
+                    "input_tokens", 0
+                )
+                self._usage_stats["total_output_tokens"] += token_usage.get(
+                    "output_tokens", 0
+                )
                 self._usage_stats["total_tokens"] += token_usage.get("total_tokens", 0)
                 self._usage_stats["total_turns"] += turn_count or 0
                 self._usage_stats["total_execution_time"] += execution_time
@@ -419,8 +467,7 @@ class MCPAgent:
             # Merge default config with any overrides supplied at call time
 
             result = await asyncio.wait_for(
-                self._execute_with_streaming(instruction),
-                timeout=self.timeout
+                self._execute_with_streaming(instruction), timeout=self.timeout
             )
 
             # Success - return immediately
@@ -428,9 +475,15 @@ class MCPAgent:
                 return result
 
             # Standardize error message
-            from src.errors import standardize_error_message, is_retryable_error, get_retry_delay
+            from src.errors import (
+                standardize_error_message,
+                is_retryable_error,
+                get_retry_delay,
+            )
 
-            error_msg = standardize_error_message(result["error"] or "Unknown error", service=self.service)
+            error_msg = standardize_error_message(
+                result["error"] or "Unknown error", mcp_service=self.mcp_service
+            )
             result["error"] = error_msg
 
             if is_retryable_error(result["error"]) and attempt < self.max_retries:
@@ -488,17 +541,23 @@ class MCPAgent:
             stats["avg_output_tokens"] = stats["total_output_tokens"] / total_executions
             stats["avg_total_tokens"] = stats["total_tokens"] / total_executions
             stats["avg_turns"] = stats["total_turns"] / total_executions
-            stats["avg_execution_time"] = stats["total_execution_time"] / total_executions
-            stats["success_rate"] = stats["successful_executions"] / total_executions * 100
+            stats["avg_execution_time"] = (
+                stats["total_execution_time"] / total_executions
+            )
+            stats["success_rate"] = (
+                stats["successful_executions"] / total_executions * 100
+            )
         else:
-            stats.update({
-                "avg_input_tokens": 0.0,
-                "avg_output_tokens": 0.0,
-                "avg_total_tokens": 0.0,
-                "avg_turns": 0.0,
-                "avg_execution_time": 0.0,
-                "success_rate": 0.0,
-            })
+            stats.update(
+                {
+                    "avg_input_tokens": 0.0,
+                    "avg_output_tokens": 0.0,
+                    "avg_total_tokens": 0.0,
+                    "avg_turns": 0.0,
+                    "avg_execution_time": 0.0,
+                    "success_rate": 0.0,
+                }
+            )
 
         return stats
 
@@ -516,14 +575,13 @@ class MCPAgent:
 
     def __repr__(self):
         return (
-            f"MCPAgent(service='{self.service}', model='{self.model_name}', "
+            f"MCPAgent(mcp_service='{self.mcp_service}', model='{self.model_name}', "
             f"framework='{self.agent_framework}')"
         )
 
 
 def main():
     """Example usage of the MCPAgent."""
-    import os
     from dotenv import load_dotenv
 
     # Load environment variables

@@ -54,22 +54,28 @@ class GitHubLoginHelper(BaseLoginHelper):
         try:
             # Validate token by making an authenticated request
             session = requests.Session()
-            session.headers.update({
-                "Authorization": f"Bearer {self.token}",
-                "Accept": "application/vnd.github.v3+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "MCPMark/1.0"
-            })
+            session.headers.update(
+                {
+                    "Authorization": f"Bearer {self.token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                    "User-Agent": "MCPMark/1.0",
+                }
+            )
 
             # Get user information
             response = session.get("https://api.github.com/user")
 
             if response.status_code != 200:
-                logger.error(f"GitHub authentication failed: {response.status_code} {response.text}")
+                logger.error(
+                    f"GitHub authentication failed: {response.status_code} {response.text}"
+                )
                 return False
 
             user_info = response.json()
-            logger.info(f"GitHub authentication successful for user: {user_info['login']}")
+            logger.info(
+                f"GitHub authentication successful for user: {user_info['login']}"
+            )
 
             # Get token scopes
             token_scopes = self._get_token_scopes(session)
@@ -78,7 +84,7 @@ class GitHubLoginHelper(BaseLoginHelper):
             auth_state = {
                 "user": user_info,
                 "token_scopes": token_scopes,
-                "authenticated_at": self._get_current_timestamp()
+                "authenticated_at": self._get_current_timestamp(),
             }
             self._save_auth_state(auth_state)
 
@@ -99,7 +105,9 @@ class GitHubLoginHelper(BaseLoginHelper):
             response = session.get("https://api.github.com/user")
             scopes_header = response.headers.get("X-OAuth-Scopes", "")
             if scopes_header:
-                return [scope.strip() for scope in scopes_header.split(",") if scope.strip()]
+                return [
+                    scope.strip() for scope in scopes_header.split(",") if scope.strip()
+                ]
             return []
         except Exception as e:
             logger.warning(f"Could not determine token scopes: {e}")
@@ -118,19 +126,23 @@ class GitHubLoginHelper(BaseLoginHelper):
 
         has_required = all(scope in scopes for scope in required_scopes)
         if not has_required:
-            logger.error(f"Token missing required scopes. Required: {required_scopes}, Available: {scopes}")
+            logger.error(
+                f"Token missing required scopes. Required: {required_scopes}, Available: {scopes}"
+            )
             return False
 
         has_recommended = all(scope in scopes for scope in recommended_scopes)
         if not has_recommended:
-            logger.warning(f"Token missing some recommended scopes. Recommended: {recommended_scopes}, Available: {scopes}")
+            logger.warning(
+                f"Token missing some recommended scopes. Recommended: {recommended_scopes}, Available: {scopes}"
+            )
 
         return True
 
     def _save_auth_state(self, auth_state: Dict[str, Any]):
         """Save authentication state to local file."""
         try:
-            with open(self.state_path, 'w') as f:
+            with open(self.state_path, "w") as f:
                 json.dump(auth_state, f, indent=2, default=str)
 
             # Set restrictive permissions (user read/write only)
@@ -143,13 +155,14 @@ class GitHubLoginHelper(BaseLoginHelper):
     def _get_current_timestamp(self) -> str:
         """Get current timestamp in ISO format."""
         from datetime import datetime
+
         return datetime.utcnow().isoformat() + "Z"
 
     def get_saved_auth_state(self) -> Optional[Dict[str, Any]]:
         """Load and return saved authentication state."""
         try:
             if self.state_path.exists():
-                with open(self.state_path, 'r') as f:
+                with open(self.state_path, "r") as f:
                     return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load authentication state: {e}")
@@ -162,10 +175,12 @@ class GitHubLoginHelper(BaseLoginHelper):
 
         try:
             session = requests.Session()
-            session.headers.update({
-                "Authorization": f"Bearer {self.token}",
-                "Accept": "application/vnd.github.v3+json"
-            })
+            session.headers.update(
+                {
+                    "Authorization": f"Bearer {self.token}",
+                    "Accept": "application/vnd.github.v3+json",
+                }
+            )
 
             response = session.get("https://api.github.com/user")
             return response.status_code == 200
@@ -180,10 +195,12 @@ class GitHubLoginHelper(BaseLoginHelper):
 
         try:
             session = requests.Session()
-            session.headers.update({
-                "Authorization": f"Bearer {self.token}",
-                "Accept": "application/vnd.github.v3+json"
-            })
+            session.headers.update(
+                {
+                    "Authorization": f"Bearer {self.token}",
+                    "Accept": "application/vnd.github.v3+json",
+                }
+            )
 
             response = session.get("https://api.github.com/rate_limit")
             if response.status_code == 200:
@@ -201,10 +218,12 @@ class GitHubLoginHelper(BaseLoginHelper):
 
         try:
             session = requests.Session()
-            session.headers.update({
-                "Authorization": f"Bearer {self.token}",
-                "Accept": "application/vnd.github.v3+json"
-            })
+            session.headers.update(
+                {
+                    "Authorization": f"Bearer {self.token}",
+                    "Accept": "application/vnd.github.v3+json",
+                }
+            )
 
             response = session.get(f"https://api.github.com/repos/{owner}/{repo}")
             return response.status_code == 200

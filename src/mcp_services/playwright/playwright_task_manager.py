@@ -20,11 +20,17 @@ class PlaywrightTaskManager(BaseTaskManager):
         """Initialize with tasks directory."""
         if tasks_root is None:
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
-        
-        super().__init__(tasks_root, service="playwright", task_class=BaseTask,
-                         task_organization="directory")
 
-    def _create_task_from_files(self, category_name: str, task_files_info: Dict[str, Any]) -> BaseTask:
+        super().__init__(
+            tasks_root,
+            mcp_service="playwright",
+            task_class=BaseTask,
+            task_organization="directory",
+        )
+
+    def _create_task_from_files(
+        self, category_name: str, task_files_info: Dict[str, Any]
+    ) -> BaseTask:
         """Instantiate a `BaseTask` from the dictionary returned by `_find_task_files`."""
         # Extract numeric ID from folder name like "task_1" so that the default
         # `BaseTask.name` ("{category}/task_{task_id}") matches the original path
@@ -49,4 +55,7 @@ class PlaywrightTaskManager(BaseTaskManager):
 
     def _format_task_instruction(self, base_instruction: str) -> str:
         """Add Playwright-specific note to instructions."""
-        return base_instruction + "\n\nUse Playwright MCP tools to complete this web automation task."
+        return (
+            base_instruction
+            + "\n\nUse Playwright MCP tools to complete this web automation task."
+        )

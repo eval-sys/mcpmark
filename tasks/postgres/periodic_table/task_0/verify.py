@@ -5,8 +5,8 @@ Verification script for PostgreSQL Task 1: Employee Query
 import os
 import sys
 import psycopg2
-from typing import List, Tuple
 from decimal import Decimal
+
 
 def get_connection_params() -> dict:
     """Get database connection parameters."""
@@ -15,8 +15,9 @@ def get_connection_params() -> dict:
         "port": int(os.getenv("POSTGRES_PORT", 5432)),
         "database": os.getenv("POSTGRES_DATABASE"),
         "user": os.getenv("POSTGRES_USERNAME"),
-        "password": os.getenv("POSTGRES_PASSWORD")
+        "password": os.getenv("POSTGRES_PASSWORD"),
     }
+
 
 def verify_query_results(conn) -> bool:
     """Verify the query was executed correctly."""
@@ -31,7 +32,36 @@ def verify_query_results(conn) -> bool:
 
         # Expected results
         expected = [
-            (10, 'Neon', 'Ne', 20.18, 10, 10, 10, 2, 18, 'gas', None, True, None, True, None, 'Noble Gas', 0.51, None, 21.5645, 0.0009, 24.703, 27.07, 8, 'Ramsay and Travers', 1898, 1.03, 2, 8)
+            (
+                10,
+                "Neon",
+                "Ne",
+                20.18,
+                10,
+                10,
+                10,
+                2,
+                18,
+                "gas",
+                None,
+                True,
+                None,
+                True,
+                None,
+                "Noble Gas",
+                0.51,
+                None,
+                21.5645,
+                0.0009,
+                24.703,
+                27.07,
+                8,
+                "Ramsay and Travers",
+                1898,
+                1.03,
+                2,
+                8,
+            )
         ]
 
         if len(results) != len(expected):
@@ -43,11 +73,12 @@ def verify_query_results(conn) -> bool:
                 if isinstance(a, Decimal):
                     a = float(a)
                 if a != e:
-                    print(f"❌ Row {i+1} mismatch: expected {e}, got {a}")
+                    print(f"❌ Row {i + 1} mismatch: expected {e}, got {a}")
                     return False
 
         print("✅ Query results are correct")
         return True
+
 
 def main():
     """Main verification function."""
@@ -82,6 +113,7 @@ def main():
     except Exception as e:
         print(f"❌ Verification error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

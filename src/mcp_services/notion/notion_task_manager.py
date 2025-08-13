@@ -35,9 +35,15 @@ class NotionTask(BaseTask):
 
     def __post_init__(self):
         # Ensure base class fields are set if not provided
-        if not hasattr(self, 'task_instruction_path') or self.task_instruction_path is None:
+        if (
+            not hasattr(self, "task_instruction_path")
+            or self.task_instruction_path is None
+        ):
             self.task_instruction_path = self.description_path
-        if not hasattr(self, 'task_verification_path') or self.task_verification_path is None:
+        if (
+            not hasattr(self, "task_verification_path")
+            or self.task_verification_path is None
+        ):
             self.task_verification_path = self.verify_path
 
     @property
@@ -79,8 +85,7 @@ class NotionTaskManager(BaseTaskManager):
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
 
         # Call parent constructor
-        super().__init__(tasks_root, service="notion")
-
+        super().__init__(tasks_root, mcp_service="notion")
 
     # =========================================================================
     # Service-specific implementations for template methods
@@ -91,7 +96,9 @@ class NotionTaskManager(BaseTaskManager):
         """Return the service directory name for Notion."""
         return "notion"
 
-    def _create_task_from_files(self, category_name: str, task_files_info: Dict[str, Any]) -> Optional[NotionTask]:
+    def _create_task_from_files(
+        self, category_name: str, task_files_info: Dict[str, Any]
+    ) -> Optional[NotionTask]:
         """Instantiate a `NotionTask` from the dictionary returned by `_find_task_files`."""
 
         return NotionTask(
@@ -116,15 +123,15 @@ class NotionTaskManager(BaseTaskManager):
 
     def _format_task_instruction(self, base_instruction: str) -> str:
         """Format task instruction with Notion-specific additions."""
-        return base_instruction + "\n\nNote: Based on your understanding, solve the task all at once by yourself, don't ask for my opinions on anything."
+        return (
+            base_instruction
+            + "\n\nNote: Based on your understanding, solve the task all at once by yourself, don't ask for my opinions on anything."
+        )
 
     def _pre_execution_check(self, task: NotionTask) -> Dict[str, Any]:
         """Check if duplication succeeded before execution."""
         if task.duplicated_initial_state_id is None:
-            return {
-                "success": False,
-                "error": "Duplication failed"
-            }
+            return {"success": False, "error": "Duplication failed"}
         return {"success": True}
 
     # Note: execute_task and get_task_instruction are now implemented in the base class

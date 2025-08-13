@@ -21,9 +21,11 @@ from src.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class GitHubTask(BaseTask):
     """Represents a single evaluation task for GitHub service."""
+
     # GitHub-specific fields
     repository_url: Optional[str] = None
     branch_name: Optional[str] = None
@@ -59,16 +61,21 @@ class GitHubTaskManager(BaseTaskManager):
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
 
         # Call parent constructor
-        super().__init__(tasks_root, service="github", task_class=GitHubTask,
-                         task_organization="file")  # GitHub uses file-based tasks
-
+        super().__init__(
+            tasks_root,
+            mcp_service="github",
+            task_class=GitHubTask,
+            task_organization="file",
+        )  # GitHub uses file-based tasks
 
     # =========================================================================
     # Service-specific implementations
     # =========================================================================
     # No custom task discovery methods needed; relying entirely on BaseTaskManager defaults.
 
-    def _create_task_from_files(self, category_name: str, task_files_info: Dict[str, Any]) -> Optional[GitHubTask]:
+    def _create_task_from_files(
+        self, category_name: str, task_files_info: Dict[str, Any]
+    ) -> Optional[GitHubTask]:
         """Instantiate a GitHubTask from the dictionary yielded by _find_task_files."""
 
         return GitHubTask(
@@ -86,28 +93,10 @@ class GitHubTaskManager(BaseTaskManager):
 
     def _format_task_instruction(self, base_instruction: str) -> str:
         """Format task instruction with GitHub-specific additions."""
-        return base_instruction + "\n\nNote: Use GitHub tools to complete this task. Work systematically and verify your actions."
-
-    def _post_execution_hook(self, task: GitHubTask, success: bool) -> None:
-        """Track created repositories for cleanup if needed."""
-        if task.category == 'basic_repo_operations' and success:
-            self._track_created_repositories_from_verification(task)
-
-    def _track_created_repositories_from_verification(self, task: GitHubTask):
-        """Track created repositories from verification for cleanup."""
-        try:
-            # For basic repository operations, track default repository names
-            if 'task_1' in str(task.task_id):  # Task 1 creates mcpbench-test-repo
-                from src.factory import MCPServiceFactory
-                state_manager = MCPServiceFactory.create_state_manager('github')
-                state_manager.track_created_repository('mcpbench-test-repo')
-                logger.info("Tracked repository 'mcpbench-test-repo' for cleanup")
-        except Exception as e:
-            logger.warning(f"Failed to track created repositories: {e}")
-
-
-    # Note: execute_task and get_task_instruction are now implemented in the base class
-    # Service-specific behavior is handled through the template methods above
+        return (
+            base_instruction
+            + "\n\nNote: Use GitHub tools to complete this task. Work systematically and verify your actions."
+        )
 
     def get_task_instruction(self, task: GitHubTask) -> str:
         """Return task instruction prefixed with repository context.

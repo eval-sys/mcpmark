@@ -101,7 +101,9 @@ def validate_and_gather_metrics(
 
         # Check pipeline errors
         error_msg = meta.get("execution_result", {}).get("error_message")
-        if error_msg and any(err in error_msg for err in src.evaluator.PIPELINE_RETRY_ERRORS):
+        if error_msg and any(
+            err in error_msg for err in src.evaluator.PIPELINE_RETRY_ERRORS
+        ):
             has_retry_error = True
 
         # Collect metrics
@@ -138,11 +140,15 @@ def validate_and_gather_metrics(
     return True, metrics, None
 
 
-def plot_metrics(metrics: Dict[str, Dict[str, float]], exp_name: str, service: str, show: bool):
+def plot_metrics(
+    metrics: Dict[str, Dict[str, float]], exp_name: str, service: str, show: bool
+):
     """Create a bar chart visualizing success rate and avg tokens; annotate avg turns."""
 
     # Sort by success-rate (desc)
-    sorted_items = sorted(metrics.items(), key=lambda x: x[1]["success_rate"], reverse=True)
+    sorted_items = sorted(
+        metrics.items(), key=lambda x: x[1]["success_rate"], reverse=True
+    )
     models = [m for m, _ in sorted_items]
     success_rates = [item[1]["success_rate"] for item in sorted_items]
     avg_tokens = [item[1]["avg_tokens"] for item in sorted_items]
@@ -270,7 +276,9 @@ def main():
     # Discover expected tasks for this service
     expected_tasks = discover_all_tasks(args.mcp)
     if not expected_tasks:
-        print(f"[ERROR] Could not discover any tasks for service '{args.mcp}'. Exiting.")
+        print(
+            f"[ERROR] Could not discover any tasks for service '{args.mcp}'. Exiting."
+        )
         return
 
     metrics: Dict[str, Dict[str, float]] = {}

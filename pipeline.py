@@ -24,18 +24,16 @@ logger = get_logger(__name__)
 
 def main():
     """Main entry point for the evaluation pipeline."""
-    parser = argparse.ArgumentParser(
-        description="MCPMark Unified Evaluation Pipeline."
-    )
+    parser = argparse.ArgumentParser(description="MCPMark Unified Evaluation Pipeline.")
 
-    supported_services = MCPServiceFactory.get_supported_services()
+    supported_mcp_services = MCPServiceFactory.get_supported_mcp_services()
     supported_models = ModelConfig.get_supported_models()
 
     # Main configuration
     parser.add_argument(
         "--mcp",
         default="notion",
-        choices=supported_services,
+        choices=supported_mcp_services,
         help="MCP service to use (default: notion)",
     )
     parser.add_argument(
@@ -59,7 +57,6 @@ def main():
         "--timeout", type=int, default=300, help="Timeout in seconds for each task"
     )
 
-
     # Output configuration
     parser.add_argument(
         "--output-dir",
@@ -71,7 +68,7 @@ def main():
     # Load arguments and environment variables
     args = parser.parse_args()
     load_dotenv(dotenv_path=".mcp_env", override=False)
-    
+
     # Generate default exp-name if not provided
     if args.exp_name is None:
         args.exp_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -81,13 +78,17 @@ def main():
     model_list = [m.strip() for m in args.models.split(",") if m.strip()]
     if not model_list:
         parser.error("No valid models provided")
-    
+
     # Log warning for unsupported models but don't error
     unsupported_models = [m for m in model_list if m not in supported_models]
     if unsupported_models:
-        logger.warning(f"Using unsupported models: {', '.join(unsupported_models)}. Will use OPENAI_BASE_URL and OPENAI_API_KEY from environment.")
+        logger.warning(
+            f"Using unsupported models: {', '.join(unsupported_models)}. Will use OPENAI_BASE_URL and OPENAI_API_KEY from environment."
+        )
 
-    logger.info(f"Running evaluation for {len(model_list)} model(s): {', '.join(model_list)}")
+    logger.info(
+        f"Running evaluation for {len(model_list)} model(s): {', '.join(model_list)}"
+    )
 
     # Run evaluation for each model
     for i, model in enumerate(model_list, 1):
@@ -97,7 +98,7 @@ def main():
 
         # Initialize and run the evaluation pipeline for this model
         pipeline = MCPEvaluator(
-            service=args.mcp,
+            mcp_service=args.mcp,
             model=model,
             timeout=args.timeout,
             exp_name=args.exp_name,
@@ -105,9 +106,11 @@ def main():
         )
 
         pipeline.run_evaluation(args.tasks)
-        logger.info(f"✓ Evaluation completed for {model}. Results saved in: {pipeline.base_experiment_dir}")
+        logger.info(
+            f"✓ Evaluation completed for {model}. Results saved in: {pipeline.base_experiment_dir}"
+        )
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info(f"✓ All evaluations completed for {len(model_list)} model(s)")
     logger.info(f"{'=' * 60}")
 

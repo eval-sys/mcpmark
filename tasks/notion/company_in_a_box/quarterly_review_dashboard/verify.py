@@ -45,7 +45,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
         parent_id = page_obj.get("parent", {}).get("page_id")
         if parent_id:
             parent_page = notion.pages.retrieve(page_id=parent_id)
-            parent_title_rt = parent_page.get("properties", {}).get("title", {}).get("title", [])
+            parent_title_rt = (
+                parent_page.get("properties", {}).get("title", {}).get("title", [])
+            )
             parent_title = (
                 parent_title_rt[0].get("plain_text") if parent_title_rt else None
             )
@@ -84,13 +86,19 @@ def verify(notion: Client, main_id: str = None) -> bool:
                     found_depts.add(dept)
     if set(DEPARTMENTS) != found_depts:
         missing = set(DEPARTMENTS) - found_depts
-        print(f"Error: Missing department headings: {', '.join(missing)}.", file=sys.stderr)
+        print(
+            f"Error: Missing department headings: {', '.join(missing)}.",
+            file=sys.stderr,
+        )
         return False
 
     # 4. Verify Action Items database exists and has correct schema
     db_id = notion_utils.find_database_in_block(notion, page_id, "Action Items")
     if not db_id:
-        print("Error: Database 'Action Items' not found on the dashboard.", file=sys.stderr)
+        print(
+            "Error: Database 'Action Items' not found on the dashboard.",
+            file=sys.stderr,
+        )
         return False
 
     try:
@@ -102,7 +110,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
     db_props = db.get("properties", {})
     for prop_name, expected_type in REQUIRED_DB_PROPERTIES.items():
         if prop_name not in db_props:
-            print(f"Error: Property '{prop_name}' missing from database.", file=sys.stderr)
+            print(
+                f"Error: Property '{prop_name}' missing from database.", file=sys.stderr
+            )
             return False
         actual_type = db_props[prop_name]["type"]
         if isinstance(expected_type, list):
@@ -189,4 +199,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

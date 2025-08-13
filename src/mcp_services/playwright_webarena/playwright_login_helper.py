@@ -36,9 +36,17 @@ class PlaywrightLoginHelper(BaseLoginHelper):
         super().__init__()
         self.browser_name = browser
         self.headless = headless
-        self.state_path = Path(state_path or Path.cwd() / "playwright_state.json").expanduser().resolve()
+        self.state_path = (
+            Path(state_path or Path.cwd() / "playwright_state.json")
+            .expanduser()
+            .resolve()
+        )
         self.base_url = base_url
-        logger.info("Initialized WebArenaLoginHelper (browser=%s, headless=%s)", browser, headless)
+        logger.info(
+            "Initialized WebArenaLoginHelper (browser=%s, headless=%s)",
+            browser,
+            headless,
+        )
 
     def login(self, **kwargs) -> bool:
         """
@@ -61,4 +69,4 @@ class PlaywrightLoginHelper(BaseLoginHelper):
 
     def close(self) -> None:
         # No resources to release
-        pass 
+        pass

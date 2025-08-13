@@ -87,7 +87,11 @@ def verify(notion: Client, main_id: str = None) -> bool:
         parent_id = queue.pop(0)
         children = _fetch_children(parent_id)
         for idx, child in enumerate(children):
-            if _is_heading(child) and GOALS_SECTION_TITLE.lower() in _normalize_string(_plain(child)).lower():
+            if (
+                _is_heading(child)
+                and GOALS_SECTION_TITLE.lower()
+                in _normalize_string(_plain(child)).lower()
+            ):
                 found_parent = parent_id
                 found_index = idx
                 break
@@ -97,13 +101,19 @@ def verify(notion: Client, main_id: str = None) -> bool:
                 queue.append(ch["id"])
 
     if found_parent is None:
-        print("Error: Could not find the 'Current Goals' heading anywhere in the page.", file=sys.stderr)
+        print(
+            "Error: Could not find the 'Current Goals' heading anywhere in the page.",
+            file=sys.stderr,
+        )
         return False
 
     # Retrieve siblings once more to get the final list and slice after heading.
     siblings = _fetch_children(found_parent)
     if found_index is None or found_index >= len(siblings):
-        print("Error: Internal logic issue when locating Current Goals section.", file=sys.stderr)
+        print(
+            "Error: Internal logic issue when locating Current Goals section.",
+            file=sys.stderr,
+        )
         return False
 
     goals_section_blocks = siblings[found_index + 1 :]
@@ -125,7 +135,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
     # 4. Ensure the new goal heading exists among the toggles
     found_new_goal = False
     for tb in toggle_blocks:
-        if _normalize_string(NEW_GOAL_HEADING).lower() in _normalize_string(_plain(tb)).lower():
+        if (
+            _normalize_string(NEW_GOAL_HEADING).lower()
+            in _normalize_string(_plain(tb)).lower()
+        ):
             found_new_goal = True
             break
     if not found_new_goal:
@@ -174,7 +187,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
         )
         return False
 
-    print("Success: Verified goal restructuring with new toggle blocks and descriptions.")
+    print(
+        "Success: Verified goal restructuring with new toggle blocks and descriptions."
+    )
     return True
 
 
@@ -188,4 +203,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

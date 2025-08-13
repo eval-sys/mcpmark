@@ -24,14 +24,14 @@ logger = get_logger(__name__)
 class MCPEvaluator:
     def __init__(
         self,
-        service: str,
+        mcp_service: str,
         model: str,
         timeout: int = 300,
         exp_name: str = "test-run",
         output_dir: Path = None,
     ):
         # Main configuration
-        self.service = service
+        self.mcp_service = mcp_service
         self.model = model
         self.timeout = timeout
 
@@ -42,8 +42,8 @@ class MCPEvaluator:
         self.api_key = model_config.api_key
 
         # Initialize managers using the factory pattern (simplified)
-        self.task_manager = MCPServiceFactory.create_task_manager(service)
-        self.state_manager = MCPServiceFactory.create_state_manager(service)
+        self.task_manager = MCPServiceFactory.create_task_manager(mcp_service)
+        self.state_manager = MCPServiceFactory.create_state_manager(mcp_service)
 
         # Obtain static service configuration from state manager (e.g., notion_key)
         self.service_config = self.state_manager.get_service_config_for_agent()
@@ -56,7 +56,7 @@ class MCPEvaluator:
             model_name=self.actual_model_name,
             api_key=self.api_key,
             base_url=self.base_url,
-            service=service,
+            mcp_service=mcp_service,
             timeout=timeout,
             service_config=self.service_config,
             service_config_provider=self.state_manager.get_service_config_for_agent,
@@ -67,13 +67,15 @@ class MCPEvaluator:
 
         # Output directory handling
         model_slug = self.model.replace(".", "-")
-        self.base_experiment_dir = output_dir / exp_name / f"{service}_{model_slug}"
+        self.base_experiment_dir = output_dir / exp_name / f"{mcp_service}_{model_slug}"
         self.base_experiment_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_task_output_dir(self, task) -> Path:
         """Return the directory path for storing this task's reports."""
         # Replace underscores with hyphens so the directory name is filesystem-friendly.
-        category_slug = task.category.replace("_", "-") if task.category else "uncategorized"
+        category_slug = (
+            task.category.replace("_", "-") if task.category else "uncategorized"
+        )
 
         # Use the task identifier as-is (numeric or slug) – no "task-" prefix.
         task_slug = str(task.task_id)
@@ -157,7 +159,9 @@ class MCPEvaluator:
                 )
                 results.append(result)
             except Exception as exc:
-                logger.warning("Failed to parse existing report in %s: %s", task_dir, exc)
+                logger.warning(
+                    "Failed to parse existing report in %s: %s", task_dir, exc
+                )
         return results
 
     def _run_single_task(self, task) -> TaskResult:
@@ -166,7 +170,9 @@ class MCPEvaluator:
         """
         # Stage 1: Set up the initial state for the task
         setup_start_time = time.time()
-        logger.info("==================== Stage 1: Setting Up Task ====================")
+        logger.info(
+            "==================== Stage 1: Setting Up Task ===================="
+        )
         setup_success = self.state_manager.set_up(task)
         setup_time = time.time() - setup_start_time
 
@@ -182,7 +188,9 @@ class MCPEvaluator:
             )
 
         # Stage 2: Execute the task using the agent
-        logger.info("\n==================== Stage 2: Executing Task =======================")
+        logger.info(
+            "\n==================== Stage 2: Executing Task ======================="
+        )
 
         # NOTE: The agent now refreshes its service configuration internally, so
         # we no longer need to perform that step here.
@@ -197,25 +205,31 @@ class MCPEvaluator:
         task_output_dir = self._get_task_output_dir(task)
         task_output_dir.mkdir(parents=True, exist_ok=True)
         messages_path = task_output_dir / "messages.json"
-        self.results_reporter.save_messages_json(agent_result.get("output", []), messages_path)
+        self.results_reporter.save_messages_json(
+            agent_result.get("output", []), messages_path
+        )
 
         # ---------- NEW: tmp environment varient ------------------------
         import os
+
         os.environ["MCP_MESSAGES"] = str(messages_path)
 
         # Stage 3: Verify
-        logger.info("\n==================== Stage 3: Verifying Task =======================")
+        logger.info(
+            "\n==================== Stage 3: Verifying Task ======================="
+        )
         try:
             result = self.task_manager.execute_task(task, agent_result)
         finally:
             os.environ.pop("MCP_MESSAGES", None)
 
         # Stage 4: Clean up
-        logger.info("\n==================== Stage 4: Cleaning Up =========================")
+        logger.info(
+            "\n==================== Stage 4: Cleaning Up ========================="
+        )
         self.state_manager.clean_up(task)
 
         return result
-    
 
     def run_evaluation(self, task_filter: str) -> EvaluationReport:
         """
@@ -242,7 +256,9 @@ class MCPEvaluator:
 
             if existing_result and not retry_due_to_error:
                 # Existing result is either successful or failed with a non-retryable error – skip.
-                logger.info("↩️  Skipping already-completed task (resume): %s", task.name)
+                logger.info(
+                    "↩️  Skipping already-completed task (resume): %s", task.name
+                )
                 results.append(existing_result)
                 continue
 
@@ -275,7 +291,7 @@ class MCPEvaluator:
             messages_path = task_output_dir / "messages.json"
 
             # ↓↓↓ 修改处 ↓↓↓
-            if not messages_path.exists():           # 已经写过就跳过
+            if not messages_path.exists():  # 已经写过就跳过
                 messages = (
                     task_result.model_output
                     if getattr(task_result, "model_output", None)
@@ -287,7 +303,7 @@ class MCPEvaluator:
             # Save meta.json (all other metadata)
             meta_path = task_output_dir / "meta.json"
             model_config = {
-                "service": self.service,
+                "mcp_service": self.mcp_service,
                 "base_url": self.base_url,
                 "model_name": self.actual_model_name,
                 "timeout": self.timeout,
@@ -333,7 +349,7 @@ class MCPEvaluator:
         aggregated_report = EvaluationReport(
             model_name=self.model,
             model_config={
-                "service": self.service,
+                "mcp_service": self.mcp_service,
                 "base_url": self.base_url,
                 "model_name": self.actual_model_name,
                 "timeout": self.timeout,
@@ -351,10 +367,14 @@ class MCPEvaluator:
         summary_path = self.base_experiment_dir / "summary.json"
         self.results_reporter.save_model_summary(aggregated_report, summary_path)
 
-        logger.info("\n==================== Evaluation Summary ===========================")
+        logger.info(
+            "\n==================== Evaluation Summary ==========================="
+        )
         logger.info(
             f"✓ Tasks: {aggregated_report.successful_tasks}/{aggregated_report.total_tasks} passed ({aggregated_report.success_rate:.1f}%)"
         )
-        logger.info(f"✓ Total time: {aggregated_report.execution_time.total_seconds():.1f}s")
+        logger.info(
+            f"✓ Total time: {aggregated_report.execution_time.total_seconds():.1f}s"
+        )
 
         return aggregated_report

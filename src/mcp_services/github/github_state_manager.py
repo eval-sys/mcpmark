@@ -208,7 +208,7 @@ class GitHubStateManager(BaseStateManager):
 
         auth_user = self._get_authenticated_user()
         create_url = (
-            f"https://api.github.com/user/repos"
+            "https://api.github.com/user/repos"
             if owner == auth_user
             else f"https://api.github.com/orgs/{owner}/repos"
         )

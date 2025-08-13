@@ -24,7 +24,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
         # main_id is now always a page id
         database_id = notion_utils.find_database_in_block(notion, main_id, db_title)
     if not database_id:
-        print(f"Error: Database '{db_title}' not found under the provided page.", file=sys.stderr)
+        print(
+            f"Error: Database '{db_title}' not found under the provided page.",
+            file=sys.stderr,
+        )
         return False
 
     try:
@@ -62,7 +65,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
             continue
 
         publish_prop = props.get("Publish Date", {})
-        publish_date = (publish_prop.get("date") or {}).get("start")  # iso format string
+        publish_date = (publish_prop.get("date") or {}).get(
+            "start"
+        )  # iso format string
 
         if publish_date == expected_dates[title_text]:
             passed.add(title_text)
@@ -86,7 +91,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
             print(f"- {reason}", file=sys.stderr)
         return False
 
-    print(f"Success: All {len(expected_dates)} target rows have correct postponed Publish Dates.")
+    print(
+        f"Success: All {len(expected_dates)} target rows have correct postponed Publish Dates."
+    )
     return True
 
 
@@ -100,4 +107,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

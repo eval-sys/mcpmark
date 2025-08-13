@@ -51,7 +51,7 @@ class PostgresStateManager(BaseStateManager):
             "host": host,
             "port": port,
             "user": username,
-            "password": password
+            "password": password,
         }
 
         # Track created databases for cleanup
@@ -76,19 +76,21 @@ class PostgresStateManager(BaseStateManager):
         """Create initial database state for a task."""
         try:
             # Generate unique database name
-            db_name = f"mcpbench_{task.category}_{task.task_id}_{self._get_timestamp()}"
+            db_name = f"mcpmark_{task.category}_{task.task_id}_{self._get_timestamp()}"
 
             # Create database from template if exists, otherwise empty
             if self._database_exists(task.category):
                 self._create_database_from_template(db_name, task.category)
-                logger.info(f"Created database '{db_name}' from template '{task.category}'")
+                logger.info(
+                    f"Created database '{db_name}' from template '{task.category}'"
+                )
             else:
                 self._create_empty_database(db_name)
                 logger.info(f"Created empty database '{db_name}'")
 
             # Track for cleanup
             self.created_databases.append(db_name)
-            self.track_resource('database', db_name, {'task': task.name})
+            self.track_resource("database", db_name, {"task": task.name})
 
             # Set up initial schema/data based on task category
             # self._setup_task_specific_data(db_name, task)
@@ -97,19 +99,21 @@ class PostgresStateManager(BaseStateManager):
                 state_id=db_name,
                 state_url=f"postgresql://{self.username}@{self.host}:{self.port}/{db_name}",
                 metadata={
-                    'database': db_name,
-                    'category': task.category,
-                    'task_id': task.task_id
-                }
+                    "database": db_name,
+                    "category": task.category,
+                    "task_id": task.task_id,
+                },
             )
 
         except Exception as e:
             logger.error(f"Failed to create initial state for {task.name}: {e}")
             return None
 
-    def _store_initial_state_info(self, task: BaseTask, state_info: InitialStateInfo) -> None:
+    def _store_initial_state_info(
+        self, task: BaseTask, state_info: InitialStateInfo
+    ) -> None:
         """Store database info in task object."""
-        if hasattr(task, '__dict__'):
+        if hasattr(task, "__dict__"):
             task.database_name = state_info.state_id
             task.database_url = state_info.state_url
             # Store current task database for agent configuration
@@ -117,13 +121,15 @@ class PostgresStateManager(BaseStateManager):
 
     def _cleanup_task_initial_state(self, task: BaseTask) -> bool:
         """Clean up task database."""
-        if hasattr(task, 'database_name') and task.database_name:
+        if hasattr(task, "database_name") and task.database_name:
             try:
                 self._drop_database(task.database_name)
                 logger.info(f"Dropped database: {task.database_name}")
 
                 # Remove from tracking
-                self.created_databases = [db for db in self.created_databases if db != task.database_name]
+                self.created_databases = [
+                    db for db in self.created_databases if db != task.database_name
+                ]
                 # Clear current task database
                 if self._current_task_database == task.database_name:
                     self._current_task_database = None
@@ -135,9 +141,9 @@ class PostgresStateManager(BaseStateManager):
 
     def _cleanup_single_resource(self, resource: Dict[str, Any]) -> bool:
         """Clean up a single PostgreSQL resource."""
-        if resource['type'] == 'database':
+        if resource["type"] == "database":
             try:
-                self._drop_database(resource['id'])
+                self._drop_database(resource["id"])
                 logger.info(f"Dropped database: {resource['id']}")
                 return True
             except Exception as e:
@@ -150,10 +156,7 @@ class PostgresStateManager(BaseStateManager):
         conn = psycopg2.connect(**self.conn_params, database="postgres")
         try:
             with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT 1 FROM pg_database WHERE datname = %s",
-                    (db_name,)
-                )
+                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
                 return cur.fetchone() is not None
         finally:
             conn.close()
@@ -164,17 +167,19 @@ class PostgresStateManager(BaseStateManager):
         conn.autocommit = True
         try:
             with conn.cursor() as cur:
-                cur.execute(sql.SQL("""
+                cur.execute(
+                    sql.SQL("""
                     SELECT pg_terminate_backend(pid)
                     FROM pg_stat_activity
                     WHERE datname = %s AND pid <> pg_backend_pid()
-                """), (template_db,))
-                cur.execute(sql.SQL(
-                    "CREATE DATABASE {} WITH TEMPLATE {}"
-                ).format(
-                    sql.Identifier(new_db),
-                    sql.Identifier(template_db)
-                ))
+                """),
+                    (template_db,),
+                )
+                cur.execute(
+                    sql.SQL("CREATE DATABASE {} WITH TEMPLATE {}").format(
+                        sql.Identifier(new_db), sql.Identifier(template_db)
+                    )
+                )
         finally:
             conn.close()
 
@@ -184,9 +189,9 @@ class PostgresStateManager(BaseStateManager):
         conn.autocommit = True
         try:
             with conn.cursor() as cur:
-                cur.execute(sql.SQL(
-                    "CREATE DATABASE {}"
-                ).format(sql.Identifier(db_name)))
+                cur.execute(
+                    sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name))
+                )
         finally:
             conn.close()
 
@@ -197,16 +202,21 @@ class PostgresStateManager(BaseStateManager):
         try:
             with conn.cursor() as cur:
                 # Terminate connections
-                cur.execute(sql.SQL("""
+                cur.execute(
+                    sql.SQL("""
                     SELECT pg_terminate_backend(pid)
                     FROM pg_stat_activity
                     WHERE datname = %s AND pid <> pg_backend_pid()
-                """), (db_name,))
+                """),
+                    (db_name,),
+                )
 
                 # Drop database
-                cur.execute(sql.SQL(
-                    "DROP DATABASE IF EXISTS {}"
-                ).format(sql.Identifier(db_name)))
+                cur.execute(
+                    sql.SQL("DROP DATABASE IF EXISTS {}").format(
+                        sql.Identifier(db_name)
+                    )
+                )
         finally:
             conn.close()
 
@@ -281,6 +291,7 @@ class PostgresStateManager(BaseStateManager):
     def _get_timestamp(self) -> str:
         """Get timestamp for unique naming."""
         from datetime import datetime
+
         return datetime.now().strftime("%Y%m%d%H%M%S")
 
     def get_service_config_for_agent(self) -> dict:
@@ -289,16 +300,20 @@ class PostgresStateManager(BaseStateManager):
             "host": self.host,
             "port": self.port,
             "username": self.username,
-            "password": self.password
+            "password": self.password,
         }
 
         # If there's a current task database, include it
-        if hasattr(self, '_current_task_database') and self._current_task_database:
+        if hasattr(self, "_current_task_database") and self._current_task_database:
             config["current_database"] = self._current_task_database
-            config["database_url"] = f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self._current_task_database}"
+            config["database_url"] = (
+                f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self._current_task_database}"
+            )
         else:
             # Fallback to default database
             config["database"] = self.database
-            config["database_url"] = f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
+            config["database_url"] = (
+                f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
+            )
 
         return config

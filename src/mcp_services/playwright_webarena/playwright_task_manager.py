@@ -20,10 +20,17 @@ class PlaywrightTaskManager(BaseTaskManager):
     def __init__(self, tasks_root: Path | None = None, base_url: str | None = None):
         if tasks_root is None:
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
-        super().__init__(tasks_root, service="playwright_webarena", task_class=BaseTask, task_organization="directory")
+        super().__init__(
+            tasks_root,
+            mcp_service="playwright_webarena",
+            task_class=BaseTask,
+            task_organization="directory",
+        )
         self.base_url = base_url
 
-    def _create_task_from_files(self, category_name: str, task_files_info: Dict[str, Any]) -> BaseTask:
+    def _create_task_from_files(
+        self, category_name: str, task_files_info: Dict[str, Any]
+    ) -> BaseTask:
         # Preserve numeric ID when present (e.g. "task_1")
         try:
             task_id = int(task_files_info["task_name"].split("_")[1])
@@ -49,4 +56,4 @@ class PlaywrightTaskManager(BaseTaskManager):
         note = "Use Playwright MCP tools to complete this task."
         if self.base_url:
             note += f" Target environment: {self.base_url}"
-        return base_instruction + "\n\n" + note 
+        return base_instruction + "\n\n" + note

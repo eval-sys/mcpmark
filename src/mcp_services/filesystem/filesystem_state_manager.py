@@ -47,10 +47,12 @@ class FilesystemStateManager(BaseStateManager):
         self.cleanup_on_exit = cleanup_on_exit
         self.current_task_dir: Optional[Path] = None
         self.created_resources: List[Path] = []
-        
+
         # Backup and restore functionality
         self.backup_dir: Optional[Path] = None
-        self.backup_enabled = True  # Enable backup/restore by default for task isolation
+        self.backup_enabled = (
+            True  # Enable backup/restore by default for task isolation
+        )
 
         logger.info(
             f"Initialized FilesystemStateManager with persistent test environment: {self.test_root}"
@@ -103,7 +105,7 @@ class FilesystemStateManager(BaseStateManager):
         try:
             # Dynamically set test root based on task category
             self._set_dynamic_test_root(task)
-            
+
             # Create backup of current test environment before task execution
             if self.backup_enabled:
                 if not self._create_backup(task):
@@ -112,9 +114,13 @@ class FilesystemStateManager(BaseStateManager):
 
             # Use the backup directory as the working directory instead of the original
             print(f"self.test_root: {self.test_root}")
-            self.current_task_dir = self.backup_dir  # Use backup directory for operations
+            self.current_task_dir = (
+                self.backup_dir
+            )  # Use backup directory for operations
 
-            logger.info(f"Using backup environment for operations: {self.current_task_dir}")
+            logger.info(
+                f"Using backup environment for operations: {self.current_task_dir}"
+            )
 
             # Store the test directory path in the task object for use by task manager
             if hasattr(task, "__dict__"):
@@ -132,28 +138,32 @@ class FilesystemStateManager(BaseStateManager):
     def _set_dynamic_test_root(self, task: BaseTask) -> None:
         """
         Dynamically set the test root directory based on the task category.
-        
+
         Args:
             task: The task for which to set the test root
         """
         # Get the base test environments directory from environment variable
-        base_test_root = os.getenv('FILESYSTEM_TEST_ROOT')
+        base_test_root = os.getenv("FILESYSTEM_TEST_ROOT")
         if not base_test_root:
             # Fallback to default path
             script_dir = Path(__file__).parent
             base_test_root = str(script_dir / "../../../test_environments")
-        
+
         base_test_path = Path(base_test_root)
-        
+
         # Always use the desktop directory which contains the actual test data
         # The tasks expect files that are located in the desktop test environment
         self.test_root = base_test_path / "desktop"
-        logger.info(f"Setting test root to desktop directory (contains test data): {self.test_root}")
-        
+        logger.info(
+            f"Setting test root to desktop directory (contains test data): {self.test_root}"
+        )
+
         # Ensure the directory exists
         if not self.test_root.exists():
             logger.error(f"Test directory does not exist: {self.test_root}")
-            raise FileNotFoundError(f"Test environment not found at {self.test_root}. Please ensure test data is properly set up.")
+            raise FileNotFoundError(
+                f"Test environment not found at {self.test_root}. Please ensure test data is properly set up."
+            )
 
     def clean_up(self, task: Optional[BaseTask] = None, **kwargs) -> bool:
         """
@@ -175,7 +185,9 @@ class FilesystemStateManager(BaseStateManager):
             if self.backup_enabled and self.backup_dir and self.backup_dir.exists():
                 try:
                     shutil.rmtree(self.backup_dir)
-                    logger.info(f"✅ Cleaned up backup directory for task {task.name if task else 'unknown'}")
+                    logger.info(
+                        f"✅ Cleaned up backup directory for task {task.name if task else 'unknown'}"
+                    )
                     self.backup_dir = None
                 except Exception as e:
                     logger.error(f"Failed to clean up backup directory: {e}")
@@ -191,7 +203,6 @@ class FilesystemStateManager(BaseStateManager):
         except Exception as e:
             logger.error(f"Filesystem cleanup failed: {e}")
             return False
-
 
     def get_test_directory(self) -> Optional[Path]:
         """
@@ -278,25 +289,25 @@ class FilesystemStateManager(BaseStateManager):
         try:
             # Create backup directory with task-specific name
             script_dir = Path(__file__).parent
-            
+
             backup_root = script_dir / "../../../.mcpbench_backups"
             print("backup_root: ", backup_root)
             backup_root.mkdir(exist_ok=True)
-            
+
             task_id = f"{task.service}_{task.category}_{task.task_id}"
             self.backup_dir = backup_root / f"backup_{task_id}_{os.getpid()}"
-            
+
             # Remove existing backup if it exists
             if self.backup_dir.exists():
                 shutil.rmtree(self.backup_dir)
-            
+
             # Create fresh backup by copying entire test environment
             print("self.test_root: ", self.test_root)
             shutil.copytree(self.test_root, self.backup_dir)
-            
+
             logger.info(f"✅ Created backup for task {task.name}: {self.backup_dir}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to create backup for task {task.name}: {e}")
             return False
@@ -322,20 +333,21 @@ class FilesystemStateManager(BaseStateManager):
 
             # Restore from backup
             shutil.copytree(self.backup_dir, self.test_root)
-            
+
             # Clean up backup directory
             shutil.rmtree(self.backup_dir)
             self.backup_dir = None
-            
+
             task_name = task.name if task else "unknown"
-            logger.info(f"✅ Restored test environment from backup after task {task_name}")
+            logger.info(
+                f"✅ Restored test environment from backup after task {task_name}"
+            )
             return True
-            
+
         except Exception as e:
             task_name = task.name if task else "unknown"
             logger.error(f"Failed to restore from backup after task {task_name}: {e}")
             return False
-
 
     # =========================================================================
     # Abstract Method Implementations Required by BaseStateManager

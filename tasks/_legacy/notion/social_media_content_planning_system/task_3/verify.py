@@ -19,7 +19,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
         # main_id is now always a page id
         database_id = notion_utils.find_database_in_block(notion, main_id, db_title)
     if not database_id:
-        print(f"Error: Database '{db_title}' not found under the provided page.", file=sys.stderr)
+        print(
+            f"Error: Database '{db_title}' not found under the provided page.",
+            file=sys.stderr,
+        )
         return False
 
     try:
@@ -48,7 +51,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
             continue
 
         platform_prop = props.get("Platform") or props.get("Platforms")
-        platforms = [opt.get("name") for opt in (platform_prop or {}).get("multi_select", [])]
+        platforms = [
+            opt.get("name") for opt in (platform_prop or {}).get("multi_select", [])
+        ]
 
         if len(platforms) < 5:
             print(
@@ -86,4 +91,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -12,9 +12,4 @@ from .github_login_helper import GitHubLoginHelper
 from .github_task_manager import GitHubTaskManager, GitHubTask
 from .github_state_manager import GitHubStateManager
 
-__all__ = [
-    'GitHubLoginHelper', 
-    'GitHubTaskManager', 
-    'GitHubTask', 
-    'GitHubStateManager'
-]
+__all__ = ["GitHubLoginHelper", "GitHubTaskManager", "GitHubTask", "GitHubStateManager"]

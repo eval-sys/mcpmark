@@ -5,7 +5,7 @@ Verification script for PostgreSQL Task 1: Employee Query
 import os
 import sys
 import psycopg2
-from typing import List, Tuple
+
 
 def get_connection_params() -> dict:
     """Get database connection parameters."""
@@ -14,8 +14,9 @@ def get_connection_params() -> dict:
         "port": int(os.getenv("POSTGRES_PORT", 5432)),
         "database": os.getenv("POSTGRES_DATABASE"),
         "user": os.getenv("POSTGRES_USERNAME"),
-        "password": os.getenv("POSTGRES_PASSWORD")
+        "password": os.getenv("POSTGRES_PASSWORD"),
     }
+
 
 def verify_query_results(conn) -> bool:
     """Verify the query was executed correctly."""
@@ -32,8 +33,8 @@ def verify_query_results(conn) -> bool:
 
         # Expected results
         expected = [
-            ('Bob Johnson', 'Engineering', 80000.00),
-            ('John Doe', 'Engineering', 75000.00)
+            ("Bob Johnson", "Engineering", 80000.00),
+            ("John Doe", "Engineering", 75000.00),
         ]
 
         if len(results) != len(expected):
@@ -42,11 +43,12 @@ def verify_query_results(conn) -> bool:
 
         for i, (actual, exp) in enumerate(zip(results, expected)):
             if actual[0] != exp[0] or actual[1] != exp[1] or float(actual[2]) != exp[2]:
-                print(f"❌ Row {i+1} mismatch: expected {exp}, got {actual}")
+                print(f"❌ Row {i + 1} mismatch: expected {exp}, got {actual}")
                 return False
 
         print("✅ Query results are correct")
         return True
+
 
 def main():
     """Main verification function."""
@@ -82,6 +84,7 @@ def main():
     except Exception as e:
         print(f"❌ Verification error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

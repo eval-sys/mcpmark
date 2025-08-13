@@ -2,6 +2,7 @@ import sys
 from notion_client import Client
 from tasks.utils import notion_utils
 
+
 def verify(notion: Client, main_id: str = None) -> bool:
     """
     For every entry in the "Social Media Content Planning System" database where:
@@ -17,7 +18,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
         # main_id is now always a page id
         database_id = notion_utils.find_database_in_block(notion, main_id, db_title)
     if not database_id:
-        print(f"Error: Database '{db_title}' not found under the provided page.", file=sys.stderr)
+        print(
+            f"Error: Database '{db_title}' not found under the provided page.",
+            file=sys.stderr,
+        )
         return False
     try:
         results = notion.databases.query(database_id=database_id).get("results", [])
@@ -29,17 +33,26 @@ def verify(notion: Client, main_id: str = None) -> bool:
     for entry in results:
         props = entry.get("properties", {})
         platforms_prop = props.get("Platform") or props.get("Platforms")
-        platforms = [opt.get("name") for opt in (platforms_prop or {}).get("multi_select", [])]
+        platforms = [
+            opt.get("name") for opt in (platforms_prop or {}).get("multi_select", [])
+        ]
         status_prop = props.get("Status", {})
         status_name = (status_prop.get("status") or {}).get("name")
         if "YouTube" in platforms and status_name == "Planning":
             target_entries.append(entry)
-            type_prop = props.get("Content Type") or props.get("Content Type(s)") or props.get("Type")
+            type_prop = (
+                props.get("Content Type")
+                or props.get("Content Type(s)")
+                or props.get("Type")
+            )
             content_type_name = (type_prop or {}).get("select", {}).get("name")
             if content_type_name != "Video":
                 failed_entries.append(entry)
     if not target_entries:
-        print("Failure: No entries with Status 'Planning' and Platform containing 'YouTube' were found.", file=sys.stderr)
+        print(
+            "Failure: No entries with Status 'Planning' and Platform containing 'YouTube' were found.",
+            file=sys.stderr,
+        )
         return False
     if failed_entries:
         print(
@@ -52,6 +65,7 @@ def verify(notion: Client, main_id: str = None) -> bool:
     )
     return True
 
+
 def main():
     """Executes the verification process and exits with a status code."""
     notion = notion_utils.get_notion_client()
@@ -61,5 +75,6 @@ def main():
     else:
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    main() 
+    main()

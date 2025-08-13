@@ -156,9 +156,15 @@ class EvaluationReport:
 
             # Add token and turn usage
             if result.token_usage:
-                category_stats[category]["total_input_tokens"] += result.token_usage.get("input_tokens", 0)
-                category_stats[category]["total_output_tokens"] += result.token_usage.get("output_tokens", 0)
-                category_stats[category]["total_tokens"] += result.token_usage.get("total_tokens", 0)
+                category_stats[category]["total_input_tokens"] += (
+                    result.token_usage.get("input_tokens", 0)
+                )
+                category_stats[category]["total_output_tokens"] += (
+                    result.token_usage.get("output_tokens", 0)
+                )
+                category_stats[category]["total_tokens"] += result.token_usage.get(
+                    "total_tokens", 0
+                )
 
             # Accumulate turns
             if result.turn_count is not None:
@@ -178,10 +184,14 @@ class EvaluationReport:
 
                 # Calculate average tokens and turns
                 stats["avg_input_tokens"] = stats["total_input_tokens"] / stats["total"]
-                stats["avg_output_tokens"] = stats["total_output_tokens"] / stats["total"]
+                stats["avg_output_tokens"] = (
+                    stats["total_output_tokens"] / stats["total"]
+                )
                 stats["avg_total_tokens"] = stats["total_tokens"] / stats["total"]
 
-                stats["avg_turns"] = stats["total_turns"] / stats["total"] if stats["total"] > 0 else 0
+                stats["avg_turns"] = (
+                    stats["total_turns"] / stats["total"] if stats["total"] > 0 else 0
+                )
 
         return category_stats
 
@@ -246,7 +256,10 @@ class ResultsReporter:
             "failed_tasks": report.failed_tasks,
             "success_rate": round(report.success_rate, 2),
             "total_execution_time": report.execution_time.total_seconds(),
-            "average_execution_time": report.execution_time.total_seconds() / report.total_tasks if report.total_tasks > 0 else 0,
+            "average_execution_time": report.execution_time.total_seconds()
+            / report.total_tasks
+            if report.total_tasks > 0
+            else 0,
             "token_usage": {
                 "total_input_tokens": report.total_input_tokens,
                 "total_output_tokens": report.total_output_tokens,

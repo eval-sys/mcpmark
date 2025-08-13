@@ -9,7 +9,10 @@ def get_notion_client():
     load_dotenv(dotenv_path=".mcp_env")
     api_key = os.getenv("EVAL_NOTION_API_KEY")
     if not api_key:
-        print("Error: EVAL_NOTION_API_KEY not found in environment variables.", file=sys.stderr)
+        print(
+            "Error: EVAL_NOTION_API_KEY not found in environment variables.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return Client(auth=api_key)
 
@@ -26,7 +29,9 @@ def _find_object(notion: Client, title: str, object_type: str):
         The ID string if found, otherwise None.
     """
     search_results = (
-        notion.search(query=title, filter={"property": "object", "value": object_type}).get("results")
+        notion.search(
+            query=title, filter={"property": "object", "value": object_type}
+        ).get("results")
         or []
     )
 
@@ -41,7 +46,9 @@ def _find_object(notion: Client, title: str, object_type: str):
     for result in search_results:
         if object_type == "page":
             # Pages store their title inside the "properties.title.title" rich text list
-            title_rich_texts = result.get("properties", {}).get("title", {}).get("title", [])
+            title_rich_texts = (
+                result.get("properties", {}).get("title", {}).get("title", [])
+            )
         else:  # database
             title_rich_texts = result.get("title", [])
 
@@ -136,7 +143,9 @@ def get_all_blocks_recursively(notion: Client, block_id: str):
     """
     all_blocks = []
     try:
-        direct_children = notion.blocks.children.list(block_id=block_id).get("results", [])
+        direct_children = notion.blocks.children.list(block_id=block_id).get(
+            "results", []
+        )
     except Exception:
         return []
 

@@ -17,9 +17,11 @@ from src.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class PostgresTask(BaseTask):
     """PostgreSQL-specific task with database information."""
+
     task_name: str = ""
     database_name: Optional[str] = None
     database_url: Optional[str] = None
@@ -41,20 +43,24 @@ class PostgresTaskManager(BaseTaskManager):
 
         super().__init__(
             tasks_root,
-            service="postgres",
+            mcp_service="postgres",
             task_class=PostgresTask,
-            task_organization="file"  # PostgreSQL uses file-based tasks
+            task_organization="file",  # PostgreSQL uses file-based tasks
         )
-        
-    def _create_task_from_files(self, category_name: str, task_files_info: Dict[str, Any]) -> Optional[PostgresTask]:
+
+    def _create_task_from_files(
+        self, category_name: str, task_files_info: Dict[str, Any]
+    ) -> Optional[PostgresTask]:
         """Instantiate a `PostgresTask` from the dictionary returned by `_find_task_files`."""
-        
+
         return PostgresTask(
             task_instruction_path=task_files_info["instruction_path"],
             task_verification_path=task_files_info["verification_path"],
             service="postgres",
             category=category_name,
-            task_id=task_files_info["task_name"].split('_')[-1],  # keep compatibility with BaseTask
+            task_id=task_files_info["task_name"].split("_")[
+                -1
+            ],  # keep compatibility with BaseTask
             task_name=task_files_info["task_name"],
         )
 
@@ -73,20 +79,23 @@ class PostgresTaskManager(BaseTaskManager):
         env = os.environ.copy()
 
         # Pass database connection info to verification script
-        if hasattr(task, 'database_name') and task.database_name:
-            env['POSTGRES_DATABASE'] = task.database_name
+        if hasattr(task, "database_name") and task.database_name:
+            env["POSTGRES_DATABASE"] = task.database_name
 
-        if hasattr(task, 'database_url') and task.database_url:
-            env['DATABASE_URL'] = task.database_url
+        if hasattr(task, "database_url") and task.database_url:
+            env["DATABASE_URL"] = task.database_url
 
         return subprocess.run(
             self._get_verification_command(task),
             capture_output=True,
             text=True,
             timeout=90,
-            env=env
+            env=env,
         )
 
     def _format_task_instruction(self, base_instruction: str) -> str:
         """Add PostgreSQL-specific instructions."""
-        return base_instruction + "\n\nNote: Use PostgreSQL MCP tools to complete this task. The database connection is already configured."
+        return (
+            base_instruction
+            + "\n\nNote: Use PostgreSQL MCP tools to complete this task. The database connection is already configured."
+        )

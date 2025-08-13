@@ -2,16 +2,19 @@ import sys
 from notion_client import Client
 from tasks.utils import notion_utils
 
+
 def verify(notion: Client, main_id: str = None) -> bool:
     """
     Verifies that the Skills Development Tracker database and callout block were created correctly.
     """
     page_id = None
     if main_id:
-        found_id, object_type = notion_utils.find_page_or_database_by_id(notion, main_id)
-        if found_id and object_type == 'page':
+        found_id, object_type = notion_utils.find_page_or_database_by_id(
+            notion, main_id
+        )
+        if found_id and object_type == "page":
             page_id = found_id
-    
+
     if not page_id:
         page_id = notion_utils.find_page(notion, "New Online Resume")
     if not page_id:
@@ -19,16 +22,20 @@ def verify(notion: Client, main_id: str = None) -> bool:
         return False
 
     # Step 1: Verify Skills Development Tracker database exists
-    tracker_db_id = notion_utils.find_database_in_block(notion, page_id, "Skills Development Tracker")
+    tracker_db_id = notion_utils.find_database_in_block(
+        notion, page_id, "Skills Development Tracker"
+    )
     if not tracker_db_id:
-        print("Error: Database 'Skills Development Tracker' not found.", file=sys.stderr)
+        print(
+            "Error: Database 'Skills Development Tracker' not found.", file=sys.stderr
+        )
         return False
 
     # Step 2: Verify database schema
     try:
         db_info = notion.databases.retrieve(database_id=tracker_db_id)
         properties = db_info.get("properties", {})
-        
+
         # Check required properties
         required_props = {
             "Name": "title",
@@ -37,22 +44,34 @@ def verify(notion: Client, main_id: str = None) -> bool:
             "Target Proficiency": "number",
             "Gap": "formula",
             "Learning Resources": "rich_text",
-            "Progress Notes": "rich_text"
+            "Progress Notes": "rich_text",
         }
-        
+
         for prop_name, expected_type in required_props.items():
             if prop_name not in properties:
-                print(f"Error: Property '{prop_name}' not found in database.", file=sys.stderr)
+                print(
+                    f"Error: Property '{prop_name}' not found in database.",
+                    file=sys.stderr,
+                )
                 return False
             if properties[prop_name]["type"] != expected_type:
-                print(f"Error: Property '{prop_name}' has incorrect type. Expected '{expected_type}', got '{properties[prop_name]['type']}'.", file=sys.stderr)
+                print(
+                    f"Error: Property '{prop_name}' has incorrect type. Expected '{expected_type}', got '{properties[prop_name]['type']}'.",
+                    file=sys.stderr,
+                )
                 return False
-        
+
         # Verify Target Proficiency is percent format
-        if properties["Target Proficiency"].get("number", {}).get("format") != "percent":
-            print("Error: Target Proficiency should have 'percent' format.", file=sys.stderr)
+        if (
+            properties["Target Proficiency"].get("number", {}).get("format")
+            != "percent"
+        ):
+            print(
+                "Error: Target Proficiency should have 'percent' format.",
+                file=sys.stderr,
+            )
             return False
-            
+
     except Exception as e:
         print(f"Error retrieving database info: {e}", file=sys.stderr)
         return False
@@ -66,18 +85,26 @@ def verify(notion: Client, main_id: str = None) -> bool:
     # Get all skills with proficiency < 70%
     skills_below_70 = []
     try:
-        skills_results = notion.databases.query(database_id=skills_db_id).get("results", [])
+        skills_results = notion.databases.query(database_id=skills_db_id).get(
+            "results", []
+        )
         for skill in skills_results:
-            skill_level = skill.get("properties", {}).get("Skill Level", {}).get("number", 1.0)
+            skill_level = (
+                skill.get("properties", {}).get("Skill Level", {}).get("number", 1.0)
+            )
             if skill_level < 0.7:
-                skill_name = skill.get("properties", {}).get("Skill", {}).get("title", [])
+                skill_name = (
+                    skill.get("properties", {}).get("Skill", {}).get("title", [])
+                )
                 if skill_name:
                     skill_name_text = skill_name[0].get("text", {}).get("content", "")
-                    skills_below_70.append({
-                        "name": skill_name_text,
-                        "id": skill["id"],
-                        "level": skill_level
-                    })
+                    skills_below_70.append(
+                        {
+                            "name": skill_name_text,
+                            "id": skill["id"],
+                            "level": skill_level,
+                        }
+                    )
     except Exception as e:
         print(f"Error querying Skills database: {e}", file=sys.stderr)
         return False
@@ -85,20 +112,25 @@ def verify(notion: Client, main_id: str = None) -> bool:
     if not skills_below_70:
         print("Warning: No skills found with proficiency below 70%.", file=sys.stderr)
         # This might be OK if all skills are above 70%
-    
+
     # Step 4: Verify entries in Skills Development Tracker
     try:
-        tracker_results = notion.databases.query(database_id=tracker_db_id).get("results", [])
-        
+        tracker_results = notion.databases.query(database_id=tracker_db_id).get(
+            "results", []
+        )
+
         # Check that we have entries for skills below 70%
         if len(skills_below_70) > 0 and len(tracker_results) == 0:
-            print("Error: No entries found in Skills Development Tracker database.", file=sys.stderr)
+            print(
+                "Error: No entries found in Skills Development Tracker database.",
+                file=sys.stderr,
+            )
             return False
-        
+
         # Verify each entry
         for entry in tracker_results:
             props = entry.get("properties", {})
-            
+
             # Check name format
             name_prop = props.get("Name", {}).get("title", [])
             if not name_prop:
@@ -106,85 +138,116 @@ def verify(notion: Client, main_id: str = None) -> bool:
                 return False
             name_text = name_prop[0].get("text", {}).get("content", "")
             if not name_text.endswith(" Development Plan"):
-                print(f"Error: Entry name '{name_text}' doesn't follow expected format.", file=sys.stderr)
+                print(
+                    f"Error: Entry name '{name_text}' doesn't follow expected format.",
+                    file=sys.stderr,
+                )
                 return False
-            
+
             # Check relation to Skills database
             skill_relation = props.get("Current Skill", {}).get("relation", [])
             if not skill_relation:
-                print(f"Error: Entry '{name_text}' missing Current Skill relation.", file=sys.stderr)
+                print(
+                    f"Error: Entry '{name_text}' missing Current Skill relation.",
+                    file=sys.stderr,
+                )
                 return False
-            
+
             # Check Target Proficiency (should be set)
             target_prof = props.get("Target Proficiency", {}).get("number")
             if target_prof is None:
-                print(f"Error: Entry '{name_text}' missing Target Proficiency.", file=sys.stderr)
+                print(
+                    f"Error: Entry '{name_text}' missing Target Proficiency.",
+                    file=sys.stderr,
+                )
                 return False
-            
+
             # Check Learning Resources
-            learning_resources = props.get("Learning Resources", {}).get("rich_text", [])
+            learning_resources = props.get("Learning Resources", {}).get(
+                "rich_text", []
+            )
             if not learning_resources:
-                print(f"Error: Entry '{name_text}' missing Learning Resources.", file=sys.stderr)
+                print(
+                    f"Error: Entry '{name_text}' missing Learning Resources.",
+                    file=sys.stderr,
+                )
                 return False
-            
+
             # Check Progress Notes
             progress_notes = props.get("Progress Notes", {}).get("rich_text", [])
             if not progress_notes:
-                print(f"Error: Entry '{name_text}' missing Progress Notes.", file=sys.stderr)
+                print(
+                    f"Error: Entry '{name_text}' missing Progress Notes.",
+                    file=sys.stderr,
+                )
                 return False
-                
+
     except Exception as e:
         print(f"Error querying Skills Development Tracker: {e}", file=sys.stderr)
         return False
 
     # Step 5: Verify callout block exists after Skills section
     all_blocks = notion_utils.get_all_blocks_recursively(notion, page_id)
-    
+
     # Find Skills database block
     skills_db_block_index = None
     for i, block in enumerate(all_blocks):
-        if block.get("type") == "child_database" and block.get("child_database", {}).get("title") == "Skills":
+        if (
+            block.get("type") == "child_database"
+            and block.get("child_database", {}).get("title") == "Skills"
+        ):
             skills_db_block_index = i
             break
-    
+
     if skills_db_block_index is None:
         print("Error: Could not find Skills database block.", file=sys.stderr)
         return False
-    
+
     # Look for callout block after Skills database
     callout_found = False
     block = all_blocks[skills_db_block_index + 1]
     if block.get("type") == "callout":
         callout_data = block.get("callout", {})
-        
+
         # Check background color
         if callout_data.get("color") != "blue_background":
             print("Error: Could not find callout block with blue background.")
             return False
-            
+
         # Check icon
         icon = callout_data.get("icon", {})
         if icon.get("type") != "emoji" or icon.get("emoji") != "🎯":
             print("Error: Could not find callout block with 🎯 emoji.")
             return False
-        
+
         # Check content starts with "Focus Areas:"
         rich_text = callout_data.get("rich_text", [])
         if rich_text:
             content = rich_text[0].get("text", {}).get("content", "")
-            if content.startswith("Focus Areas:") and "CSS + Basic JS" in content and "Webflow" in content and "Rive" in content:
+            if (
+                content.startswith("Focus Areas:")
+                and "CSS + Basic JS" in content
+                and "Webflow" in content
+                and "Rive" in content
+            ):
                 callout_found = True
                 print(f"Success: Found callout block with content: {content}")
             else:
                 print("Error: Could not find callout block with required text content.")
                 return False
-            
+
     if not callout_found:
-        print("Error: Could not find callout block with Focus Areas after Skills section.", file=sys.stderr)
+        print(
+            "Error: Could not find callout block with Focus Areas after Skills section.",
+            file=sys.stderr,
+        )
         return False
-    
-    print("Success: Skills Development Tracker database and callout block verified successfully.")
+
+    print(
+        "Success: Skills Development Tracker database and callout block verified successfully."
+    )
     return True
+
 
 def main():
     """
@@ -196,6 +259,7 @@ def main():
         sys.exit(0)
     else:
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

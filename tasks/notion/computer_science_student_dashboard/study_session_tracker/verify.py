@@ -25,7 +25,9 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
     page_id: str | None = None
 
     if main_id:
-        found_id, object_type = notion_utils.find_page_or_database_by_id(notion, main_id)
+        found_id, object_type = notion_utils.find_page_or_database_by_id(
+            notion, main_id
+        )
         if found_id and object_type == "page":
             page_id = found_id
 
@@ -33,7 +35,10 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
         page_id = notion_utils.find_page(notion, "Computer Science Student Dashboard")
 
     if not page_id:
-        print("Error: Page 'Computer Science Student Dashboard' not found.", file=sys.stderr)
+        print(
+            "Error: Page 'Computer Science Student Dashboard' not found.",
+            file=sys.stderr,
+        )
         return False
 
     # ---------------------------------------------------------------------
@@ -64,7 +69,10 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
 
         rich_text_list = block["paragraph"].get("rich_text", [])
         for rt in rich_text_list:
-            if rt.get("type") != "mention" or rt.get("mention", {}).get("type") != "date":
+            if (
+                rt.get("type") != "mention"
+                or rt.get("mention", {}).get("type") != "date"
+            ):
                 continue
 
             date_start = rt["mention"]["date"].get("start")
@@ -76,7 +84,10 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
                 index_new_date = idx
                 # (1) Verify bold annotation
                 if not rt.get("annotations", {}).get("bold", False):
-                    print("Error: The 2025-01-29 date mention is not bold.", file=sys.stderr)
+                    print(
+                        "Error: The 2025-01-29 date mention is not bold.",
+                        file=sys.stderr,
+                    )
                     return False
 
     # Ensure all reference indices were found
@@ -84,15 +95,22 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
         print("Error: Could not locate the 2022-09-02 date section.", file=sys.stderr)
         return False
     if index_divider_after_previous is None:
-        print("Error: Could not locate the divider that follows the 2022-09-02 section.", file=sys.stderr)
+        print(
+            "Error: Could not locate the divider that follows the 2022-09-02 section.",
+            file=sys.stderr,
+        )
         return False
     if index_new_date is None:
-        print("Error: Could not locate the new 2025-01-29 date mention.", file=sys.stderr)
+        print(
+            "Error: Could not locate the new 2025-01-29 date mention.", file=sys.stderr
+        )
         return False
 
     # (2) Verify ordering
     if not (index_previous_date < index_new_date < index_divider_after_previous):
-        print("Error: The 2025-01-29 section is positioned incorrectly.", file=sys.stderr)
+        print(
+            "Error: The 2025-01-29 section is positioned incorrectly.", file=sys.stderr
+        )
         return False
 
     # ---------------------------------------------------------------------
@@ -104,7 +122,9 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
         "⚡ Practice system design problems",
         "🎯 Complete data structures assignment",
     ]
-    expected_todos: Dict[str, bool] = { _normalize_string(t): False for t in expected_texts }
+    expected_todos: Dict[str, bool] = {
+        _normalize_string(t): False for t in expected_texts
+    }
 
     # Look through the blocks that lie between the new date mention and the divider
     for block in all_blocks[index_new_date + 1 : index_divider_after_previous]:
@@ -138,6 +158,7 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
 # Command-line entry-point -------------------------------------------------
 # -------------------------------------------------------------------------
 
+
 def main() -> None:
     notion = notion_utils.get_notion_client()
     main_id = sys.argv[1] if len(sys.argv) > 1 else None
@@ -149,4 +170,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main() 
+    main()

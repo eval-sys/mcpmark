@@ -5,8 +5,8 @@ Verification script for PostgreSQL Task 1: Employee Query
 import os
 import sys
 import psycopg2
-from typing import List, Tuple
 from decimal import Decimal
+
 
 def get_connection_params() -> dict:
     """Get database connection parameters."""
@@ -15,8 +15,9 @@ def get_connection_params() -> dict:
         "port": int(os.getenv("POSTGRES_PORT", 5432)),
         "database": os.getenv("POSTGRES_DATABASE"),
         "user": os.getenv("POSTGRES_USERNAME"),
-        "password": os.getenv("POSTGRES_PASSWORD")
+        "password": os.getenv("POSTGRES_PASSWORD"),
     }
+
 
 def verify_query_results(conn) -> bool:
     """Verify the query was executed correctly."""
@@ -31,16 +32,19 @@ def verify_query_results(conn) -> bool:
 
         # Expected results
         expected = [
-            ('Ward, Miss. Anna', 512.3292),
-            ('Lesurer, Mr. Gustave J', 512.3292),
-            ('Cardeza, Mr. Thomas Drake Martinez', 512.3292),
-            ('Cardeza, Mrs. James Warburton Martinez (Charlotte Wardle Drake)', 512.3292),
-            ('Fortune, Miss. Mabel Helen', 263),
-            ('Fortune, Mrs. Mark (Mary McDougald)', 263),
-            ('Fortune, Mr. Mark', 263),
-            ('Fortune, Mr. Charles Alexander', 263),
-            ('Fortune, Miss. Alice Elizabeth', 263),
-            ('Fortune, Miss. Ethel Flora', 263)
+            ("Ward, Miss. Anna", 512.3292),
+            ("Lesurer, Mr. Gustave J", 512.3292),
+            ("Cardeza, Mr. Thomas Drake Martinez", 512.3292),
+            (
+                "Cardeza, Mrs. James Warburton Martinez (Charlotte Wardle Drake)",
+                512.3292,
+            ),
+            ("Fortune, Miss. Mabel Helen", 263),
+            ("Fortune, Mrs. Mark (Mary McDougald)", 263),
+            ("Fortune, Mr. Mark", 263),
+            ("Fortune, Mr. Charles Alexander", 263),
+            ("Fortune, Miss. Alice Elizabeth", 263),
+            ("Fortune, Miss. Ethel Flora", 263),
         ]
 
         if len(results) != len(expected):
@@ -52,10 +56,10 @@ def verify_query_results(conn) -> bool:
             if isinstance(fare, Decimal):
                 fare = float(fare)
             return (name, fare)
-        
+
         normalized_results = [normalize_result(row) for row in results]
         normalized_expected = [(name, float(fare)) for name, fare in expected]
-        
+
         normalized_results.sort(key=lambda x: (-x[1], x[0]))
         normalized_expected.sort(key=lambda x: (-x[1], x[0]))
 
@@ -64,11 +68,12 @@ def verify_query_results(conn) -> bool:
 
         for i, (actual, exp) in enumerate(zip(normalized_results, normalized_expected)):
             if actual[0] != exp[0] or float(actual[1]) != exp[1]:
-                print(f"❌ Row {i+1} mismatch: expected {exp}, got {actual}")
+                print(f"❌ Row {i + 1} mismatch: expected {exp}, got {actual}")
                 return False
 
         print("✅ Query results are correct")
         return True
+
 
 def main():
     """Main verification function."""
@@ -103,6 +108,7 @@ def main():
     except Exception as e:
         print(f"❌ Verification error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

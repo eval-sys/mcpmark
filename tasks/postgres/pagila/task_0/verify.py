@@ -5,8 +5,7 @@ Verification script for PostgreSQL Task 1: Employee Query
 import os
 import sys
 import psycopg2
-from typing import List, Tuple
-from decimal import Decimal
+
 
 def get_connection_params() -> dict:
     """Get database connection parameters."""
@@ -15,8 +14,9 @@ def get_connection_params() -> dict:
         "port": int(os.getenv("POSTGRES_PORT", 5432)),
         "database": os.getenv("POSTGRES_DATABASE"),
         "user": os.getenv("POSTGRES_USERNAME"),
-        "password": os.getenv("POSTGRES_PASSWORD")
+        "password": os.getenv("POSTGRES_PASSWORD"),
     }
+
 
 def verify_query_results(conn) -> bool:
     """Verify the query was executed correctly."""
@@ -31,16 +31,16 @@ def verify_query_results(conn) -> bool:
 
         # Expected results
         expected = [
-            ('Sports', 1179),
-            ('Animation', 1166),
-            ('Action', 1112),
-            ('Sci-Fi', 1101),
-            ('Family', 1096),
-            ('Drama', 1060),
-            ('Documentary', 1050),
-            ('Foreign', 1033),
-            ('Games', 969),
-            ('Children', 945)
+            ("Sports", 1179),
+            ("Animation", 1166),
+            ("Action", 1112),
+            ("Sci-Fi", 1101),
+            ("Family", 1096),
+            ("Drama", 1060),
+            ("Documentary", 1050),
+            ("Foreign", 1033),
+            ("Games", 969),
+            ("Children", 945),
         ]
 
         if len(results) != len(expected):
@@ -49,11 +49,12 @@ def verify_query_results(conn) -> bool:
 
         for i, (actual, exp) in enumerate(zip(results, expected)):
             if actual[0] != exp[0] or float(actual[1]) != exp[1]:
-                print(f"❌ Row {i+1} mismatch: expected {exp}, got {actual}")
+                print(f"❌ Row {i + 1} mismatch: expected {exp}, got {actual}")
                 return False
 
         print("✅ Query results are correct")
         return True
+
 
 def main():
     """Main verification function."""
@@ -88,6 +89,7 @@ def main():
     except Exception as e:
         print(f"❌ Verification error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -32,7 +32,9 @@ class FilesystemLoginHelper(BaseLoginHelper):
             state_path: Path to save state (not used for filesystem)
         """
         super().__init__()
-        self.state_path = state_path or Path.home() / ".mcpbench" / "filesystem_state.json"
+        self.state_path = (
+            state_path or Path.home() / ".mcpbench" / "filesystem_state.json"
+        )
         logger.info("Initialized FilesystemLoginHelper (no auth required)")
 
     def login(self, **kwargs) -> bool:

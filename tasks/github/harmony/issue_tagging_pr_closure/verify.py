@@ -1,12 +1,13 @@
 import sys
 import os
 import requests
-import json
 from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 
 
-def _get_github_api(endpoint: str, headers: Dict[str, str], org: str, repo: str = "harmony") -> Tuple[bool, Optional[Dict]]:
+def _get_github_api(
+    endpoint: str, headers: Dict[str, str], org: str, repo: str = "harmony"
+) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
     url = f"https://api.github.com/repos/{org}/{repo}/{endpoint}"
     try:
@@ -23,19 +24,31 @@ def _get_github_api(endpoint: str, headers: Dict[str, str], org: str, repo: str 
         return False, None
 
 
-def _check_branch_exists(branch_name: str, headers: Dict[str, str], org: str, repo: str = "harmony") -> bool:
+def _check_branch_exists(
+    branch_name: str, headers: Dict[str, str], org: str, repo: str = "harmony"
+) -> bool:
     """Verify that a branch exists in the repository."""
     success, _ = _get_github_api(f"branches/{branch_name}", headers, org, repo)
     return success
 
 
-def _check_file_content(branch: str, file_path: str, keywords: List[str], headers: Dict[str, str], org: str, repo: str = "harmony") -> bool:
+def _check_file_content(
+    branch: str,
+    file_path: str,
+    keywords: List[str],
+    headers: Dict[str, str],
+    org: str,
+    repo: str = "harmony",
+) -> bool:
     """Verify that a file exists in branch and contains required keywords."""
     import base64
-    success, result = _get_github_api(f"contents/{file_path}?ref={branch}", headers, org, repo)
+
+    success, result = _get_github_api(
+        f"contents/{file_path}?ref={branch}", headers, org, repo
+    )
     if not success or not result:
         return False
-    
+
     if keywords and result.get("content"):
         try:
             content = base64.b64decode(result.get("content", "")).decode("utf-8")
@@ -43,14 +56,18 @@ def _check_file_content(branch: str, file_path: str, keywords: List[str], header
         except Exception as e:
             print(f"Content decode error for {file_path}: {e}", file=sys.stderr)
             return False
-    
+
     return True
 
 
-def _find_issue_by_title_keywords(title_keywords: List[str], headers: Dict[str, str], org: str, repo: str = "harmony") -> Optional[Dict]:
+def _find_issue_by_title_keywords(
+    title_keywords: List[str], headers: Dict[str, str], org: str, repo: str = "harmony"
+) -> Optional[Dict]:
     """Find an issue by title keywords and return the issue data."""
     for state in ["open", "closed"]:
-        success, issues = _get_github_api(f"issues?state={state}&per_page=100", headers, org, repo)
+        success, issues = _get_github_api(
+            f"issues?state={state}&per_page=100", headers, org, repo
+        )
         if success and issues:
             for issue in issues:
                 title = issue.get("title", "").lower()
@@ -59,10 +76,14 @@ def _find_issue_by_title_keywords(title_keywords: List[str], headers: Dict[str, 
     return None
 
 
-def _find_pr_by_title_keywords(title_keywords: List[str], headers: Dict[str, str], org: str, repo: str = "harmony") -> Optional[Dict]:
+def _find_pr_by_title_keywords(
+    title_keywords: List[str], headers: Dict[str, str], org: str, repo: str = "harmony"
+) -> Optional[Dict]:
     """Find a PR by title keywords and return the PR data."""
     for state in ["open", "closed"]:
-        success, prs = _get_github_api(f"pulls?state={state}&per_page=100", headers, org, repo)
+        success, prs = _get_github_api(
+            f"pulls?state={state}&per_page=100", headers, org, repo
+        )
         if success and prs:
             for pr in prs:
                 title = pr.get("title", "").lower()
@@ -77,7 +98,9 @@ def _check_labels(labels: List[Dict], required_labels: List[str]) -> bool:
     return all(req_label.lower() in label_names for req_label in required_labels)
 
 
-def _check_headings_and_keywords(body: str, headings: List[str], keywords: List[str]) -> bool:
+def _check_headings_and_keywords(
+    body: str, headings: List[str], keywords: List[str]
+) -> bool:
     """Check if body contains required headings and keywords."""
     if not body:
         return False
@@ -93,17 +116,25 @@ def _check_issue_reference(body: str, issue_number: int) -> bool:
     return f"#{issue_number}" in body or f"Addresses #{issue_number}" in body
 
 
-def _get_issue_comments(issue_number: int, headers: Dict[str, str], org: str, repo: str = "harmony") -> List[Dict]:
+def _get_issue_comments(
+    issue_number: int, headers: Dict[str, str], org: str, repo: str = "harmony"
+) -> List[Dict]:
     """Get all comments for an issue."""
-    success, comments = _get_github_api(f"issues/{issue_number}/comments", headers, org, repo)
+    success, comments = _get_github_api(
+        f"issues/{issue_number}/comments", headers, org, repo
+    )
     if success and comments:
         return comments
     return []
 
 
-def _get_pr_comments(pr_number: int, headers: Dict[str, str], org: str, repo: str = "harmony") -> List[Dict]:
+def _get_pr_comments(
+    pr_number: int, headers: Dict[str, str], org: str, repo: str = "harmony"
+) -> List[Dict]:
     """Get all comments for a PR."""
-    success, comments = _get_github_api(f"issues/{pr_number}/comments", headers, org, repo)
+    success, comments = _get_github_api(
+        f"issues/{pr_number}/comments", headers, org, repo
+    )
     if success and comments:
         return comments
     return []
@@ -118,11 +149,17 @@ def _check_pr_technical_comment(comments: List[Dict], keywords: List[str]) -> bo
     return False
 
 
-def _check_issue_comment_with_pr_ref(comments: List[Dict], pr_number: int, keywords: List[str]) -> bool:
+def _check_issue_comment_with_pr_ref(
+    comments: List[Dict], pr_number: int, keywords: List[str]
+) -> bool:
     """Check if issue has a comment referencing the PR with required keywords."""
     for comment in comments:
         body = comment.get("body", "")
-        has_pr_ref = f"PR #{pr_number}" in body or f"PR#{pr_number}" in body or f"pr #{pr_number}" in body.lower()
+        has_pr_ref = (
+            f"PR #{pr_number}" in body
+            or f"PR#{pr_number}" in body
+            or f"pr #{pr_number}" in body.lower()
+        )
         has_keywords = all(keyword.lower() in body.lower() for keyword in keywords)
         if has_pr_ref and has_keywords:
             return True
@@ -131,193 +168,274 @@ def _check_issue_comment_with_pr_ref(comments: List[Dict], pr_number: int, keywo
 
 def verify() -> bool:
     """
-    Programmatically verify that the issue tagging and PR closure workflow meets the 
+    Programmatically verify that the issue tagging and PR closure workflow meets the
     requirements described in description.md.
     """
     # Load environment variables from .mcp_env
     load_dotenv(".mcp_env")
-    
+
     # Get GitHub token and org
     github_token = os.environ.get("GITHUB_TOKEN")
     github_org = os.environ.get("GITHUB_EVAL_ORG")
-    
+
     if not github_token:
         print("Error: GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
-    
+
     if not github_org:
         print("Error: GITHUB_EVAL_ORG environment variable not set", file=sys.stderr)
         return False
-    
+
     # Configuration constants
     BRANCH_NAME = "feat/esm-migration-attempt"
-    
+
     # Issue requirements
-    ISSUE_TITLE_KEYWORDS = ["Upgrade JavaScript demo to use ESM imports", "modern module system"]
+    ISSUE_TITLE_KEYWORDS = [
+        "Upgrade JavaScript demo to use ESM imports",
+        "modern module system",
+    ]
     ISSUE_HEADINGS = ["## Problem", "## Proposed Solution", "## Benefits"]
     ISSUE_KEYWORDS = ["CommonJS", "ESM imports", "module bundling", "modern JavaScript"]
     ISSUE_LABELS = ["enhancement", "wontfix"]
-    
-    # PR requirements  
+
+    # PR requirements
     PR_TITLE_KEYWORDS = ["Upgrade JavaScript demo to ESM imports", "modern modules"]
     PR_HEADINGS = ["## Summary", "## Changes", "## Issues Discovered"]
-    PR_KEYWORDS = ["ESM migration", "webpack configuration", "module compatibility", "breaking changes"]
+    PR_KEYWORDS = [
+        "ESM migration",
+        "webpack configuration",
+        "module compatibility",
+        "breaking changes",
+    ]
     PR_LABELS = ["enhancement", "needs-investigation", "wontfix"]
-    
+
     # File content requirements
-    PACKAGE_JSON_KEYWORDS = ['"type": "module"', 'webpack', '@openai/harmony']
-    MAIN_JS_KEYWORDS = ["import { HarmonyEncoding }", "ESM import attempt", "harmony core"]
-    
+    PACKAGE_JSON_KEYWORDS = ['"type": "module"', "webpack", "@openai/harmony"]
+    MAIN_JS_KEYWORDS = [
+        "import { HarmonyEncoding }",
+        "ESM import attempt",
+        "harmony core",
+    ]
+
     # Comment requirements
-    PR_TECHNICAL_KEYWORDS = ["CommonJS required", "breaking compatibility", "build system constraints", "core tokenization", "approach is not viable"]
-    ISSUE_COMMENT_KEYWORDS = ["technical constraints", "CommonJS dependency", "harmony core limitations", "build system compatibility", "not viable at this time"]
-    PR_CLOSURE_KEYWORDS = ["architectural limitations", "future consideration", "core refactoring required", "cannot be merged"]
-    ISSUE_CLOSURE_KEYWORDS = ["closing as not planned", "architectural constraints", "future implementation blocked", "requires core redesign"]
-    
+    PR_TECHNICAL_KEYWORDS = [
+        "CommonJS required",
+        "breaking compatibility",
+        "build system constraints",
+        "core tokenization",
+        "approach is not viable",
+    ]
+    ISSUE_COMMENT_KEYWORDS = [
+        "technical constraints",
+        "CommonJS dependency",
+        "harmony core limitations",
+        "build system compatibility",
+        "not viable at this time",
+    ]
+    PR_CLOSURE_KEYWORDS = [
+        "architectural limitations",
+        "future consideration",
+        "core refactoring required",
+        "cannot be merged",
+    ]
+    ISSUE_CLOSURE_KEYWORDS = [
+        "closing as not planned",
+        "architectural constraints",
+        "future implementation blocked",
+        "requires core redesign",
+    ]
+
     headers = {
         "Authorization": f"token {github_token}",
-        "Accept": "application/vnd.github.v3+json"
+        "Accept": "application/vnd.github.v3+json",
     }
-    
+
     # Run verification checks
     print("Verifying issue tagging and PR closure workflow completion...")
-    
+
     # 1. Check that feature branch exists
     print("1. Verifying feature branch exists...")
     if not _check_branch_exists(BRANCH_NAME, headers, github_org):
         print(f"Error: Branch '{BRANCH_NAME}' not found", file=sys.stderr)
         return False
-    
+
     # 2. Check that implementation files exist with required content
     print("2. Verifying ESM implementation files...")
-    if not _check_file_content(BRANCH_NAME, "javascript/demo/package.json", PACKAGE_JSON_KEYWORDS, headers, github_org):
-        print("Error: javascript/demo/package.json not found or missing required content", file=sys.stderr)
+    if not _check_file_content(
+        BRANCH_NAME,
+        "javascript/demo/package.json",
+        PACKAGE_JSON_KEYWORDS,
+        headers,
+        github_org,
+    ):
+        print(
+            "Error: javascript/demo/package.json not found or missing required content",
+            file=sys.stderr,
+        )
         return False
-    
-    if not _check_file_content(BRANCH_NAME, "javascript/demo/src/main.js", MAIN_JS_KEYWORDS, headers, github_org):
-        print("Error: javascript/demo/src/main.js not found or missing required content", file=sys.stderr)
+
+    if not _check_file_content(
+        BRANCH_NAME,
+        "javascript/demo/src/main.js",
+        MAIN_JS_KEYWORDS,
+        headers,
+        github_org,
+    ):
+        print(
+            "Error: javascript/demo/src/main.js not found or missing required content",
+            file=sys.stderr,
+        )
         return False
-    
+
     # 3. Find the created issue
     print("3. Verifying issue creation and content...")
     issue = _find_issue_by_title_keywords(ISSUE_TITLE_KEYWORDS, headers, github_org)
     if not issue:
-        print(f"Error: Issue with title containing required keywords not found", file=sys.stderr)
+        print(
+            "Error: Issue with title containing required keywords not found",
+            file=sys.stderr,
+        )
         return False
-    
+
     issue_number = issue.get("number")
     issue_body = issue.get("body", "")
     issue_labels = issue.get("labels", [])
-    
+
     # Check issue content
     if not _check_headings_and_keywords(issue_body, ISSUE_HEADINGS, ISSUE_KEYWORDS):
         print("Error: Issue missing required headings or keywords", file=sys.stderr)
         return False
-    
+
     # Check issue references #26
     if "#26" not in issue_body:
         print("Error: Issue does not reference issue #26", file=sys.stderr)
         return False
-    
+
     # Check issue labels
     if not _check_labels(issue_labels, ISSUE_LABELS):
         print(f"Error: Issue missing required labels: {ISSUE_LABELS}", file=sys.stderr)
         return False
-    
+
     # 4. Find the created PR
     print("4. Verifying pull request creation and content...")
     pr = _find_pr_by_title_keywords(PR_TITLE_KEYWORDS, headers, github_org)
     if not pr:
-        print(f"Error: PR with title containing required keywords not found", file=sys.stderr)
+        print(
+            "Error: PR with title containing required keywords not found",
+            file=sys.stderr,
+        )
         return False
-    
+
     pr_number = pr.get("number")
     pr_body = pr.get("body", "")
     pr_labels = pr.get("labels", [])
     pr_state = pr.get("state")
-    
+
     # Check PR content
     if not _check_headings_and_keywords(pr_body, PR_HEADINGS, PR_KEYWORDS):
         print("Error: PR missing required headings or keywords", file=sys.stderr)
         return False
-    
+
     # Check PR references issue
     if not _check_issue_reference(pr_body, issue_number):
         print(f"Error: PR does not reference issue #{issue_number}", file=sys.stderr)
         return False
-    
+
     # Check PR labels
     if not _check_labels(pr_labels, PR_LABELS):
         print(f"Error: PR missing required labels: {PR_LABELS}", file=sys.stderr)
         return False
-    
+
     # 5. Check PR is closed (not merged)
     print("5. Verifying PR is closed without merging...")
     if pr_state != "closed":
         print(f"Error: PR #{pr_number} is not closed", file=sys.stderr)
         return False
-    
+
     if pr.get("merged_at"):
-        print(f"Error: PR #{pr_number} was merged (should be closed without merging)", file=sys.stderr)
+        print(
+            f"Error: PR #{pr_number} was merged (should be closed without merging)",
+            file=sys.stderr,
+        )
         return False
-    
+
     # 6. Check PR technical analysis comment
     print("6. Verifying PR technical analysis comment...")
     pr_comments = _get_pr_comments(pr_number, headers, github_org)
     if not _check_pr_technical_comment(pr_comments, PR_TECHNICAL_KEYWORDS):
-        print("Error: PR missing technical analysis comment with required keywords", file=sys.stderr)
+        print(
+            "Error: PR missing technical analysis comment with required keywords",
+            file=sys.stderr,
+        )
         return False
-    
+
     # 7. Check issue comment with PR reference
     print("7. Verifying issue comment referencing PR...")
     issue_comments = _get_issue_comments(issue_number, headers, github_org)
-    if not _check_issue_comment_with_pr_ref(issue_comments, pr_number, ISSUE_COMMENT_KEYWORDS):
-        print(f"Error: Issue #{issue_number} missing comment referencing PR #{pr_number} with required keywords", file=sys.stderr)
+    if not _check_issue_comment_with_pr_ref(
+        issue_comments, pr_number, ISSUE_COMMENT_KEYWORDS
+    ):
+        print(
+            f"Error: Issue #{issue_number} missing comment referencing PR #{pr_number} with required keywords",
+            file=sys.stderr,
+        )
         return False
-    
+
     # 8. Check PR closure comment with required keywords
     print("8. Verifying PR closure comment...")
     pr_closure_comment_found = False
     for comment in pr_comments:
         body = comment.get("body", "")
-        if body and all(keyword.lower() in body.lower() for keyword in PR_CLOSURE_KEYWORDS):
+        if body and all(
+            keyword.lower() in body.lower() for keyword in PR_CLOSURE_KEYWORDS
+        ):
             pr_closure_comment_found = True
             break
-    
+
     if not pr_closure_comment_found:
-        print("Error: PR missing closure comment with required keywords", file=sys.stderr)
+        print(
+            "Error: PR missing closure comment with required keywords", file=sys.stderr
+        )
         return False
-    
+
     # 9. Verify issue is closed as not_planned
     print("9. Verifying issue is closed as not_planned...")
     if issue.get("state") != "closed":
         print(f"Error: Issue #{issue_number} should be closed", file=sys.stderr)
         return False
-    
+
     if issue.get("state_reason") != "not_planned":
-        print(f"Error: Issue #{issue_number} should be closed with state_reason 'not_planned'", file=sys.stderr)
+        print(
+            f"Error: Issue #{issue_number} should be closed with state_reason 'not_planned'",
+            file=sys.stderr,
+        )
         return False
-    
+
     # 10. Check issue closure comment with required keywords
     print("10. Verifying issue closure comment...")
     issue_closure_comment_found = False
     for comment in issue_comments:
         body = comment.get("body", "")
-        if body and all(keyword.lower() in body.lower() for keyword in ISSUE_CLOSURE_KEYWORDS):
+        if body and all(
+            keyword.lower() in body.lower() for keyword in ISSUE_CLOSURE_KEYWORDS
+        ):
             issue_closure_comment_found = True
             break
-    
+
     if not issue_closure_comment_found:
-        print("Error: Issue missing closure comment with required keywords", file=sys.stderr)
+        print(
+            "Error: Issue missing closure comment with required keywords",
+            file=sys.stderr,
+        )
         return False
-    
+
     print("\n✓ All verification checks passed!")
-    print(f"Issue tagging and PR closure workflow completed successfully:")
+    print("Issue tagging and PR closure workflow completed successfully:")
     print(f"  - Issue #{issue_number}: {issue.get('title')} (closed as not_planned)")
     print(f"  - PR #{pr_number}: {pr.get('title')} (closed without merging)")
     print(f"  - Branch: {BRANCH_NAME}")
-    print(f"  - All comments contain required keywords")
-    print(f"  - Technical constraints properly documented and communicated")
+    print("  - All comments contain required keywords")
+    print("  - Technical constraints properly documented and communicated")
     return True
 
 

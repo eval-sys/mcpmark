@@ -7,17 +7,16 @@ EXPECTED_CODE_BLOCKS = [
     {
         "caption": "Basic Go program",
         "code": (
-            "package main\n\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello, World!\")\n}")
+            'package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}'
+        ),
     },
     {
         "caption": "For loop in Go",
-        "code": (
-            "for i := 0; i < 5; i++ {\n    fmt.Println(i)\n}")
+        "code": ("for i := 0; i < 5; i++ {\n    fmt.Println(i)\n}"),
     },
     {
         "caption": "Function definition in Go",
-        "code": (
-            "func add(a, b int) int {\n    return a + b\n}")
+        "code": ("func add(a, b int) int {\n    return a + b\n}"),
     },
 ]
 
@@ -33,7 +32,9 @@ def _find_page(notion: Client, main_id: str | None) -> str | None:
     """Return a page_id to verify against or None if not found."""
     page_id = None
     if main_id:
-        found_id, object_type = notion_utils.find_page_or_database_by_id(notion, main_id)
+        found_id, object_type = notion_utils.find_page_or_database_by_id(
+            notion, main_id
+        )
         if found_id and object_type == "page":
             page_id = found_id
     if not page_id:
@@ -59,7 +60,9 @@ def _go_column_order_correct(notion: Client, page_id: str) -> bool:
     """Return True if there exists a column list where Python → Go → JavaScript order holds."""
     # Gather all blocks once (flat list) to locate column_list blocks
     all_blocks = notion_utils.get_all_blocks_recursively(notion, page_id)
-    column_list_ids = [blk["id"] for blk in all_blocks if blk.get("type") == "column_list"]
+    column_list_ids = [
+        blk["id"] for blk in all_blocks if blk.get("type") == "column_list"
+    ]
 
     for cl_id in column_list_ids:
         # Retrieve columns in explicit order
@@ -83,7 +86,9 @@ def _go_column_order_correct(notion: Client, page_id: str) -> bool:
             "Python" in header_to_idx
             and "Go" in header_to_idx
             and "JavaScript" in header_to_idx
-            and header_to_idx["Python"] < header_to_idx["Go"] < header_to_idx["JavaScript"]
+            and header_to_idx["Python"]
+            < header_to_idx["Go"]
+            < header_to_idx["JavaScript"]
         ):
             return True
     return False
@@ -98,8 +103,12 @@ def _collect_code_blocks(blocks):
         code_data = block.get("code", {})
         if code_data.get("language") != "go":
             continue
-        code_plain = "".join(rt.get("plain_text", "") for rt in code_data.get("rich_text", []))
-        caption_plain = "".join(rt.get("plain_text", "") for rt in code_data.get("caption", []))
+        code_plain = "".join(
+            rt.get("plain_text", "") for rt in code_data.get("rich_text", [])
+        )
+        caption_plain = "".join(
+            rt.get("plain_text", "") for rt in code_data.get("caption", [])
+        )
         collected.append((code_plain, caption_plain))
     return collected
 
@@ -125,20 +134,30 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
     for code, caption in code_blocks_found:
         norm_code = _normalize(code)
         for expected in remaining:
-            if _normalize(expected["code"]) == norm_code and expected["caption"] == caption:
+            if (
+                _normalize(expected["code"]) == norm_code
+                and expected["caption"] == caption
+            ):
                 remaining.remove(expected)
                 break
     if remaining:
         missing = ", ".join(exp["caption"] for exp in remaining)
-        print(f"Failure: Missing or incorrect Go code blocks: {missing}", file=sys.stderr)
+        print(
+            f"Failure: Missing or incorrect Go code blocks: {missing}", file=sys.stderr
+        )
         return False
 
     # Verify column order Python → Go → JavaScript
     if not _go_column_order_correct(notion, page_id):
-        print("Failure: Go column is not positioned between Python and JavaScript.", file=sys.stderr)
+        print(
+            "Failure: Go column is not positioned between Python and JavaScript.",
+            file=sys.stderr,
+        )
         return False
 
-    print("Success: Verified Go column with required code blocks and correct positioning.")
+    print(
+        "Success: Verified Go column with required code blocks and correct positioning."
+    )
     return True
 
 
@@ -149,4 +168,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

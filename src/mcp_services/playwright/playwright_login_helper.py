@@ -13,7 +13,6 @@ from typing import Optional
 from playwright.sync_api import (
     BrowserContext,
     sync_playwright,
-    TimeoutError as PlaywrightTimeoutError,
 )
 
 from src.base.login_helper import BaseLoginHelper
@@ -25,7 +24,7 @@ logger = get_logger(__name__)
 class PlaywrightLoginHelper(BaseLoginHelper):
     """
     Login helper for Playwright web automation tasks.
-    
+
     Manages browser contexts, session persistence, and authentication state
     for web automation scenarios.
     """
@@ -48,7 +47,7 @@ class PlaywrightLoginHelper(BaseLoginHelper):
             state_path: Path to save browser session state
         """
         super().__init__()
-        
+
         if browser not in self.SUPPORTED_BROWSERS:
             raise ValueError(
                 f"Unsupported browser '{browser}'. Supported: {', '.join(self.SUPPORTED_BROWSERS)}"
@@ -57,20 +56,22 @@ class PlaywrightLoginHelper(BaseLoginHelper):
         self.browser_name = browser
         self.headless = headless
         self.state_path = (
-            Path(state_path or Path.cwd() / "playwright_state.json").expanduser().resolve()
+            Path(state_path or Path.cwd() / "playwright_state.json")
+            .expanduser()
+            .resolve()
         )
-        
+
         # Browser management
         self._playwright = None
         self._browser = None
         self._browser_context: Optional[BrowserContext] = None
-        
+
         logger.info(f"Initialized PlaywrightLoginHelper with {browser} browser")
 
     def login(self, **kwargs) -> bool:
         """
         Set up browser context and session state.
-        
+
         For most Playwright tasks, this creates a clean browser context
         that can be used for web automation. More complex authentication
         can be handled in specific implementations.
@@ -81,15 +82,15 @@ class PlaywrightLoginHelper(BaseLoginHelper):
         try:
             # Clean up any existing browser instances
             self.close()
-            
+
             # Start Playwright
             self._playwright = sync_playwright().start()
             browser_type = getattr(self._playwright, self.browser_name)
             self._browser = browser_type.launch(headless=self.headless)
-            
+
             # Create browser context
             context_options = {}
-            
+
             # Load existing state if available
             if self.state_path.exists():
                 try:
@@ -97,15 +98,15 @@ class PlaywrightLoginHelper(BaseLoginHelper):
                     logger.info(f"Loaded browser state from {self.state_path}")
                 except Exception as e:
                     logger.warning(f"Failed to load browser state: {e}")
-            
+
             self._browser_context = self._browser.new_context(**context_options)
-            
+
             # Save current state
             self._save_browser_state()
-            
+
             logger.info("✅ Browser context setup successful")
             return True
-            
+
         except Exception as e:
             logger.error(f"Browser setup failed: {e}")
             self.close()
@@ -114,7 +115,7 @@ class PlaywrightLoginHelper(BaseLoginHelper):
     def get_browser_context(self) -> Optional[BrowserContext]:
         """
         Get the current browser context.
-        
+
         Returns:
             BrowserContext or None if not initialized
         """
@@ -123,7 +124,7 @@ class PlaywrightLoginHelper(BaseLoginHelper):
     def is_authenticated(self) -> bool:
         """
         Check if browser context is ready for use.
-        
+
         Returns:
             bool: True if browser context is available
         """
@@ -132,14 +133,14 @@ class PlaywrightLoginHelper(BaseLoginHelper):
     def get_credentials(self) -> dict:
         """
         Get browser configuration for MCP integration.
-        
+
         Returns:
             dict: Browser configuration parameters
         """
         return {
             "browser": self.browser_name,
             "headless": self.headless,
-            "state_path": str(self.state_path)
+            "state_path": str(self.state_path),
         }
 
     def _save_browser_state(self) -> None:
@@ -178,4 +179,3 @@ class PlaywrightLoginHelper(BaseLoginHelper):
                 logger.warning(f"Error stopping Playwright: {e}")
             finally:
                 self._playwright = None
-

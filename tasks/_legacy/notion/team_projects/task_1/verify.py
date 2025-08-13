@@ -99,10 +99,12 @@ def verify(notion: Client, main_id: str = None) -> bool:
     """Verify that the last table in the 'Team Projects' page matches EXPECTED_ROWS and headers."""
     page_id = None
     if main_id:
-        found_id, object_type = notion_utils.find_page_or_database_by_id(notion, main_id)
-        if found_id and object_type == 'page':
+        found_id, object_type = notion_utils.find_page_or_database_by_id(
+            notion, main_id
+        )
+        if found_id and object_type == "page":
             page_id = found_id
-    
+
     if not page_id:
         page_id = notion_utils.find_page(notion, "Team Projects")
     if not page_id:
@@ -129,7 +131,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
     header_cells = rows[0].get("table_row", {}).get("cells", [])
     headers = [_plain_text_from_cell(c) for c in header_cells]
     if headers != EXPECTED_HEADERS:
-        print(f"Error: Table headers mismatch. Found {headers}, expected {EXPECTED_HEADERS}.", file=sys.stderr)
+        print(
+            f"Error: Table headers mismatch. Found {headers}, expected {EXPECTED_HEADERS}.",
+            file=sys.stderr,
+        )
         return False
 
     # Parse data rows
@@ -154,13 +159,18 @@ def verify(notion: Client, main_id: str = None) -> bool:
         data_rows.append(row_dict)
 
     if len(data_rows) != len(EXPECTED_ROWS):
-        print(f"Error: Expected {len(EXPECTED_ROWS)} data rows, found {len(data_rows)}.", file=sys.stderr)
+        print(
+            f"Error: Expected {len(EXPECTED_ROWS)} data rows, found {len(data_rows)}.",
+            file=sys.stderr,
+        )
         return False
 
     # Verify sorting by End Date ascending
     parsed_end_dates = [_parse_date(r["End Date"]) for r in data_rows]
     if any(d is None for d in parsed_end_dates):
-        print("Error: One or more End Date values could not be parsed.", file=sys.stderr)
+        print(
+            "Error: One or more End Date values could not be parsed.", file=sys.stderr
+        )
         return False
     if parsed_end_dates != sorted(parsed_end_dates):
         print("Error: Table is not sorted by End Date ascending.", file=sys.stderr)
@@ -181,26 +191,41 @@ def verify(notion: Client, main_id: str = None) -> bool:
         actual_hours = actual["Eng Hours"]
         if expected_hours is None:
             if actual_hours is not None:
-                print(f"Error: Eng Hours for '{proj}' expected to be empty/N\u204aA but found '{actual_hours}'.", file=sys.stderr)
+                print(
+                    f"Error: Eng Hours for '{proj}' expected to be empty/N\u204aA but found '{actual_hours}'.",
+                    file=sys.stderr,
+                )
                 return False
         else:
             if actual_hours is None or abs(actual_hours - expected_hours) > 1e-2:
-                print(f"Error: Eng Hours for '{proj}' mismatch. Expected {expected_hours}, found {actual_hours}.", file=sys.stderr)
+                print(
+                    f"Error: Eng Hours for '{proj}' mismatch. Expected {expected_hours}, found {actual_hours}.",
+                    file=sys.stderr,
+                )
                 return False
 
         # Compare Progress with tolerance
         expected_progress = expected["Progress"]
         actual_progress = actual["Progress"]
         if actual_progress is None or abs(actual_progress - expected_progress) > 1e-2:
-            print(f"Error: Progress for '{proj}' mismatch. Expected {expected_progress}, found {actual_progress}.", file=sys.stderr)
+            print(
+                f"Error: Progress for '{proj}' mismatch. Expected {expected_progress}, found {actual_progress}.",
+                file=sys.stderr,
+            )
             return False
 
         # Compare Start and End Dates (string equality)
         if actual["Start Date"] != expected["Start Date"]:
-            print(f"Error: Start Date for '{proj}' mismatch. Expected {expected['Start Date']}, found {actual['Start Date']}.", file=sys.stderr)
+            print(
+                f"Error: Start Date for '{proj}' mismatch. Expected {expected['Start Date']}, found {actual['Start Date']}.",
+                file=sys.stderr,
+            )
             return False
         if actual["End Date"] != expected["End Date"]:
-            print(f"Error: End Date for '{proj}' mismatch. Expected {expected['End Date']}, found {actual['End Date']}.", file=sys.stderr)
+            print(
+                f"Error: End Date for '{proj}' mismatch. Expected {expected['End Date']}, found {actual['End Date']}.",
+                file=sys.stderr,
+            )
             return False
 
     print("Success: Verified table block contents and order successfully.")
@@ -218,4 +243,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

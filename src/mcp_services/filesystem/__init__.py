@@ -11,8 +11,8 @@ from .filesystem_state_manager import FilesystemStateManager
 from .filesystem_task_manager import FilesystemTaskManager, FilesystemTask
 
 __all__ = [
-    'FilesystemLoginHelper',
-    'FilesystemStateManager', 
-    'FilesystemTaskManager',
-    'FilesystemTask'
+    "FilesystemLoginHelper",
+    "FilesystemStateManager",
+    "FilesystemTaskManager",
+    "FilesystemTask",
 ]

@@ -43,21 +43,29 @@ def verify(notion: Client, main_id: str = None) -> bool:
     # Locate Habit Tracker page
     page_id = None
     if main_id:
-        found_id, object_type = notion_utils.find_page_or_database_by_id(notion, main_id)
-        if found_id and object_type == 'page':
+        found_id, object_type = notion_utils.find_page_or_database_by_id(
+            notion, main_id
+        )
+        if found_id and object_type == "page":
             page_id = found_id
-    
+
     if not page_id:
-        page_id = notion_utils.find_page(notion, "habit tracker") or notion_utils.find_page(notion, "Habit Tracker")
+        page_id = notion_utils.find_page(
+            notion, "habit tracker"
+        ) or notion_utils.find_page(notion, "Habit Tracker")
     if not page_id:
         print("Error: Habit Tracker page not found.", file=sys.stderr)
         return False
 
     # Fetch child blocks of the page (first level) and, if present, their children (second level)
     try:
-        first_level_blocks = notion.blocks.children.list(block_id=page_id).get("results", [])
+        first_level_blocks = notion.blocks.children.list(block_id=page_id).get(
+            "results", []
+        )
     except Exception as e:
-        print(f"Error retrieving child blocks of Habit Tracker page: {e}", file=sys.stderr)
+        print(
+            f"Error retrieving child blocks of Habit Tracker page: {e}", file=sys.stderr
+        )
         return False
 
     # Traverse up to three levels deep (children, grandchildren, great-grandchildren)
@@ -70,7 +78,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
         if depth >= MAX_DEPTH:
             continue
         try:
-            child_blocks = notion.blocks.children.list(block_id=blk_id).get("results", [])
+            child_blocks = notion.blocks.children.list(block_id=blk_id).get(
+                "results", []
+            )
         except Exception:
             # Skip this branch if we cannot fetch its children
             continue
@@ -120,7 +130,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
 
     # Validate row count
     if len(parsed_rows) != len(EXPECTED_ROWS):
-        print(f"Error: Expected {len(EXPECTED_ROWS)} data rows, found {len(parsed_rows)}.", file=sys.stderr)
+        print(
+            f"Error: Expected {len(EXPECTED_ROWS)} data rows, found {len(parsed_rows)}.",
+            file=sys.stderr,
+        )
         return False
 
     expected_set = set(EXPECTED_ROWS)
@@ -149,4 +162,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

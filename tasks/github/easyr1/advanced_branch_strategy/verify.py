@@ -1,12 +1,15 @@
 import sys
 import os
 import requests
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 from dotenv import load_dotenv
 
 load_dotenv(".mcp_env")
 
-def _get_github_api(endpoint: str, headers: Dict[str, str]) -> Tuple[bool, Optional[Dict]]:
+
+def _get_github_api(
+    endpoint: str, headers: Dict[str, str]
+) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
     url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
     try:
@@ -29,43 +32,53 @@ def _check_gitflow_branches(headers: Dict[str, str]) -> bool:
     if not success or not branches_data:
         print("Error: Could not fetch branches", file=sys.stderr)
         return False
-    
+
     existing_branches = [branch.get("name", "") for branch in branches_data]
-    required_branches = ["develop", "release/v1.0.0", "feature/protocol-serialization-fix"]
-    
+    required_branches = [
+        "develop",
+        "release/v1.0.0",
+        "feature/protocol-serialization-fix",
+    ]
+
     for branch in required_branches:
         if branch not in existing_branches:
             print(f"Error: Required branch '{branch}' not found", file=sys.stderr)
             return False
-    
+
     return True
 
 
 def _check_protocol_fixes_file(headers: Dict[str, str]) -> bool:
     """Check if PROTOCOL_FIXES.md file exists in feature branch with correct content."""
-    success, file_data = _get_github_api("contents/PROTOCOL_FIXES.md?ref=feature/protocol-serialization-fix", headers)
+    success, file_data = _get_github_api(
+        "contents/PROTOCOL_FIXES.md?ref=feature/protocol-serialization-fix", headers
+    )
     if not success or not file_data:
         print("Error: PROTOCOL_FIXES.md not found in feature branch", file=sys.stderr)
         return False
-    
+
     # Decode base64 content
     import base64
+
     content = base64.b64decode(file_data.get("content", "")).decode("utf-8")
-    
+
     # Check for required content elements
     required_elements = [
         "# Protocol Serialization Fixes",
         "## Critical Fix for Data Proto Issue",
         "Enhanced serialization safety check implemented",
         "098931530606d22f867fd121b1dcb3225a43661f",
-        "Status: Ready for integration testing"
+        "Status: Ready for integration testing",
     ]
-    
+
     for element in required_elements:
         if element not in content:
-            print(f"Error: PROTOCOL_FIXES.md missing required content: {element}", file=sys.stderr)
+            print(
+                f"Error: PROTOCOL_FIXES.md missing required content: {element}",
+                file=sys.stderr,
+            )
             return False
-    
+
     return True
 
 
@@ -76,52 +89,64 @@ def _check_integration_workflow(headers: Dict[str, str]) -> Optional[Dict]:
     if not success or not prs:
         print("Error: Could not fetch pull requests", file=sys.stderr)
         return None
-    
+
     for pr in prs:
         head_ref = pr.get("head", {}).get("ref", "")
         base_ref = pr.get("base", {}).get("ref", "")
-        
+
         if head_ref == "feature/protocol-serialization-fix" and base_ref == "develop":
             return pr
-    
-    print("Error: Integration PR from feature/protocol-serialization-fix to develop not found", file=sys.stderr)
+
+    print(
+        "Error: Integration PR from feature/protocol-serialization-fix to develop not found",
+        file=sys.stderr,
+    )
     return None
 
 
 def _check_release_branch_updated(headers: Dict[str, str]) -> bool:
     """Check if release branch contains the develop branch changes."""
     # Check if PROTOCOL_FIXES.md exists in release branch
-    success, file_data = _get_github_api("contents/PROTOCOL_FIXES.md?ref=release/v1.0.0", headers)
+    success, file_data = _get_github_api(
+        "contents/PROTOCOL_FIXES.md?ref=release/v1.0.0", headers
+    )
     if not success or not file_data:
-        print("Error: PROTOCOL_FIXES.md not found in release branch - develop changes not merged", file=sys.stderr)
+        print(
+            "Error: PROTOCOL_FIXES.md not found in release branch - develop changes not merged",
+            file=sys.stderr,
+        )
         return False
-    
+
     return True
 
 
 def _check_ci_workflow_updated(headers: Dict[str, str]) -> bool:
     """Check if CI workflow includes develop and release branches."""
-    success, file_data = _get_github_api("contents/.github/workflows/tests.yml?ref=release/v1.0.0", headers)
+    success, file_data = _get_github_api(
+        "contents/.github/workflows/tests.yml?ref=release/v1.0.0", headers
+    )
     if not success or not file_data:
         print("Error: Could not fetch CI workflow file", file=sys.stderr)
         return False
-    
+
     # Decode base64 content
     import base64
+
     content = base64.b64decode(file_data.get("content", "")).decode("utf-8")
-    
+
     # Check that both branches are in the workflow triggers
     if "develop" not in content:
         print("Error: CI workflow missing 'develop' branch trigger", file=sys.stderr)
         return False
-    
+
     if "release/v1.0.0" not in content:
-        print("Error: CI workflow missing 'release/v1.0.0' branch trigger", file=sys.stderr)
+        print(
+            "Error: CI workflow missing 'release/v1.0.0' branch trigger",
+            file=sys.stderr,
+        )
         return False
-    
+
     return True
-
-
 
 
 def _check_process_documentation(headers: Dict[str, str]) -> Optional[Dict]:
@@ -130,40 +155,49 @@ def _check_process_documentation(headers: Dict[str, str]) -> Optional[Dict]:
     if not success or not issues:
         print("Error: Could not fetch issues for documentation check", file=sys.stderr)
         return None
-    
+
     expected_title = "Implement Advanced Branch Protection Strategy"
     expected_checkboxes = [
         "All development flows through develop branch",
         "Release preparation happens in release/v1.0.0 branch",
-        "Feature integration uses PR workflow"
+        "Feature integration uses PR workflow",
     ]
-    
+
     for issue in issues:
         title = issue.get("title", "")
         if title == expected_title:
             body = issue.get("body", "")
-            
+
             # Check for exactly 3 checkboxes with specific content
             checkbox_count = body.count("- [ ]") + body.count("- [x]")
             if checkbox_count != 3:
-                print(f"Error: Documentation issue should have 3 checkboxes, found {checkbox_count}", file=sys.stderr)
+                print(
+                    f"Error: Documentation issue should have 3 checkboxes, found {checkbox_count}",
+                    file=sys.stderr,
+                )
                 return None
-            
+
             # Check for specific checkbox content
             for expected_text in expected_checkboxes:
                 if expected_text not in body:
-                    print(f"Error: Documentation issue missing required checkbox: {expected_text}", file=sys.stderr)
+                    print(
+                        f"Error: Documentation issue missing required checkbox: {expected_text}",
+                        file=sys.stderr,
+                    )
                     return None
-            
+
             # Check label assignment
             labels = issue.get("labels", [])
             label_names = [label.get("name") for label in labels]
             if "process-implementation" not in label_names:
-                print("Error: Documentation issue not labeled with 'process-implementation'", file=sys.stderr)
+                print(
+                    "Error: Documentation issue not labeled with 'process-implementation'",
+                    file=sys.stderr,
+                )
                 return None
-            
+
             return issue
-    
+
     print("Error: Process documentation issue not found", file=sys.stderr)
     return None
 
@@ -178,51 +212,59 @@ def verify() -> bool:
     if not github_token:
         print("Error: GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
-    
+
     headers = {
         "Authorization": f"token {github_token}",
-        "Accept": "application/vnd.github.v3+json"
+        "Accept": "application/vnd.github.v3+json",
     }
-    
+
     print("Verifying integrated GitFlow workflow implementation...")
-    
+
     # 1. Verify GitFlow structure initialization
     print("1. Checking GitFlow branch structure...")
     if not _check_gitflow_branches(headers):
         return False
-    
+
     # 2. Verify critical bug fix implementation via new file
     print("2. Checking protocol serialization fix documentation...")
     if not _check_protocol_fixes_file(headers):
         return False
-    
+
     # 3. Verify integration workflow (feature → develop PR)
     print("3. Checking feature integration workflow...")
     integration_pr = _check_integration_workflow(headers)
     if not integration_pr:
         return False
-    
+
     # 4. Verify release branch updated and CI configured
     print("4. Checking release branch sync and CI configuration...")
     if not _check_release_branch_updated(headers):
         return False
-    
+
     if not _check_ci_workflow_updated(headers):
         return False
-    
+
     # 5. Verify process documentation
     print("5. Checking process documentation...")
     doc_issue = _check_process_documentation(headers)
     if not doc_issue:
         return False
-    
+
     print("\n✓ Integrated GitFlow workflow successfully implemented!")
     print("✓ GitFlow structure: main → develop → release/v1.0.0 branches created")
     print("✓ Critical fix: Protocol fix documented in PROTOCOL_FIXES.md file")
-    print(f"✓ Integration: PR #{integration_pr.get('number')} demonstrates feature → develop workflow")
-    print("✓ Release prep: Release branch contains develop changes, CI configured for both branches")
-    print(f"✓ Documentation: Process documented in issue #{doc_issue.get('number')} with proper checkboxes")
-    print("\nThe repository now has a structured GitFlow workflow ready for implementation!")
+    print(
+        f"✓ Integration: PR #{integration_pr.get('number')} demonstrates feature → develop workflow"
+    )
+    print(
+        "✓ Release prep: Release branch contains develop changes, CI configured for both branches"
+    )
+    print(
+        f"✓ Documentation: Process documented in issue #{doc_issue.get('number')} with proper checkboxes"
+    )
+    print(
+        "\nThe repository now has a structured GitFlow workflow ready for implementation!"
+    )
     return True
 
 

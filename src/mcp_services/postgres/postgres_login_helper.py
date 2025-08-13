@@ -15,6 +15,7 @@ from src.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 class PostgresLoginHelper(BaseLoginHelper):
     """Handles PostgreSQL authentication and connection validation."""
 
@@ -25,7 +26,7 @@ class PostgresLoginHelper(BaseLoginHelper):
         database: str = None,
         username: str = None,
         password: str = None,
-        state_path: Optional[Path] = None
+        state_path: Optional[Path] = None,
     ):
         """Initialize PostgreSQL login helper.
 
@@ -62,7 +63,7 @@ class PostgresLoginHelper(BaseLoginHelper):
                 database=self.database,
                 user=self.username,
                 password=self.password,
-                connect_timeout=10
+                connect_timeout=10,
             )
 
             # Execute test query
@@ -72,9 +73,12 @@ class PostgresLoginHelper(BaseLoginHelper):
                 logger.info(f"PostgreSQL connection successful: {version}")
 
                 # Check permissions
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT has_database_privilege(%s, 'CREATE')
-                """, (self.database,))
+                """,
+                    (self.database,),
+                )
                 can_create = cur.fetchone()[0]
 
                 if not can_create:
@@ -83,15 +87,17 @@ class PostgresLoginHelper(BaseLoginHelper):
             conn.close()
 
             # Save connection state
-            self._save_connection_state({
-                "host": self.host,
-                "port": self.port,
-                "database": self.database,
-                "username": self.username,
-                "version": version,
-                "can_create": can_create,
-                "authenticated_at": self._get_current_timestamp()
-            })
+            self._save_connection_state(
+                {
+                    "host": self.host,
+                    "port": self.port,
+                    "database": self.database,
+                    "username": self.username,
+                    "version": version,
+                    "can_create": can_create,
+                    "authenticated_at": self._get_current_timestamp(),
+                }
+            )
 
             return True
 
@@ -106,9 +112,9 @@ class PostgresLoginHelper(BaseLoginHelper):
         """Save connection state to file."""
         try:
             # Don't save password
-            safe_state = {k: v for k, v in state.items() if k != 'password'}
+            safe_state = {k: v for k, v in state.items() if k != "password"}
 
-            with open(self.state_path, 'w') as f:
+            with open(self.state_path, "w") as f:
                 json.dump(safe_state, f, indent=2)
 
             # Set restrictive permissions
@@ -121,6 +127,7 @@ class PostgresLoginHelper(BaseLoginHelper):
     def _get_current_timestamp(self) -> str:
         """Get current timestamp in ISO format."""
         from datetime import datetime, timezone
+
         return datetime.now(timezone.utc).isoformat()
 
     def is_connected(self) -> bool:
@@ -133,5 +140,5 @@ class PostgresLoginHelper(BaseLoginHelper):
             "host": self.host,
             "port": self.port,
             "database": self.database,
-            "user": self.username
+            "user": self.username,
         }

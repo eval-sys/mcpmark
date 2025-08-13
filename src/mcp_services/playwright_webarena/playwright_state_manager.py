@@ -78,7 +78,9 @@ class PlaywrightStateManager(BaseStateManager):
 
         self.config = DockerConfig(
             image_name=docker_image_name,
-            image_tar_path=Path(image_tar_path).expanduser().resolve() if image_tar_path else None,
+            image_tar_path=Path(image_tar_path).expanduser().resolve()
+            if image_tar_path
+            else None,
             container_name=docker_container_name,
             host_port=host_port,
             container_port=container_port,
@@ -86,7 +88,7 @@ class PlaywrightStateManager(BaseStateManager):
             readiness_timeout_seconds=readiness_timeout_seconds,
             readiness_poll_interval_seconds=readiness_poll_interval_seconds,
         )
-        
+
         self.skip_cleanup = skip_cleanup
 
         logger.info(
@@ -99,12 +101,18 @@ class PlaywrightStateManager(BaseStateManager):
 
     # ---- Helpers ---------------------------------------------------------
 
-    def _run_cmd(self, args: list[str], *, check: bool = False) -> subprocess.CompletedProcess:
+    def _run_cmd(
+        self, args: list[str], *, check: bool = False
+    ) -> subprocess.CompletedProcess:
         logger.debug("Running command: %s", " ".join(args))
-        return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=check)
+        return subprocess.run(
+            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=check
+        )
 
     def _image_exists(self, image: str) -> bool:
-        result = self._run_cmd(["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"])
+        result = self._run_cmd(
+            ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"]
+        )
         lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         # Parse target image (allow optional tag; default latest)
         if ":" in image:
@@ -124,9 +132,13 @@ class PlaywrightStateManager(BaseStateManager):
         return False
 
     def _load_image_from_tar_if_needed(self) -> None:
-        if self.config.image_tar_path and not self._image_exists(self.config.image_name):
+        if self.config.image_tar_path and not self._image_exists(
+            self.config.image_name
+        ):
             logger.info("Loading Docker image from tar: %s", self.config.image_tar_path)
-            result = self._run_cmd(["docker", "load", "--input", str(self.config.image_tar_path)])
+            result = self._run_cmd(
+                ["docker", "load", "--input", str(self.config.image_tar_path)]
+            )
             if result.returncode != 0:
                 logger.error("Failed to load Docker image: %s", result.stderr.strip())
                 raise RuntimeError(f"docker load failed: {result.stderr}")
@@ -139,7 +151,9 @@ class PlaywrightStateManager(BaseStateManager):
         self._run_cmd(["docker", "rm", name])
 
     def _container_is_running(self, name: str) -> bool:
-        result = self._run_cmd(["docker", "ps", "--filter", f"name=^{name}$", "--format", "{{.Names}}"])
+        result = self._run_cmd(
+            ["docker", "ps", "--filter", f"name=^{name}$", "--format", "{{.Names}}"]
+        )
         running = any(line.strip() == name for line in result.stdout.splitlines())
         logger.debug("Container '%s' running: %s", name, running)
         return running
@@ -262,9 +276,17 @@ class PlaywrightStateManager(BaseStateManager):
         for cmd in cmds:
             result = self._run_cmd(cmd)
             if result.returncode != 0:
-                logger.warning("shopping_admin setup step failed (%s): %s", " ".join(cmd), result.stderr.strip())
+                logger.warning(
+                    "shopping_admin setup step failed (%s): %s",
+                    " ".join(cmd),
+                    result.stderr.strip(),
+                )
             else:
-                logger.debug("shopping_admin setup step ok (%s): %s", " ".join(cmd), result.stdout.strip())
+                logger.debug(
+                    "shopping_admin setup step ok (%s): %s",
+                    " ".join(cmd),
+                    result.stdout.strip(),
+                )
 
     # ---- BaseStateManager hooks -----------------------------------------
 
@@ -293,7 +315,9 @@ class PlaywrightStateManager(BaseStateManager):
                 logger.error("Failed to start container: %s", result.stderr.strip())
                 return None
             container_id = result.stdout.strip()
-            logger.info("Started container %s (%s)", self.config.container_name, container_id)
+            logger.info(
+                "Started container %s (%s)", self.config.container_name, container_id
+            )
 
             # Special handling for shopping_admin
             if self.config.container_name == "shopping_admin":
@@ -336,7 +360,9 @@ class PlaywrightStateManager(BaseStateManager):
             logger.error("Failed to create WebArena initial state: %s", exc)
             return None
 
-    def _store_initial_state_info(self, task: BaseTask, state_info: InitialStateInfo) -> None:
+    def _store_initial_state_info(
+        self, task: BaseTask, state_info: InitialStateInfo
+    ) -> None:
         if hasattr(task, "__dict__"):
             task.docker_container_name = state_info.state_id
             task.base_url = state_info.state_url
@@ -346,10 +372,13 @@ class PlaywrightStateManager(BaseStateManager):
         if self.skip_cleanup:
             logger.info("Skipping container cleanup (skip_cleanup=True)")
             logger.info("Container is still running at: %s", self._get_entry_url())
-            logger.info("To manually stop: docker stop %s && docker rm %s", 
-                       self.config.container_name, self.config.container_name)
+            logger.info(
+                "To manually stop: docker stop %s && docker rm %s",
+                self.config.container_name,
+                self.config.container_name,
+            )
             return True
-            
+
         try:
             self._stop_and_remove_container(self.config.container_name)
             return True
@@ -359,14 +388,19 @@ class PlaywrightStateManager(BaseStateManager):
 
     def _cleanup_single_resource(self, resource: Dict[str, Any]) -> bool:
         if self.skip_cleanup:
-            logger.info("Skipping resource cleanup for %s (skip_cleanup=True)", resource.get("id"))
+            logger.info(
+                "Skipping resource cleanup for %s (skip_cleanup=True)",
+                resource.get("id"),
+            )
             return True
-            
+
         try:
             if resource.get("type") == "docker_container":
                 self._stop_and_remove_container(resource["id"])
                 return True
-            logger.warning("Unknown resource type for cleanup: %s", resource.get("type"))
+            logger.warning(
+                "Unknown resource type for cleanup: %s", resource.get("type")
+            )
             return False
         except Exception as exc:
             logger.error("Resource cleanup failed: %s", exc)
@@ -392,7 +426,7 @@ class PlaywrightStateManager(BaseStateManager):
         if self.skip_cleanup:
             logger.info("Skipping container cleanup in close_all (skip_cleanup=True)")
             return
-            
+
         try:
             self._stop_and_remove_container(self.config.container_name)
         except Exception:
@@ -401,4 +435,4 @@ class PlaywrightStateManager(BaseStateManager):
 
     def __del__(self) -> None:
         if not self.skip_cleanup:
-            self.close_all() 
+            self.close_all()

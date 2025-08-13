@@ -47,19 +47,19 @@ class ModelConfig:
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
             "base_url_var": "OPENAI_BASE_URL",
-            "actual_model_name": "gpt-5-2025-08-07",
+            "actual_model_name": "gpt-5",
         },
         "gpt-5-mini": {
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
             "base_url_var": "OPENAI_BASE_URL",
-            "actual_model_name": "gpt-5-mini-2025-08-07",
+            "actual_model_name": "gpt-5-mini",
         },
         "gpt-5-nano": {
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
             "base_url_var": "OPENAI_BASE_URL",
-            "actual_model_name": "gpt-5-nano-2025-08-07",
+            "actual_model_name": "gpt-5-nano",
         },
         "o3": {
             "provider": "openai",
@@ -131,7 +131,7 @@ class ModelConfig:
             "api_key_var": "GROK_API_KEY",
             "base_url_var": "GROK_BASE_URL",
             "actual_model_name": "grok-4-0709",
-        }
+        },
     }
 
     def __init__(self, model_name: str):

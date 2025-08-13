@@ -9,7 +9,7 @@ def verify(notion: Client, main_id: str = None) -> bool:
     Requirements to satisfy:
       • For every content entry where Target Audience includes "Gen Z" OR "Millennials"
         AND Status is NOT "Published", the Expected Engagement should have been
-        increased by 200.  
+        increased by 200.
       • Based on the provided ground-truth, the rows that must satisfy this are:
             1. "Show Us: What's Your Favorite Corner at Home?"   → 3400
             2. "5 Small Habits That Make Home Feel Warmer"        → 1100
@@ -26,7 +26,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
         # main_id is now always a page id
         database_id = notion_utils.find_database_in_block(notion, main_id, db_title)
     if not database_id:
-        print(f"Error: Database '{db_title}' not found under the provided page.", file=sys.stderr)
+        print(
+            f"Error: Database '{db_title}' not found under the provided page.",
+            file=sys.stderr,
+        )
         return False
 
     try:
@@ -66,7 +69,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
 
         # Target Audience
         audience_prop = properties.get("Target Audience", {})
-        audience_list = [opt.get("name") for opt in audience_prop.get("multi_select", [])]
+        audience_list = [
+            opt.get("name") for opt in audience_prop.get("multi_select", [])
+        ]
 
         # Status
         status_prop = properties.get("Status", {})
@@ -78,7 +83,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
 
         ok = True
 
-        if not (("Gen Z" in audience_list or "Millennials" in audience_list) and status_name != "Published"):
+        if not (
+            ("Gen Z" in audience_list or "Millennials" in audience_list)
+            and status_name != "Published"
+        ):
             ok = False
             failure_reasons.append(
                 f"Row '{title_text}' does not satisfy Audience/Status filtering conditions."
@@ -127,4 +135,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -21,7 +21,11 @@ TITLE_IMAGE_TOKEN_MAP: Dict[str, str] = {
 
 def _extract_title(page: dict) -> str:
     """Return the plain text title of the page (empty string if not found)."""
-    title_prop = page.get("properties", {}).get("Name") or page.get("properties", {}).get("Title") or page.get("properties", {}).get("title")
+    title_prop = (
+        page.get("properties", {}).get("Name")
+        or page.get("properties", {}).get("Title")
+        or page.get("properties", {}).get("title")
+    )
     if title_prop and title_prop.get("title"):
         return "".join(rt.get("plain_text", "") for rt in title_prop["title"]).strip()
     # Fallback: title property may be nested differently (the example uses 'Name')
@@ -49,10 +53,12 @@ def verify(notion: Client, main_id: str = None) -> bool:
     # 1. Locate Team Projects page
     page_id = None
     if main_id:
-        found_id, object_type = notion_utils.find_page_or_database_by_id(notion, main_id)
-        if found_id and object_type == 'page':
+        found_id, object_type = notion_utils.find_page_or_database_by_id(
+            notion, main_id
+        )
+        if found_id and object_type == "page":
             page_id = found_id
-    
+
     if not page_id:
         page_id = notion_utils.find_page(notion, "Team Projects")
     if not page_id:
@@ -62,7 +68,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
     # 2. Find Projects database inside the page
     db_id = notion_utils.find_database_in_block(notion, page_id, "Projects")
     if not db_id:
-        print("Error: 'Projects' database not found under 'Team Projects'.", file=sys.stderr)
+        print(
+            "Error: 'Projects' database not found under 'Team Projects'.",
+            file=sys.stderr,
+        )
         return False
 
     # 3. Query for project page titled 'Publish support knowledge base'
@@ -70,7 +79,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
         results = notion.databases.query(
             database_id=db_id,
             filter={
-                "property": "Project" if "Project" in notion.databases.retrieve(database_id=db_id).get("properties", {}) else "Name",
+                "property": "Project"
+                if "Project"
+                in notion.databases.retrieve(database_id=db_id).get("properties", {})
+                else "Name",
                 "title": {"equals": "Publish support knowledge base"},
             },
         ).get("results", [])
@@ -79,21 +91,29 @@ def verify(notion: Client, main_id: str = None) -> bool:
         return False
 
     if not results:
-        print("Error: Project 'Publish support knowledge base' not found in database.", file=sys.stderr)
+        print(
+            "Error: Project 'Publish support knowledge base' not found in database.",
+            file=sys.stderr,
+        )
         return False
 
     project_page = results[0]
     # 4. Extract related task IDs from Tasks relation property
     relation_prop = project_page.get("properties", {}).get("Tasks")
     if not relation_prop or relation_prop.get("type") != "relation":
-        print("Error: 'Tasks' relation property not found in project page.", file=sys.stderr)
+        print(
+            "Error: 'Tasks' relation property not found in project page.",
+            file=sys.stderr,
+        )
         return False
 
     task_relations: List[dict] = relation_prop.get("relation", [])
     task_ids = [rel["id"] for rel in task_relations]
 
     if len(task_ids) != 4:
-        print(f"Error: Expected 4 task relations, found {len(task_ids)}.", file=sys.stderr)
+        print(
+            f"Error: Expected 4 task relations, found {len(task_ids)}.", file=sys.stderr
+        )
         return False
 
     # 5. Retrieve each task page
@@ -117,7 +137,10 @@ def verify(notion: Client, main_id: str = None) -> bool:
             print(f"Error: Unexpected title '{title}' found.", file=sys.stderr)
             return False
         if not _cover_contains_token(task_page, expected_token):
-            print(f"Error: Cover image for task '{title}' does not contain token '{expected_token}'.", file=sys.stderr)
+            print(
+                f"Error: Cover image for task '{title}' does not contain token '{expected_token}'.",
+                file=sys.stderr,
+            )
             return False
 
     # 6. Ensure that retrieved titles match expected set exactly (order irrelevant)
@@ -128,7 +151,9 @@ def verify(notion: Client, main_id: str = None) -> bool:
         )
         return False
 
-    print("Success: Verified that project 'Publish support knowledge base' contains exactly the expected tasks with correct source mapping.")
+    print(
+        "Success: Verified that project 'Publish support knowledge base' contains exactly the expected tasks with correct source mapping."
+    )
     return True
 
 
@@ -142,4 +167,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

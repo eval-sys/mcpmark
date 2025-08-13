@@ -17,9 +17,6 @@ Before running MCPMark you need to prepare the environment for the MCP service y
 All environment variables **must** be set in a file named `.mcp_env` in your project root. Example:
 
 ```env
-# For OpenAI API tracing (optional)
-OPENAI_TRACE_API_KEY="sk-proj-xxx-xxx-xx"
-
 # Service Credentials
 ## Notion
 SOURCE_NOTION_API_KEY="your-source-notion-api-key"   # For Source Hub (templates)

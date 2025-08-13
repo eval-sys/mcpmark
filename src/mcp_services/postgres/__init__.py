@@ -10,8 +10,8 @@ from .postgres_state_manager import PostgresStateManager
 from .postgres_task_manager import PostgresTaskManager, PostgresTask
 
 __all__ = [
-    'PostgresLoginHelper',
-    'PostgresStateManager',
-    'PostgresTaskManager',
-    'PostgresTask'
+    "PostgresLoginHelper",
+    "PostgresStateManager",
+    "PostgresTaskManager",
+    "PostgresTask",
 ]

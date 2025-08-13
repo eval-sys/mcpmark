@@ -37,7 +37,10 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
     if not root_page_id:
         root_page_id = notion_utils.find_page(notion, "IT Trouble Shooting Hub")
     if not root_page_id:
-        print("Error: Could not locate the 'IT Trouble Shooting Hub' page.", file=sys.stderr)
+        print(
+            "Error: Could not locate the 'IT Trouble Shooting Hub' page.",
+            file=sys.stderr,
+        )
         return False
 
     # -------------------------------------------------------------------------
@@ -132,7 +135,9 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
         return False
 
     # There should be at least one entry in the retirement queue
-    retirement_pages = notion.databases.query(database_id=retirement_db_id).get("results", [])
+    retirement_pages = notion.databases.query(database_id=retirement_db_id).get(
+        "results", []
+    )
     expected_serials = {"65XYQ/GB", "36x10PIQ"}
     if len(retirement_pages) != len(expected_serials):
         print(
@@ -177,7 +182,9 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
     # Search for a callout block with required pattern
     import re
 
-    callout_pattern = re.compile(r"Successfully migrated (\d+) assets to the retirement queue on 2025-03-24\.")
+    callout_pattern = re.compile(
+        r"Successfully migrated (\d+) assets to the retirement queue on 2025-03-24\."
+    )
     blocks = notion_utils.get_all_blocks_recursively(notion, log_page_id)
     match_found = False
     for blk in blocks:
@@ -196,7 +203,10 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
                     return False
                 break
     if not match_found:
-        print("Error: Required callout block not found in migration log page.", file=sys.stderr)
+        print(
+            "Error: Required callout block not found in migration log page.",
+            file=sys.stderr,
+        )
         return False
 
     print("Success: All verification criteria satisfied.")
@@ -213,4 +223,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

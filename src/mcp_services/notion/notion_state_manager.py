@@ -32,7 +32,9 @@ PAGE_MENU_BUTTON_SELECTOR = '[data-testid="more-button"], div.notion-topbar-more
 DUPLICATE_MENU_ITEM_SELECTOR = 'text="Duplicate"'
 DUPLICATE_WITH_CONTENT_SELECTOR = 'text="Duplicate with content"'
 MOVE_TO_MENU_ITEM_SELECTOR = 'text="Move to"'
-MOVE_TO_SEARCH_INPUT_SELECTOR = 'input[placeholder*="Move page to"], textarea[placeholder*="Move page to"]'
+MOVE_TO_SEARCH_INPUT_SELECTOR = (
+    'input[placeholder*="Move page to"], textarea[placeholder*="Move page to"]'
+)
 
 
 class NotionStateManager(BaseStateManager):
@@ -69,7 +71,9 @@ class NotionStateManager(BaseStateManager):
 
         # Initialize separate Notion clients with provided keys
         if not source_notion_key or not eval_notion_key:
-            raise ValueError("Both source_notion_key and eval_notion_key must be provided to NotionStateManager.")
+            raise ValueError(
+                "Both source_notion_key and eval_notion_key must be provided to NotionStateManager."
+            )
 
         self.source_notion_client = Client(auth=source_notion_key)
         self.eval_notion_client = Client(auth=eval_notion_key)
@@ -81,10 +85,14 @@ class NotionStateManager(BaseStateManager):
 
         # Validate initialization
         if not self.source_notion_client or not self.eval_notion_client:
-            raise ValueError("Both source_notion_key and eval_notion_key must be provided and valid")
+            raise ValueError(
+                "Both source_notion_key and eval_notion_key must be provided and valid"
+            )
 
         if not self.state_file.exists():
-            raise FileNotFoundError("Authentication state 'notion_state.json' not found. Run the Notion login helper first.")
+            raise FileNotFoundError(
+                "Authentication state 'notion_state.json' not found. Run the Notion login helper first."
+            )
 
         logger.info("Notion state manager initialized successfully")
 
@@ -103,7 +111,11 @@ class NotionStateManager(BaseStateManager):
             initial_state_info = self._find_initial_state_by_title(initial_state_title)
 
             if not initial_state_info:
-                logger.error("Initial state not found for category '%s' (title: '%s')", task.category, initial_state_title)
+                logger.error(
+                    "Initial state not found for category '%s' (title: '%s')",
+                    task.category,
+                    initial_state_title,
+                )
                 return None
 
             _, initial_state_url = initial_state_info
@@ -116,25 +128,27 @@ class NotionStateManager(BaseStateManager):
                 state_id=duplicated_id,
                 state_url=duplicated_url,
                 metadata={
-                    'original_url': initial_state_url,
-                    'category': task.category,
-                    'task_name': task.name
-                }
+                    "original_url": initial_state_url,
+                    "category": task.category,
+                    "task_name": task.name,
+                },
             )
 
         except Exception as e:
             logger.error(f"Failed to create initial state for {task.name}: {e}")
             return None
 
-    def _store_initial_state_info(self, task: BaseTask, state_info: InitialStateInfo) -> None:
+    def _store_initial_state_info(
+        self, task: BaseTask, state_info: InitialStateInfo
+    ) -> None:
         """Store initial state information in NotionTask object."""
         if isinstance(task, NotionTask):
             task.duplicated_initial_state_id = state_info.state_id
             task.duplicated_initial_state_url = state_info.state_url
-            task.original_initial_state_url = state_info.metadata.get('original_url')
+            task.original_initial_state_url = state_info.metadata.get("original_url")
 
             # Track the duplicated page for cleanup
-            self.track_resource('page', state_info.state_id, state_info.metadata)
+            self.track_resource("page", state_info.state_id, state_info.metadata)
 
     def _cleanup_task_initial_state(self, task: BaseTask) -> bool:
         """Clean up initial state for a specific Notion task."""
@@ -143,18 +157,24 @@ class NotionStateManager(BaseStateManager):
 
         initial_state_id = task.duplicated_initial_state_id
         if not initial_state_id:
-            logger.warning("No duplicated initial state ID found for task %s, skipping cleanup.", task.name)
+            logger.warning(
+                "No duplicated initial state ID found for task %s, skipping cleanup.",
+                task.name,
+            )
             return False
 
         try:
             # Archive the duplicated page
-            self.eval_notion_client.pages.update(page_id=initial_state_id, archived=True)
+            self.eval_notion_client.pages.update(
+                page_id=initial_state_id, archived=True
+            )
             logger.info("Archived page initial state: %s", initial_state_id)
 
             # Remove from tracked resources to avoid duplicate cleanup
             self.tracked_resources = [
-                r for r in self.tracked_resources
-                if not (r['type'] == 'page' and r['id'] == initial_state_id)
+                r
+                for r in self.tracked_resources
+                if not (r["type"] == "page" and r["id"] == initial_state_id)
             ]
 
             return True
@@ -164,9 +184,11 @@ class NotionStateManager(BaseStateManager):
 
     def _cleanup_single_resource(self, resource: Dict[str, Any]) -> bool:
         """Clean up a single Notion resource."""
-        if resource['type'] == 'page':
+        if resource["type"] == "page":
             try:
-                self.eval_notion_client.pages.update(page_id=resource['id'], archived=True)
+                self.eval_notion_client.pages.update(
+                    page_id=resource["id"], archived=True
+                )
                 logger.info(f"Archived Notion page: {resource['id']}")
                 return True
             except Exception as e:
@@ -180,7 +202,9 @@ class NotionStateManager(BaseStateManager):
     # Notion API Operations
     # =========================================================================
 
-    def _rename_initial_state_via_api(self, initial_state_id: str, new_title: str) -> None:
+    def _rename_initial_state_via_api(
+        self, initial_state_id: str, new_title: str
+    ) -> None:
         """Renames a Notion page using the API."""
         try:
             self.eval_notion_client.pages.update(
@@ -198,7 +222,9 @@ class NotionStateManager(BaseStateManager):
     # Playwright Automation Methods
     # =========================================================================
 
-    def _move_current_page_to_env(self, page: Page, *, wait_timeout: int = 60_000) -> None:
+    def _move_current_page_to_env(
+        self, page: Page, *, wait_timeout: int = 60_000
+    ) -> None:
         """Moves the currently open page into the designated evaluation parent page.
 
         This operation is done via Playwright UI automation because the Notion API
@@ -212,11 +238,16 @@ class NotionStateManager(BaseStateManager):
         4. Click the matching search result to complete the move.
         """
 
-        logger.info("- Moving duplicated page to evaluation parent '%s'...", self.eval_parent_page_title)
+        logger.info(
+            "- Moving duplicated page to evaluation parent '%s'...",
+            self.eval_parent_page_title,
+        )
 
         try:
             # Step 1: Open the page menu
-            page.wait_for_selector(PAGE_MENU_BUTTON_SELECTOR, state="visible", timeout=30_000)
+            page.wait_for_selector(
+                PAGE_MENU_BUTTON_SELECTOR, state="visible", timeout=30_000
+            )
             page.click(PAGE_MENU_BUTTON_SELECTOR)
 
             # Step 2: Select "Move to"
@@ -224,7 +255,9 @@ class NotionStateManager(BaseStateManager):
             page.click(MOVE_TO_MENU_ITEM_SELECTOR)
 
             # Step 3: Fill the destination title
-            page.wait_for_selector(MOVE_TO_SEARCH_INPUT_SELECTOR, state="visible", timeout=15_000)
+            page.wait_for_selector(
+                MOVE_TO_SEARCH_INPUT_SELECTOR, state="visible", timeout=15_000
+            )
 
             # Ensure focus then type the destination title – using type() triggers
             # key events Notion relies on for search filtering.
@@ -238,16 +271,22 @@ class NotionStateManager(BaseStateManager):
             result_selector = (
                 f'div[role="menuitem"]:has-text("{self.eval_parent_page_title}")'
             )
-            page.wait_for_selector(result_selector, state="visible", timeout=wait_timeout)
+            page.wait_for_selector(
+                result_selector, state="visible", timeout=wait_timeout
+            )
             page.locator(result_selector).first.click(force=True)
 
             # Wait for the dialog to disappear – indicates move finished
-            page.wait_for_selector(MOVE_TO_SEARCH_INPUT_SELECTOR, state="detached", timeout=wait_timeout)
+            page.wait_for_selector(
+                MOVE_TO_SEARCH_INPUT_SELECTOR, state="detached", timeout=wait_timeout
+            )
 
             # Give Notion a brief moment to process the move
             time.sleep(3)
         except PlaywrightTimeoutError as e:
-            logger.error("Playwright timed out while moving page to evaluation parent – move may have failed.")
+            logger.error(
+                "Playwright timed out while moving page to evaluation parent – move may have failed."
+            )
             raise RuntimeError("Playwright timeout during move-to operation") from e
         except Exception as exc:
             logger.error("Unexpected error during move-to operation: %s", exc)
@@ -291,11 +330,19 @@ class NotionStateManager(BaseStateManager):
     def _find_initial_state_by_title(self, title: str) -> Optional[Tuple[str, str]]:
         """Finds a Notion page by its exact title"""
         try:
-            response = self.source_notion_client.search(query=title, filter={"property": "object", "value": "page"})
+            response = self.source_notion_client.search(
+                query=title, filter={"property": "object", "value": "page"}
+            )
             for result in response.get("results", []):
                 props = result.get("properties", {})
-                title_prop = props.get("title", {}).get("title") or props.get("Name", {}).get("title")
-                if title_prop and "".join(t.get("plain_text", "") for t in title_prop).strip() == title:
+                title_prop = props.get("title", {}).get("title") or props.get(
+                    "Name", {}
+                ).get("title")
+                if (
+                    title_prop
+                    and "".join(t.get("plain_text", "") for t in title_prop).strip()
+                    == title
+                ):
                     return result.get("id"), result.get("url")
         except Exception as e:
             logger.error("Error searching for initial state '%s': %s", title, e)
@@ -318,7 +365,9 @@ class NotionStateManager(BaseStateManager):
         """Duplicates the currently open Notion initial state using Playwright."""
         try:
             logger.info("- Opening page menu...")
-            page.wait_for_selector(PAGE_MENU_BUTTON_SELECTOR, state="visible", timeout=30_000)
+            page.wait_for_selector(
+                PAGE_MENU_BUTTON_SELECTOR, state="visible", timeout=30_000
+            )
             page.click(PAGE_MENU_BUTTON_SELECTOR)
 
             logger.info("- Clicking 'Duplicate'...")
@@ -326,7 +375,10 @@ class NotionStateManager(BaseStateManager):
             page.click(DUPLICATE_MENU_ITEM_SELECTOR)
 
             original_url = page.url
-            logger.info("- Waiting for duplicated initial state to load (up to %.1f s)...", wait_timeout / 1000)
+            logger.info(
+                "- Waiting for duplicated initial state to load (up to %.1f s)...",
+                wait_timeout / 1000,
+            )
             page.wait_for_url(lambda url: url != original_url, timeout=wait_timeout)
 
             # wait for the page to fully load
@@ -340,28 +392,46 @@ class NotionStateManager(BaseStateManager):
                     duplicated_url,
                 )
                 # Attempt to clean up stray duplicate before propagating error.
-                self._cleanup_orphan_duplicate(original_initial_state_id, original_initial_state_title)
-                raise RuntimeError("Duplicate URL pattern mismatch – duplication likely failed")
+                self._cleanup_orphan_duplicate(
+                    original_initial_state_id, original_initial_state_title
+                )
+                raise RuntimeError(
+                    "Duplicate URL pattern mismatch – duplication likely failed"
+                )
 
-            duplicated_initial_state_id = self._extract_initial_state_id_from_url(duplicated_url)
+            duplicated_initial_state_id = self._extract_initial_state_id_from_url(
+                duplicated_url
+            )
 
             # Always move to evaluation parent
             self._move_current_page_to_env(page, wait_timeout=wait_timeout)
 
             # Rename if new title is provided
             if new_title:
-                self._rename_initial_state_via_api(duplicated_initial_state_id, new_title)
+                self._rename_initial_state_via_api(
+                    duplicated_initial_state_id, new_title
+                )
 
             # verify whether the page is moved to the evaluation parent page
             try:
-                result = self.eval_notion_client.pages.retrieve(page_id=duplicated_initial_state_id)
+                result = self.eval_notion_client.pages.retrieve(
+                    page_id=duplicated_initial_state_id
+                )
                 if not result or not isinstance(result, dict):
-                    logger.error("Playwright move to error: Notion API did not return a valid page dict after move.")
-                    raise RuntimeError("Playwright move to error: Notion API did not return a valid page dict after move.")
-                logger.info("✅ Page moved to '%s' successfully.", self.eval_parent_page_title)
+                    logger.error(
+                        "Playwright move to error: Notion API did not return a valid page dict after move."
+                    )
+                    raise RuntimeError(
+                        "Playwright move to error: Notion API did not return a valid page dict after move."
+                    )
+                logger.info(
+                    "✅ Page moved to '%s' successfully.", self.eval_parent_page_title
+                )
             except Exception as move_exc:
                 logger.error(f"Playwright move to error: {move_exc}")
-                raise RuntimeError("Playwright move to error: Notion client failed to retrieve page after move.") from move_exc
+                raise RuntimeError(
+                    "Playwright move to error: Notion client failed to retrieve page after move."
+                ) from move_exc
 
             return duplicated_initial_state_id
         except PlaywrightTimeoutError as e:
@@ -392,7 +462,9 @@ class NotionStateManager(BaseStateManager):
 
             def _extract_title(res):
                 props = res.get("properties", {})
-                title_prop = props.get("title", {}).get("title") or props.get("Name", {}).get("title")
+                title_prop = props.get("title", {}).get("title") or props.get(
+                    "Name", {}
+                ).get("title")
                 return "".join(t.get("plain_text", "") for t in (title_prop or []))
 
             archived_any = False
@@ -406,14 +478,18 @@ class NotionStateManager(BaseStateManager):
 
                 dup_id = res["id"]
                 try:
-                    self.source_notion_client.pages.update(page_id=dup_id, archived=True)
+                    self.source_notion_client.pages.update(
+                        page_id=dup_id, archived=True
+                    )
                     logger.info("Archived orphan duplicate (%s): %s", "page", dup_id)
                     archived_any = True
                 except Exception as exc:
                     logger.warning("Failed to archive orphan page %s: %s", dup_id, exc)
             return archived_any
         except Exception as exc:
-            logger.warning("Error while attempting to cleanup orphan duplicate: %s", exc)
+            logger.warning(
+                "Error while attempting to cleanup orphan duplicate: %s", exc
+            )
             return False
 
     def _duplicate_initial_state_for_task(
@@ -448,8 +524,12 @@ class NotionStateManager(BaseStateManager):
                     page.goto(initial_state_url, wait_until="load", timeout=60_000)
                     context.storage_state(path=str(self.state_file))
 
-                    initial_state_id = self._extract_initial_state_id_from_url(initial_state_url)
-                    initial_state_title = self._category_to_initial_state_title(category)
+                    initial_state_id = self._extract_initial_state_id_from_url(
+                        initial_state_url
+                    )
+                    initial_state_title = self._category_to_initial_state_title(
+                        category
+                    )
 
                     duplicated_id = self._duplicate_current_initial_state(
                         page,
@@ -463,13 +543,21 @@ class NotionStateManager(BaseStateManager):
                     context.storage_state(path=str(self.state_file))
                     # Log how long the whole duplication (navigate → duplicate) took.
                     elapsed = time.time() - start_time
-                    logger.info("✅ Initial state duplicated successfully in %.2f seconds (task: %s).", elapsed, task_name)
+                    logger.info(
+                        "✅ Initial state duplicated successfully in %.2f seconds (task: %s).",
+                        elapsed,
+                        task_name,
+                    )
                     return duplicated_url, duplicated_id
             except Exception as e:
                 # No additional cleanup here—handled inside _duplicate_current_template.
                 last_exc = e
                 if attempt < max_retries:
-                    logger.warning("⚠️ Duplication attempt %d failed: %s. Retrying...", attempt + 1, e)
+                    logger.warning(
+                        "⚠️ Duplication attempt %d failed: %s. Retrying...",
+                        attempt + 1,
+                        e,
+                    )
                 time.sleep(120 * attempt + 120)
 
         raise RuntimeError(
