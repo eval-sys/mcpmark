@@ -43,6 +43,24 @@ class ModelConfig:
             "base_url_var": "OPENAI_BASE_URL",
             "actual_model_name": "gpt-4.1-mini",
         },
+        "gpt-5": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "base_url_var": "OPENAI_BASE_URL",
+            "actual_model_name": "gpt-5-2025-08-07",
+        },
+        "gpt-5-mini": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "base_url_var": "OPENAI_BASE_URL",
+            "actual_model_name": "gpt-5-mini-2025-08-07",
+        },
+        "gpt-5-nano": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "base_url_var": "OPENAI_BASE_URL",
+            "actual_model_name": "gpt-5-nano-2025-08-07",
+        },
         "o3": {
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
