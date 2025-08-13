@@ -1,5 +1,5 @@
 """
-Playwright Login Helper for MCPBench
+Playwright Login Helper for MCPMark
 ====================================
 
 This module provides browser session management and authentication utilities

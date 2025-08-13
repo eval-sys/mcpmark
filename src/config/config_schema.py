@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Centralized Configuration Schema for MCPBench
+Centralized Configuration Schema for MCPMark
 =============================================
 
 This module provides a unified configuration system with validation,

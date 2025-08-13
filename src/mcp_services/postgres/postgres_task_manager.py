@@ -1,5 +1,5 @@
 """
-PostgreSQL Task Manager for MCPBench
+PostgreSQL Task Manager for MCPMark
 ====================================
 
 Manages PostgreSQL task discovery, execution, and verification.
@@ -28,7 +28,7 @@ class PostgresTask(BaseTask):
 
 
 class PostgresTaskManager(BaseTaskManager):
-    """Manages PostgreSQL tasks for MCPBench evaluation."""
+    """Manages PostgreSQL tasks for MCPMark evaluation."""
 
     def __init__(self, tasks_root: Path = None):
         """Initialize PostgreSQL task manager.

@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 _API_ROOT = "https://api.github.com"
 _DEFAULT_HEADERS = {
     "Accept": "application/vnd.github.v3+json",
-    "User-Agent": "MCPBench/RepoExporter/1.0",
+    "User-Agent": "MCPMark/RepoExporter/1.0",
 }
 
 

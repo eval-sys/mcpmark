@@ -1,4 +1,4 @@
-# MCPBench Docker image with multi-stage build
+# MCPMark Docker image with multi-stage build
 FROM python:3.12-slim AS builder
 
 # Install build essentials for compiling Python packages

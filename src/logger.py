@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Logger configuration for MCPBench."""
+"""Logger configuration for MCPMark."""
 
 import logging
 import sys

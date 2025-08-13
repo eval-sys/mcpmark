@@ -1,5 +1,5 @@
 """
-PostgreSQL Login Helper for MCPBench
+PostgreSQL Login Helper for MCPMark
 ====================================
 
 Handles PostgreSQL authentication and connection validation.

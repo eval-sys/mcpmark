@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how to add a new MCP service to the MCPBench framework. With our fully consolidated service definitions architecture, adding a new service requires:
+This guide explains how to add a new MCP service to the MCPMark framework. With our fully consolidated service definitions architecture, adding a new service requires:
 1. Add complete service definition to `src/services.py` (including config schema)
 2. Implement the three service components (task_manager, state_manager, login_helper)
 3. Create test tasks

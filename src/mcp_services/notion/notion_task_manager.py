@@ -1,9 +1,9 @@
 """
-Notion Task Manager for MCPBench Evaluation Pipeline
+Notion Task Manager for MCPMark Evaluation Pipeline
 ====================================================
 
 This module provides utilities for discovering, filtering, and managing
-evaluation tasks within the MCPBench project structure for Notion service.
+evaluation tasks within the MCPMark project structure for Notion service.
 
 The task manager is responsible for:
 - Task discovery and filtering
@@ -67,7 +67,7 @@ class NotionTask(BaseTask):
 
 
 class NotionTaskManager(BaseTaskManager):
-    """Manages task discovery, filtering, and verification for Notion-based MCPBench evaluation."""
+    """Manages task discovery, filtering, and verification for Notion-based MCPMark evaluation."""
 
     def __init__(self, tasks_root: Path = None):
         """Initialize with the tasks directory path.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MCPBench Unified Evaluation Pipeline
+MCPMark Unified Evaluation Pipeline
 ===================================
 
 This script provides an automated evaluation pipeline for testing Large Language Models (LLMs)
@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 def main():
     """Main entry point for the evaluation pipeline."""
     parser = argparse.ArgumentParser(
-        description="MCPBench Unified Evaluation Pipeline."
+        description="MCPMark Unified Evaluation Pipeline."
     )
 
     supported_services = MCPServiceFactory.get_supported_services()

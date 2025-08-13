@@ -1,5 +1,5 @@
 """
-GitHub Task Manager for MCPBench Evaluation Pipeline
+GitHub Task Manager for MCPMark Evaluation Pipeline
 ====================================================
 
 This module provides utilities for discovering, filtering, and managing
@@ -47,7 +47,7 @@ class GitHubTask(BaseTask):
 
 
 class GitHubTaskManager(BaseTaskManager):
-    """Manages task discovery, filtering, and verification for GitHub-based MCPBench evaluation."""
+    """Manages task discovery, filtering, and verification for GitHub-based MCPMark evaluation."""
 
     def __init__(self, tasks_root: Path = None):
         """Initialize GitHub task manager.

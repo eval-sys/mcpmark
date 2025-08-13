@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MCP Service Factory for MCPBench
+MCP Service Factory for MCPMark
 =================================
 
 This module provides a simplified factory pattern for creating service-specific managers

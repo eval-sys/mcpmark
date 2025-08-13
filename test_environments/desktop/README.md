@@ -1,4 +1,4 @@
-# MCPBench Filesystem Test Environment
+# MCPMark Filesystem Test Environment
 
 This directory serves as a realistic desktop environment for testing filesystem MCP capabilities. It mimics a typical user's desktop with various files and folders for comprehensive filesystem operation testing.
 

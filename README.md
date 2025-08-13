@@ -1,12 +1,12 @@
-# MCPBench
+# MCPMark
 
-MCPBench is a comprehensive evaluation suite for testing AI models’ ability to operate a Notion workspace through the **Model Context Protocol (MCP)**.
+MCPMark is a comprehensive evaluation suite for testing AI models’ ability to operate a Notion workspace through the **Model Context Protocol (MCP)**.
 It ships with **20 real-world tasks** (e.g., habit tracker, online resume builder) that can be run against **your own MCP server and your own Notion pages**.
 
 
 ## 1 · Environment Setup
 
-Before running MCPBench you need to prepare the environment for the MCP service you plan to evaluate. Follow the service-specific guides below:
+Before running MCPMark you need to prepare the environment for the MCP service you plan to evaluate. Follow the service-specific guides below:
 
 - **Notion** – [docs/setup/notion-env-setup.md](docs/setup/notion-env-setup.md)
 - **GitHub** – [docs/setup/github-env-setup.md](docs/setup/github-env-setup.md)
@@ -24,7 +24,7 @@ OPENAI_TRACE_API_KEY="sk-proj-xxx-xxx-xx"
 ## Notion
 SOURCE_NOTION_API_KEY="your-source-notion-api-key"   # For Source Hub (templates)
 EVAL_NOTION_API_KEY="your-eval-notion-api-key"       # For Eval Hub (active evaluation)
-EVAL_PARENT_PAGE_TITLE="MCPBench Eval Hub"           # Must match the name of the empty page you created in Eval Hub
+EVAL_PARENT_PAGE_TITLE="MCPMark Eval Hub"           # Must match the name of the empty page you created in Eval Hub
 PLAYWRIGHT_BROWSER="chromium" # default to chromium, you can also choose firefox
 PLAYWRIGHT_HEADLESS="True"
 

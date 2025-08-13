@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Results Reporter for MCPBench Evaluation Pipeline
+Results Reporter for MCPMark Evaluation Pipeline
 ================================================
 
 This module provides utilities for saving evaluation results in a structured format.

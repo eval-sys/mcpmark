@@ -1,5 +1,5 @@
 """
-Filesystem State Manager for MCPBench
+Filesystem State Manager for MCPMark
 =====================================
 
 This module handles filesystem state management for consistent task evaluation.

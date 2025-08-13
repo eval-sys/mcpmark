@@ -1,5 +1,5 @@
 """
-Unified Agent Implementation for MCPBench
+Unified Agent Implementation for MCPMark
 =========================================
 
 This module provides a unified agent implementation that handles LLM and MCP server
@@ -171,7 +171,7 @@ class MCPAgent:
                 url="https://api.githubcopilot.com/mcp/",
                 headers={
                     "Authorization": f"Bearer {github_token}",
-                    "User-Agent": "MCPBench/1.0",
+                    "User-Agent": "MCPMark/1.0",
                 },
                 timeout_seconds=30,
             )

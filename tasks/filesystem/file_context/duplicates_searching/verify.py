@@ -185,7 +185,7 @@ def verify_total_file_count(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_context_duplicates_checking_21630")
+    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPMark/.mcpbench_backups/backup_filesystem_file_context_duplicates_checking_21630")
     print("🔍 Verifying File Duplicates Detection and Organization Task...")
     
     # Define verification steps

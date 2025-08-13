@@ -1,5 +1,5 @@
 """
-GitHub State Manager for MCPBench
+GitHub State Manager for MCPMark
 =================================
 
 This module handles GitHub repository state management for consistent task evaluation.
@@ -57,7 +57,7 @@ class GitHubStateManager(BaseStateManager):
                 "Authorization": f"Bearer {github_token}",
                 "Accept": "application/vnd.github.v3+json",
                 "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "MCPBench/1.0",
+                "User-Agent": "MCPMark/1.0",
             }
         )
 

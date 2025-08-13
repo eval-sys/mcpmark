@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Model Configuration for MCPBench
+Model Configuration for MCPMark
 ================================
 
 This module provides configuration management for different LLM models,

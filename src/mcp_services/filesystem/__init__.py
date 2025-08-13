@@ -1,8 +1,8 @@
 """
-Filesystem MCP Service for MCPBench
+Filesystem MCP Service for MCPMark
 ===================================
 
-This module provides filesystem-specific MCP server integration for MCPBench evaluation.
+This module provides filesystem-specific MCP server integration for MCPMark evaluation.
 Uses the official filesystem MCP server for local file operations.
 """
 

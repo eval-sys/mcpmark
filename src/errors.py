@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple Error Handling for MCPBench
+Simple Error Handling for MCPMark
 ==================================
 
 Provides basic error standardization and retry logic.

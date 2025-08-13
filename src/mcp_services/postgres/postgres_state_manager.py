@@ -1,5 +1,5 @@
 """
-PostgreSQL State Manager for MCPBench
+PostgreSQL State Manager for MCPMark
 =====================================
 
 Manages database state for PostgreSQL tasks including schema setup,

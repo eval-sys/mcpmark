@@ -259,7 +259,7 @@ def main():
     """Main verification function."""
     try:
         test_dir = get_test_directory()
-        # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_property_time_classification_91935")
+        # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPMark/.mcpbench_backups/backup_filesystem_file_property_time_classification_91935")
         print(f"🔍 Verifying file organization by creation time in: {test_dir}")
         
         # Run all verification checks

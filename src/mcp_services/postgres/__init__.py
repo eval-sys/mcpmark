@@ -1,8 +1,8 @@
 """
-PostgreSQL MCP Service for MCPBench
+PostgreSQL MCP Service for MCPMark
 ===================================
 
-This module provides PostgreSQL database integration for MCPBench evaluation.
+This module provides PostgreSQL database integration for MCPMark evaluation.
 """
 
 from .postgres_login_helper import PostgresLoginHelper

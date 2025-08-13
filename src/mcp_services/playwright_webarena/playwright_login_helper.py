@@ -1,5 +1,5 @@
 """
-WebArena (Docker) Login Helper for MCPBench
+WebArena (Docker) Login Helper for MCPMark
 ==========================================
 
 This helper exposes basic browser configuration for agents. Authentication is

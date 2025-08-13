@@ -1,5 +1,5 @@
 """
-Playwright State Manager for MCPBench
+Playwright State Manager for MCPMark
 ======================================
 
 This module manages browser contexts and test environments for Playwright-based

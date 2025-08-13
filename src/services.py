@@ -1,5 +1,5 @@
 """
-Service Definitions for MCPBench
+Service Definitions for MCPMark
 ================================
 
 Single source of truth for all MCP service configurations.

@@ -1,5 +1,5 @@
 """
-Filesystem Login Helper for MCPBench
+Filesystem Login Helper for MCPMark
 ====================================
 
 This module provides a minimal login helper for the filesystem MCP service.

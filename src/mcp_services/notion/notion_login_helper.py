@@ -1,5 +1,5 @@
 """
-Notion Login Helper for MCPBench
+Notion Login Helper for MCPMark
 =================================
 
 This module provides a utility class and CLI script for logging into Notion

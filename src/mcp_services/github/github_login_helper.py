@@ -1,5 +1,5 @@
 """
-GitHub Login Helper for MCPBench
+GitHub Login Helper for MCPMark
 ================================
 
 This module provides GitHub token authentication and validation utilities.
@@ -58,7 +58,7 @@ class GitHubLoginHelper(BaseLoginHelper):
                 "Authorization": f"Bearer {self.token}",
                 "Accept": "application/vnd.github.v3+json",
                 "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "MCPBench/1.0"
+                "User-Agent": "MCPMark/1.0"
             })
 
             # Get user information
@@ -109,7 +109,7 @@ class GitHubLoginHelper(BaseLoginHelper):
         """
         Verify that the token has the minimum required permissions.
 
-        For MCPBench GitHub tasks, we typically need:
+        For MCPMark GitHub tasks, we typically need:
         - repo (for repository access)
         - read:user (for user information)
         """

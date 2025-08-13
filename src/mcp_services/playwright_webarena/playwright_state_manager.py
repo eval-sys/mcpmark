@@ -1,5 +1,5 @@
 """
-WebArena (Docker) State Manager for MCPBench
+WebArena (Docker) State Manager for MCPMark
 ===========================================
 
 This module manages a WebArena environment that runs inside a Docker container.

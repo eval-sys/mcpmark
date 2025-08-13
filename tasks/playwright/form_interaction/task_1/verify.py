@@ -20,7 +20,7 @@ EXPECTED_DATA = {
     "email_address": "john.doe@example.com",
     "size": "large",  # Backend normalizes to lowercase  
     "delivery_time": "afternoon",  # Backend normalizes to lowercase
-    "comments": "This is a test submission for MCPBench"
+    "comments": "This is a test submission for MCPMark"
 }
 
 def locate_messages_json() -> Path:

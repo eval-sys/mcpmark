@@ -1,5 +1,5 @@
 """
-Notion-specific modules for MCPBench.
+Notion-specific modules for MCPMark.
 """
 
 from .notion_task_manager import NotionTaskManager, NotionTask

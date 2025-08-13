@@ -1,5 +1,5 @@
 """
-WebArena Playwright Task Manager for MCPBench
+WebArena Playwright Task Manager for MCPMark
 ============================================
 
 Simple task manager for WebArena-backed Playwright MCP tasks.

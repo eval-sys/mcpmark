@@ -1,8 +1,8 @@
 """
-GitHub MCP Service for MCPBench
+GitHub MCP Service for MCPMark
 ===============================
 
-This module provides GitHub-specific MCP server integration for MCPBench evaluation.
+This module provides GitHub-specific MCP server integration for MCPMark evaluation.
 Uses GitHub's official remote MCP server for streamable HTTP/SSE communication.
 
 Updated to include initial state-based environment replication mechanism.

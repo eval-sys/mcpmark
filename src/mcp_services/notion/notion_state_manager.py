@@ -1,5 +1,5 @@
 """
-Notion State Manager for MCPBench
+Notion State Manager for MCPMark
 =================================
 
 This module handles the duplication and management of Notion initial states
@@ -46,7 +46,7 @@ class NotionStateManager(BaseStateManager):
         eval_notion_key: str,
         headless: bool = True,
         browser: str = "firefox",
-        eval_parent_page_title: str = "MCPBench Eval Hub",
+        eval_parent_page_title: str = "MCPMark Eval Hub",
     ):
         """
         Initializes the Notion state manager.

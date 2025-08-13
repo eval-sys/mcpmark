@@ -1,5 +1,5 @@
 """
-Playwright Task Manager for MCPBench
+Playwright Task Manager for MCPMark
 ====================================
 
 Simple task manager for Playwright MCP tasks.

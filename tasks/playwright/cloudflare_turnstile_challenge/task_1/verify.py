@@ -25,7 +25,7 @@ EXPECTED_SUCCESS_MESSAGE = "Authentication successful! Security challenge verifi
 
 def get_working_directory() -> Path:
     """Get the working directory where messages.json should be."""
-    # For MCPBench, check current directory first
+    # For MCPMark, check current directory first
     current_dir = Path.cwd()
     if (current_dir / "messages.json").exists():
         return current_dir

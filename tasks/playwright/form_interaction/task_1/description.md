@@ -10,7 +10,7 @@ Interact with a web form by filling out fields and submitting data using Playwri
    • **Email Address** – "john.doe@example.com"
    • **Size** – Select "Large" from dropdown
    • **Delivery Time** – Select "Afternoon" radio button
-   • **Additional Comments** – "This is a test submission for MCPBench"
+   • **Additional Comments** – "This is a test submission for MCPMark"
 
    **Important:** After filling each field, wait 1-2 seconds and verify the field contains only the expected data. If any field contains data from multiple fields (concatenation), clear and re-fill that field before proceeding.
 
