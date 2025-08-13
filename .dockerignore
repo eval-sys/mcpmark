@@ -82,6 +82,3 @@ github_template_repo/
 
 # Backup directories
 .mcpbench_backups/
-
-# Shell scripts (copied separately)
-*.sh
