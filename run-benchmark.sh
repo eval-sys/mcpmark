@@ -124,12 +124,16 @@ if [ "$USE_DOCKER" = true ]; then
     # Always use Docker Hub image
     DOCKER_IMAGE="evalsysorg/mcpmark:latest"
     
-    # Pull the latest image (will skip if already up-to-date)
-    print_status "Ensuring Docker image is up to date..."
-    docker pull "$DOCKER_IMAGE" || {
-        print_error "Failed to pull Docker image from Docker Hub"
-        exit 1
-    }
+    # Check if Docker image exists locally, pull only if not found
+    if ! docker image inspect "$DOCKER_IMAGE" >/dev/null 2>&1; then
+        print_status "Docker image not found locally, pulling from Docker Hub..."
+        docker pull "$DOCKER_IMAGE" || {
+            print_error "Failed to pull Docker image from Docker Hub"
+            exit 1
+        }
+    else
+        print_status "Using local Docker image: $DOCKER_IMAGE"
+    fi
 else
     # Check Python installation
     if ! command -v python3 &> /dev/null; then

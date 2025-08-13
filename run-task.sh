@@ -60,13 +60,17 @@ done
 # Always use Docker Hub image
 DOCKER_IMAGE="evalsysorg/mcpmark:pr-setup-docker-06d476c"
 
-# Pull the latest image (will skip if already up-to-date)
-echo "Ensuring Docker image is up to date..."
-docker pull "$DOCKER_IMAGE" || {
-    echo "Error: Failed to pull Docker image from Docker Hub"
-    echo "Please check your internet connection or Docker Hub access"
-    exit 1
-}
+# Check if Docker image exists locally, pull only if not found
+if ! docker image inspect "$DOCKER_IMAGE" >/dev/null 2>&1; then
+    echo "Docker image not found locally, pulling from Docker Hub..."
+    docker pull "$DOCKER_IMAGE" || {
+        echo "Error: Failed to pull Docker image from Docker Hub"
+        echo "Please check your internet connection or Docker Hub access"
+        exit 1
+    }
+else
+    echo "Using local Docker image: $DOCKER_IMAGE"
+fi
 
 # Check if .mcp_env exists (warn but don't fail)
 if [ ! -f .mcp_env ]; then
