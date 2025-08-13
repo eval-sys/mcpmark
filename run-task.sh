@@ -40,11 +40,11 @@ Run MCP Arena tasks in Docker containers.
 Options:
     --service SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
                         Default: notion
-    
+
 Environment Variables:
     DOCKER_MEMORY_LIMIT  Memory limit for container (default: 4g)
     DOCKER_CPU_LIMIT     CPU limit for container (default: 2)
-    
+
 All other arguments are passed directly to the pipeline.
 
 Examples:
@@ -58,7 +58,7 @@ EOF
 done
 
 # Always use Docker Hub image
-DOCKER_IMAGE="evalsysorg/mcpmark:latest"
+DOCKER_IMAGE="evalsysorg/mcpmark:pr-setup-docker-06d476c"
 
 # Pull the latest image (will skip if already up-to-date)
 echo "Ensuring Docker image is up to date..."
@@ -92,8 +92,8 @@ if [ "$SERVICE" = "postgres" ]; then
             -e POSTGRES_DB=postgres \
             -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
-            postgres:15
-        
+            postgres:17
+
         echo "Waiting for PostgreSQL to be ready..."
         for i in {1..10}; do
             if docker exec "$POSTGRES_CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then
@@ -105,7 +105,7 @@ if [ "$SERVICE" = "postgres" ]; then
     else
         echo "PostgreSQL container already running"
     fi
-    
+
     # Run task with network connection to postgres and resource limits
     docker run --rm \
         --memory="$DOCKER_MEMORY_LIMIT" \

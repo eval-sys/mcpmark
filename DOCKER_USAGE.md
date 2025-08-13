@@ -51,11 +51,14 @@ The benchmark script:
 The `run-task.sh` script simplifies Docker usage:
 
 ```bash
+# Run filesystem tasks
+./run-task.sh --service filesystem --models gpt-5.1-mini
+
 # Run notion tasks
-./run-task.sh --service notion --models o3 --exp-name test-1 --tasks all
+./run-task.sh --service notion --models o3 --exp-name online_resume --tasks all
 
 # Run postgres tasks (automatically starts postgres)
-./run-task.sh --service postgres --models gpt-4 --exp-name pg-test --tasks basic_queries
+./run-task.sh --service postgres --models gpt-4.1 --exp-name employees
 
 # Run specific GitHub task
 ./run-task.sh --service github --models claude-3 --exp-name gh-test --tasks harmony/fix_conflict
@@ -145,7 +148,7 @@ Optional Options:
 Options:
     --service SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
                         Default: notion
-    
+
 All other arguments are passed directly to the pipeline command.
 
 Pipeline arguments (see python3 -m pipeline --help):
