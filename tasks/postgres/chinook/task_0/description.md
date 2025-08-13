@@ -24,6 +24,3 @@ total_sold (numeric): The total quantity sold across all invoice lines
 
 Only include one row in the results — the track with the highest sales quantity.
 
-
-PRINT THE SQL YOU EXECUTED
-
