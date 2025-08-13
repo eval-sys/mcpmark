@@ -24,8 +24,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     # Git (required for version control tasks)
     git \
-    # Curl (required for downloading)
-    curl \
     ca-certificates \
     # Minimal Playwright dependencies
     libnss3 \
@@ -48,9 +46,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js from NodeSource
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+# Install Node.js from NodeSource (curl is required temporarily)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
+    apt-get remove -y curl && \
+    apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from builder
