@@ -6,16 +6,18 @@ The MCP Arena Docker setup provides a simple way to run evaluation tasks in isol
 
 ## Quick Start
 
-### 1. Get Docker Image
+### 1. Docker Image
 
-**Option A: Pull from Docker Hub (recommended):**
+The official Docker image is automatically pulled from Docker Hub when needed:
 ```bash
 docker pull evalsysorg/mcpmark:latest
 ```
 
-**Option B: Build locally:**
+The image is hosted at: https://hub.docker.com/r/evalsysorg/mcpmark
+
+For local development/testing, you can build your own:
 ```bash
-./build-docker.sh
+./build-docker.sh  # Creates evalsysorg/mcpmark:latest locally
 ```
 
 ### 2. Running Full Benchmarks
