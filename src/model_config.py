@@ -149,12 +149,19 @@ class ModelConfig:
     def _get_model_info(self, model_name: str) -> Dict[str, str]:
         """
         Retrieves the configuration details for a given model name.
+        For unsupported models, defaults to using OPENAI_BASE_URL and OPENAI_API_KEY.
         """
         if model_name not in self.MODEL_CONFIGS:
-            supported_models = ", ".join(self.get_supported_models())
-            raise ValueError(
-                f"Unsupported model '{model_name}'. Supported models: {supported_models}"
+            logger.warning(
+                f"Model '{model_name}' not in supported list. Using default OpenAI configuration."
             )
+            # Return default configuration for unsupported models
+            return {
+                "provider": "openai",
+                "api_key_var": "OPENAI_API_KEY",
+                "base_url_var": "OPENAI_BASE_URL",
+                "actual_model_name": model_name,
+            }
         return self.MODEL_CONFIGS[model_name]
 
     @classmethod

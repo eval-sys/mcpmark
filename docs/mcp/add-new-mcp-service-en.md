@@ -384,7 +384,7 @@ def test_slack_task_discovery():
 Run the full evaluation pipeline:
 
 ```bash
-python -m pipeline --service slack --models gpt-4o --tasks all --exp-name slack-test
+python -m pipeline --mcp slack --models gpt-4o --tasks all --exp-name slack-test
 ```
 
 ## Key Architecture Benefits

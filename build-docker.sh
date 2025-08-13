@@ -25,7 +25,7 @@ if [ $? -eq 0 ]; then
     
     echo ""
     echo "You can now run tasks using:"
-    echo "  ./run-task.sh --service notion --models o3 --exp-name test --tasks all"
+    echo "  ./run-task.sh --mcp notion --models o3 --exp-name test --tasks all"
 else
     echo "Docker build failed!"
     exit 1

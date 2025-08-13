@@ -239,7 +239,7 @@ def main():
         help="Name of the experiment folder inside ./results, e.g. MCP-RUN-FINAL",
     )
     parser.add_argument(
-        "--service",
+        "--mcp",
         required=True,
         help="Service prefix to filter model folders, e.g. notion",
     )
@@ -264,13 +264,13 @@ def main():
     model_dirs = [
         d
         for d in os.listdir(exp_path)
-        if os.path.isdir(os.path.join(exp_path, d)) and d.startswith(args.service)
+        if os.path.isdir(os.path.join(exp_path, d)) and d.startswith(args.mcp)
     ]
 
     # Discover expected tasks for this service
-    expected_tasks = discover_all_tasks(args.service)
+    expected_tasks = discover_all_tasks(args.mcp)
     if not expected_tasks:
-        print(f"[ERROR] Could not discover any tasks for service '{args.service}'. Exiting.")
+        print(f"[ERROR] Could not discover any tasks for service '{args.mcp}'. Exiting.")
         return
 
     metrics: Dict[str, Dict[str, float]] = {}
@@ -279,7 +279,7 @@ def main():
         model_name = (
             model_dir.split("_", 1)[1]
             if "_" in model_dir
-            else model_dir[len(args.service) :]
+            else model_dir[len(args.mcp) :]
         )
         model_path = os.path.join(exp_path, model_dir)
 
@@ -292,7 +292,7 @@ def main():
             info(f"{model_name}: {model_metrics}")
         else:
             cmd = (
-                f"python pipeline.py --service {args.service} --tasks all "
+                f"python pipeline.py --mcp {args.mcp} --tasks all "
                 f"--models {model_name} --exp-name {args.exp_name}"
             )
             retry_errs = ", ".join(src.evaluator.PIPELINE_RETRY_ERRORS)
@@ -307,7 +307,7 @@ def main():
         print("[ERROR] No metrics collected; aborting plot.")
         return
 
-    plot_metrics(metrics, args.exp_name, args.service, show=args.show)
+    plot_metrics(metrics, args.exp_name, args.mcp, show=args.show)
 
 
 if __name__ == "__main__":

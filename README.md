@@ -80,7 +80,7 @@ pip install -e .
 ./build-docker.sh
 
 # Run with Docker
-./run-task.sh --service notion --models o3 --exp-name run-1 --tasks all
+./run-task.sh --mcp notion --models o3 --exp-name run-1 --tasks all
 ```
 
 ## 4 · Authenticate with Your MCP Service
@@ -97,22 +97,22 @@ The verification script will tell you which browser is working properly. The pip
 ### Using Local Installation
 ```bash
 # Evaluate ALL 20 tasks
-python -m pipeline --exp-name run-1 --service notion --tasks all --models o3
+python -m pipeline --exp-name run-1 --mcp notion --tasks all --models o3
 
 # Evaluate a single task group
-python -m pipeline --exp-name run-1 --service notion --tasks online_resume --models o3
+python -m pipeline --exp-name run-1 --mcp notion --tasks online_resume --models o3
 
 # Evaluate one specific task
-python -m pipeline --exp-name run-1 --service notion --tasks online_resume/task_1 --models o3
+python -m pipeline --exp-name run-1 --mcp notion --tasks online_resume/task_1 --models o3
 
 # Evaluate multiple models
-python -m pipeline --exp-name run-1 --service notion --tasks all --models o3,gpt-4.1,claude-4-sonnet
+python -m pipeline --exp-name run-1 --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet
 ```
 
 ### Using Docker
 ```bash
 # Run all tasks for a service
-./run-task.sh --service notion --models o3 --exp-name run-1 --tasks all
+./run-task.sh --mcp notion --models o3 --exp-name run-1 --tasks all
 
 # Run comprehensive benchmark across all services
 ./run-benchmark.sh --models o3,gpt-4.1 --exp-name benchmark-1 --docker
@@ -127,7 +127,7 @@ Results are written to `./results/` (JSON + CSV).
 After your evaluations are done, generate a quick dashboard of model performance (success rate + token usage) with:
 
 ```bash
-python -m examples.results_parser --exp-name MCP-RUN --service notion
+python -m examples.results_parser --exp-name MCP-RUN --mcp notion
 ```
 
 This command scans `./results/{args.exp_name}/` for all model folders that start with the given service prefix.

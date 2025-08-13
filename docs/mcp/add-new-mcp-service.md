@@ -435,7 +435,7 @@ def test_slack_task_discovery():
 运行完整的评测流程：
 
 ```bash
-python pipeline.py --service slack --models gpt-4o --tasks all --exp-name slack-test
+python pipeline.py --mcp slack --models gpt-4o --tasks all --exp-name slack-test
 ```
 
 ## 注意事项

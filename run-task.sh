@@ -30,15 +30,15 @@ trap cleanup EXIT
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --service) SERVICE="$2"; shift 2 ;;
+        --mcp) SERVICE="$2"; shift 2 ;;
         --help)
             cat << EOF
-Usage: $0 [--service SERVICE] [PIPELINE_ARGS]
+Usage: $0 [--mcp SERVICE] [PIPELINE_ARGS]
 
 Run MCP Arena tasks in Docker containers.
 
 Options:
-    --service SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
+    --mcp SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
                         Default: notion
 
 Environment Variables:
@@ -48,8 +48,8 @@ Environment Variables:
 All other arguments are passed directly to the pipeline.
 
 Examples:
-    $0 --service notion --models o3 --exp-name test-1 --tasks all
-    $0 --service postgres --models gpt-4 --exp-name pg-test --tasks basic_queries
+    $0 --mcp notion --models o3 --exp-name test-1 --tasks all
+    $0 --mcp postgres --models gpt-4 --exp-name pg-test --tasks basic_queries
 EOF
             exit 0
             ;;
@@ -124,7 +124,7 @@ if [ "$SERVICE" = "postgres" ]; then
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         "$DOCKER_IMAGE" \
-        python3 -m pipeline --service "$SERVICE" "$@"
+        python3 -m pipeline --mcp "$SERVICE" "$@"
 else
     # For other services: run container with resource limits (no network needed)
     docker run --rm \
@@ -134,7 +134,7 @@ else
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         "$DOCKER_IMAGE" \
-        python3 -m pipeline --service "$SERVICE" "$@"
+        python3 -m pipeline --mcp "$SERVICE" "$@"
 fi
 
 echo "Task completed!"

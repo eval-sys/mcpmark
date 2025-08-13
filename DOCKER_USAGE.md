@@ -31,13 +31,13 @@ Use the `run-benchmark.sh` script to evaluate models across all MCP services:
 ./run-benchmark.sh --models o3,gpt-4.1 --exp-name benchmark-1 --docker
 
 # Run specific services
-./run-benchmark.sh --models o3 --exp-name test-1 --services filesystem,postgres --docker
+./run-benchmark.sh --models o3 --exp-name test-1 --mcps filesystem,postgres --docker
 
 # Run with parallel execution for faster results
 ./run-benchmark.sh --models claude-4 --exp-name parallel-test --docker --parallel
 
 # Run locally without Docker
-./run-benchmark.sh --models gpt-4o --exp-name local-bench --services notion,github
+./run-benchmark.sh --models gpt-4o --exp-name local-bench --mcps notion,github
 ```
 
 The benchmark script:
@@ -54,19 +54,19 @@ The `run-task.sh` script simplifies Docker usage:
 
 ```bash
 # Run filesystem tasks
-./run-task.sh --service filesystem --models gpt-5.1-mini
+./run-task.sh --mcp filesystem --models gpt-5.1-mini
 
 # Run notion tasks
-./run-task.sh --service notion --models o3 --exp-name online_resume --tasks all
+./run-task.sh --mcp notion --models o3 --exp-name online_resume --tasks all
 
 # Run postgres tasks (automatically starts postgres)
-./run-task.sh --service postgres --models gpt-4.1 --exp-name employees
+./run-task.sh --mcp postgres --models gpt-4.1 --exp-name employees
 
 # Run specific GitHub task
-./run-task.sh --service github --models claude-3 --exp-name gh-test --tasks harmony/fix_conflict
+./run-task.sh --mcp github --models claude-3 --exp-name gh-test --tasks harmony/fix_conflict
 
 # The script passes all arguments to the pipeline
-./run-task.sh --service playwright --models o3 --exp-name web-test --tasks web_search --timeout 600
+./run-task.sh --mcp playwright --models o3 --exp-name web-test --tasks web_search --timeout 600
 ```
 
 ### Manual Docker Commands
@@ -84,7 +84,7 @@ docker run --rm \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
   -v $(pwd)/notion_state.json:/app/notion_state.json:ro \
   mcp-arena:latest \
-  python3 -m pipeline --service notion --models o3 --exp-name test --tasks all
+  python3 -m pipeline --mcp notion --models o3 --exp-name test --tasks all
 ```
 
 #### For Postgres Service
@@ -107,7 +107,7 @@ docker run --rm \
   -v $(pwd)/results:/app/results \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
   mcp-arena:latest \
-  python3 -m pipeline --service postgres --models o3 --exp-name pg-test --tasks all
+  python3 -m pipeline --mcp postgres --models o3 --exp-name pg-test --tasks all
 
 # Stop and remove postgres when done
 docker stop mcp-postgres && docker rm mcp-postgres
@@ -136,7 +136,7 @@ Required Options:
 
 Optional Options:
     --docker            Run tasks in Docker containers (recommended)
-    --services SERVICES Comma-separated list of services to test
+    --mcps SERVICES Comma-separated list of services to test
                         Default: filesystem,notion,github,postgres,playwright
     --parallel          Run services in parallel (experimental)
     --timeout SECONDS   Timeout per task in seconds (default: 300)
@@ -145,10 +145,10 @@ Optional Options:
 ### Individual Task Runner (`run-task.sh`)
 
 ```
-./run-task.sh [--service SERVICE] [PIPELINE_ARGS]
+./run-task.sh [--mcp SERVICE] [PIPELINE_ARGS]
 
 Options:
-    --service SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
+    --mcp SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
                         Default: notion
 
 All other arguments are passed directly to the pipeline command.
@@ -181,7 +181,7 @@ chmod +x run-task.sh
 ### Docker Build Issues
 ```bash
 # Force rebuild with no cache
-./run-task.sh --build --service notion --models o3 --exp-name test --tasks all
+./run-task.sh --build --mcp notion --models o3 --exp-name test --tasks all
 ```
 
 ### PostgreSQL Connection Issues

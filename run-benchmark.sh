@@ -196,7 +196,7 @@ run_service() {
     
     if [ "$USE_DOCKER" = true ]; then
         # Run with Docker
-        ./run-task.sh --service "$service" \
+        ./run-task.sh --mcp "$service" \
             --models "$MODELS" \
             --exp-name "$EXP_NAME" \
             --tasks all \
@@ -204,7 +204,7 @@ run_service() {
     else
         # Run locally
         python3 -m pipeline \
-            --service "$service" \
+            --mcp "$service" \
             --models "$MODELS" \
             --exp-name "$EXP_NAME" \
             --tasks all \
@@ -286,7 +286,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # Check if results parser is available and generate dashboard
 if [ -f "examples/results_parser.py" ]; then
     print_status "Generating performance dashboard..."
-    python3 -m examples.results_parser --exp-name "$EXP_NAME" --service all 2>/dev/null || {
+    python3 -m examples.results_parser --exp-name "$EXP_NAME" --mcp all 2>/dev/null || {
         print_warning "Could not generate dashboard"
     }
 fi

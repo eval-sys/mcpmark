@@ -8,6 +8,7 @@ on various Multi-Step Cognitive Processes (MCP) services like Notion, GitHub, an
 """
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -32,7 +33,7 @@ def main():
 
     # Main configuration
     parser.add_argument(
-        "--service",
+        "--mcp",
         default="notion",
         choices=supported_services,
         help="MCP service to use (default: notion)",
@@ -49,8 +50,8 @@ def main():
     )
     parser.add_argument(
         "--exp-name",
-        required=True,
-        help="Experiment name; results are saved under results/<exp-name>/",
+        default=None,
+        help="Experiment name; results are saved under results/<exp-name>/ (default: YYYY-MM-DD-HH-MM-SS)",
     )
 
     # Execution configuration
@@ -70,16 +71,21 @@ def main():
     # Load arguments and environment variables
     args = parser.parse_args()
     load_dotenv(dotenv_path=".mcp_env", override=False)
+    
+    # Generate default exp-name if not provided
+    if args.exp_name is None:
+        args.exp_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        logger.info(f"Using default experiment name: {args.exp_name}")
 
-    # Parse and validate models
+    # Parse models (no validation - allow unsupported models)
     model_list = [m.strip() for m in args.models.split(",") if m.strip()]
     if not model_list:
         parser.error("No valid models provided")
-
-    # Validate each model
-    invalid_models = [m for m in model_list if m not in supported_models]
-    if invalid_models:
-        parser.error(f"Invalid models: {', '.join(invalid_models)}. Supported models are: {', '.join(supported_models)}")
+    
+    # Log warning for unsupported models but don't error
+    unsupported_models = [m for m in model_list if m not in supported_models]
+    if unsupported_models:
+        logger.warning(f"Using unsupported models: {', '.join(unsupported_models)}. Will use OPENAI_BASE_URL and OPENAI_API_KEY from environment.")
 
     logger.info(f"Running evaluation for {len(model_list)} model(s): {', '.join(model_list)}")
 
@@ -91,7 +97,7 @@ def main():
 
         # Initialize and run the evaluation pipeline for this model
         pipeline = MCPEvaluator(
-            service=args.service,
+            service=args.mcp,
             model=model,
             timeout=args.timeout,
             exp_name=args.exp_name,
