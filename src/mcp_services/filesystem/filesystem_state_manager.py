@@ -153,7 +153,7 @@ class FilesystemStateManager(BaseStateManager):
 
         # Always use the desktop directory which contains the actual test data
         # The tasks expect files that are located in the desktop test environment
-        self.test_root = base_test_path / "desktop"
+        self.test_root = base_test_path / task.category
         logger.info(
             f"Setting test root to desktop directory (contains test data): {self.test_root}"
         )
@@ -290,7 +290,7 @@ class FilesystemStateManager(BaseStateManager):
             # Create backup directory with task-specific name
             script_dir = Path(__file__).parent
 
-            backup_root = script_dir / "../../../.mcpbench_backups"
+            backup_root = script_dir / "../../../.mcpmark_backups"
             print("backup_root: ", backup_root)
             backup_root.mkdir(exist_ok=True)
 
