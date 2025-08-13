@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY_IMAGE: eval-sys/mcpmark
+  REGISTRY_IMAGE: evalsysorg/mcpmark
   PR_TAG_PREFIX: pr-
 
 jobs:
