@@ -32,9 +32,9 @@ def main():
     # Main configuration
     parser.add_argument(
         "--mcp",
-        default="notion",
+        default="filesystem",
         choices=supported_mcp_services,
-        help="MCP service to use (default: notion)",
+        help="MCP service to use (default: filesystem)",
     )
     parser.add_argument(
         "--models",
