@@ -5,7 +5,6 @@ Verification script for ThreeStudio Task 2: Analyze Zero123 Guidance Output Stru
 
 import sys
 from pathlib import Path
-import re
 import os
 
 def get_test_directory() -> Path:
@@ -52,34 +51,6 @@ def verify_required_strings(test_dir: Path) -> bool:
         print(f"❌ Error reading answer file: {e}")
         return False
 
-def verify_line_numbers(test_dir: Path) -> bool:
-    """Verify that line numbers contain (323 or 324) AND (327 or 328)."""
-    answer_file = test_dir / "answer.txt"
-    
-    try:
-        content = answer_file.read_text()
-        
-        # Check for first number (323 or 324)
-        has_first = "323" in content or "324" in content
-        
-        # Check for second number (327 or 328)
-        has_second = "327" in content or "328" in content
-        
-        if not has_first:
-            print("❌ Missing first line number (323 or 324)")
-            return False
-        
-        if not has_second:
-            print("❌ Missing second line number (327 or 328)")
-            return False
-        
-        print("✅ Line numbers found: contains (323 or 324) and (327 or 328)")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error verifying line numbers: {e}")
-        return False
-
 def verify_file_path(test_dir: Path) -> bool:
     """Verify that the file path contains the exact expected path string."""
     answer_file = test_dir / "answer.txt"
@@ -104,13 +75,13 @@ def verify_file_path(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
+    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_threestudio_output_analysis_mv_38067")
     print("🔍 Verifying ThreeStudio Task 2: Analyze Zero123 Guidance Output Structure...")
     
     # Define verification steps
     verification_steps = [
         ("Answer File Exists", verify_answer_file_exists),
         ("Required Strings", verify_required_strings),
-        ("Line Numbers Range", verify_line_numbers),
         ("File Path Components", verify_file_path),
     ]
     

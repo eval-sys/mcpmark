@@ -11,6 +11,5 @@ Your task is to find all files that contain a substring of 30 or more characters
 3. **Find files** that contain a substring of 30 or more characters that matches a substring in `large_file.txt`
 4. **Create a file `answer.txt`** and write the results to it with the following format:
    - One line per matching file
-   - Format: `filename.txt,start_position`
-   - Where start_position is the character position (1-indexed) of the matching substring in `large_file.txt`
-   - Do not add any things else other than `filename.txt,start_position`.
+   - Format: `filename.txt`
+   - Do not add any things else other than `filename.txt.`

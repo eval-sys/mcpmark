@@ -6,7 +6,6 @@ Verification script for File Filtering Task: Find Files with Common Substring
 import sys
 from pathlib import Path
 import os
-import re
 
 def get_test_directory() -> Path:
     """Get the test directory from FILESYSTEM_TEST_DIR env var."""
@@ -45,28 +44,10 @@ def verify_answer_format(test_dir: Path) -> bool:
             if not line:
                 continue
                 
-            # Check format: filename.txt,start_position
-            parts = line.split(',')
-            if len(parts) != 2:
+            # Check format: just filename.txt
+            if not line.endswith('.txt') or not line.startswith('file_'):
                 print(f"❌ Line {i} has incorrect format: {line}")
-                print("   Expected format: filename.txt,start_position")
-                return False
-            
-            filename, start_pos = parts
-            
-            # Check filename format
-            if not filename.endswith('.txt') or not filename.startswith('file_'):
-                print(f"❌ Line {i} has invalid filename: {filename}")
-                return False
-            
-            # Check position format (should be integer)
-            try:
-                start_int = int(start_pos)
-                if start_int <= 0:
-                    print(f"❌ Line {i} has invalid position: {start_pos}")
-                    return False
-            except ValueError:
-                print(f"❌ Line {i} has non-integer position: {start_pos}")
+                print("   Expected format: filename.txt")
                 return False
         
         print("✅ Answer format is correct")
@@ -76,15 +57,15 @@ def verify_answer_format(test_dir: Path) -> bool:
         print(f"❌ Error reading answer file: {e}")
         return False
 
-def find_30_plus_char_matches(test_dir: Path) -> dict:
-    """Find all matches with 30 or more characters between files and large_file.txt."""
+def find_30_plus_char_matches(test_dir: Path) -> set:
+    """Find all files that have 30+ character substring matches with large_file.txt."""
     large_file = test_dir / "large_file.txt"
     if not large_file.exists():
         print("❌ large_file.txt not found")
-        return {}
+        return set()
     
     large_content = large_file.read_text()
-    matches = {}
+    matching_files = set()
     
     # Check each file from file_01.txt to file_20.txt
     for i in range(1, 21):
@@ -96,31 +77,24 @@ def find_30_plus_char_matches(test_dir: Path) -> dict:
             
         file_content = file_path.read_text()
         
-        # Find the longest matching substring (30+ characters)
-        longest_match = ""
-        longest_match_start = -1
-        
-        # Check all possible substrings in the file
+        # Check if there's a substring of 30+ characters that matches
+        has_match = False
         for start_pos in range(len(file_content)):
-            for end_pos in range(start_pos + 30, len(file_content) + 1):  # At least 30 characters
+            for end_pos in range(start_pos + 30, len(file_content) + 1):
                 substring = file_content[start_pos:end_pos]
-                
-                # Check if this substring exists in large_file.txt
                 if substring in large_content:
-                    if len(substring) > len(longest_match):
-                        longest_match = substring
-                        # Find the position in large_file.txt where this substring starts
-                        large_start_pos = large_content.find(substring)
-                        longest_match_start = large_start_pos + 1  # 1-indexed
+                    has_match = True
+                    break
+            if has_match:
+                break
         
-        # If we found a match of 30+ characters, record it
-        if longest_match and len(longest_match) >= 30:
-            matches[filename] = longest_match_start
+        if has_match:
+            matching_files.add(filename)
     
-    return matches
+    return matching_files
 
 def verify_matches_are_correct(test_dir: Path) -> bool:
-    """Verify that the matches found in answer.txt are actually correct."""
+    """Verify that the files listed in answer.txt actually have 30+ character matches."""
     answer_file = test_dir / "answer.txt"
     
     try:
@@ -131,42 +105,34 @@ def verify_matches_are_correct(test_dir: Path) -> bool:
             expected_matches = find_30_plus_char_matches(test_dir)
             if expected_matches:
                 print("❌ Answer file is empty but matches should exist")
-                for filename, start_pos in expected_matches.items():
-                    print(f"   Expected: {filename},{start_pos}")
+                for filename in expected_matches:
+                    print(f"   Expected: {filename}")
                 return False
             else:
                 print("✅ No matches found (correct)")
                 return True
         
         # Parse answer file
-        answer_matches = {}
+        answer_files = set()
         lines = content.split('\n')
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-            filename, start_pos = line.split(',')
-            answer_matches[filename] = int(start_pos)
+            answer_files.add(line)
         
         # Get expected matches
         expected_matches = find_30_plus_char_matches(test_dir)
         
-        # Check if all answer matches are correct
-        for filename, start_pos in answer_matches.items():
+        # Check if all answer files actually have matches
+        for filename in answer_files:
             if filename not in expected_matches:
                 print(f"❌ File {filename} listed in answer but has no valid 30+ character match")
-                return False
-            
-            expected_start = expected_matches[filename]
-            if start_pos != expected_start:
-                print(f"❌ Incorrect match position for {filename}")
-                print(f"   Expected: {expected_start}")
-                print(f"   Found: {start_pos}")
                 return False
         
         # Check if all expected matches are in answer
         for filename in expected_matches:
-            if filename not in answer_matches:
+            if filename not in answer_files:
                 print(f"❌ Missing match for {filename} in answer file")
                 return False
         
@@ -175,53 +141,6 @@ def verify_matches_are_correct(test_dir: Path) -> bool:
         
     except Exception as e:
         print(f"❌ Error verifying matches: {e}")
-        return False
-
-def verify_match_length_is_30_plus(test_dir: Path) -> bool:
-    """Verify that all matches are at least 30 characters long."""
-    answer_file = test_dir / "answer.txt"
-    
-    try:
-        content = answer_file.read_text().strip()
-        
-        if not content:
-            return True  # No matches to verify
-        
-        large_file = test_dir / "large_file.txt"
-        large_content = large_file.read_text()
-        
-        lines = content.split('\n')
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            filename, start_pos = line.split(',')
-            start_int = int(start_pos)
-            
-            # Get the file content to check the match
-            file_path = test_dir / filename
-            file_content = file_path.read_text()
-            
-            # Find the longest matching substring starting from the given position
-            longest_match = ""
-            for end_pos in range(start_int + 30 - 1, len(large_content) + 1):  # At least 30 characters
-                substring = large_content[start_int - 1:end_pos]  # Convert to 0-indexed
-                if substring in file_content:
-                    longest_match = substring
-                else:
-                    break
-            
-            if len(longest_match) < 30:
-                print(f"❌ Match in {filename} is {len(longest_match)} characters, less than 30")
-                print(f"   Starting position: {start_int}")
-                return False
-        
-        print("✅ All matches are at least 30 characters long")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error verifying match lengths: {e}")
         return False
 
 def verify_files_exist(test_dir: Path) -> bool:
@@ -240,11 +159,10 @@ def verify_files_exist(test_dir: Path) -> bool:
             if not line:
                 continue
                 
-            filename = line.split(',')[0]
-            file_path = test_dir / filename
+            file_path = test_dir / line
             
             if not file_path.exists():
-                print(f"❌ File mentioned in answer does not exist: {filename}")
+                print(f"❌ File mentioned in answer does not exist: {line}")
                 return False
         
         print("✅ All files mentioned in answer exist")
@@ -257,7 +175,7 @@ def verify_files_exist(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_context_file_filtering_18503")
+    #test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_context_pattern_matching_sv_31079")
     print("🔍 Verifying File Filtering Task: Find Files with Common Substring...")
     
     # Define verification steps
@@ -265,7 +183,6 @@ def main():
         ("Answer File Exists", verify_answer_file_exists),
         ("Answer Format", verify_answer_format),
         ("Files Exist", verify_files_exist),
-        ("Match Length is 30+", verify_match_length_is_30_plus),
         ("Matches are Correct", verify_matches_are_correct),
     ]
     

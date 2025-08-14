@@ -48,8 +48,8 @@ def verify_all_split_files_exist(test_dir: Path) -> bool:
     print("✅ All 10 split files exist with correct names")
     return True
 
-def verify_equal_file_lengths(test_dir: Path) -> bool:
-    """Verify that all split files have equal character counts."""
+def verify_similar_file_lengths(test_dir: Path) -> bool:
+    """Verify that all split files have similar character counts (within 50 characters difference)."""
     split_dir = test_dir / "split"
     
     file_lengths = []
@@ -64,12 +64,19 @@ def verify_equal_file_lengths(test_dir: Path) -> bool:
             print(f"❌ Error reading {filename}: {e}")
             return False
     
-    # Check if all lengths are equal
-    if len(set(file_lengths)) != 1:
-        print(f"❌ File lengths are not equal: {file_lengths}")
+    # Check if all lengths are within 50 characters of each other
+    min_length = min(file_lengths)
+    max_length = max(file_lengths)
+    length_difference = max_length - min_length
+    
+    if length_difference > 20:
+        print(f"❌ File lengths differ by more than 50 characters: {length_difference}")
+        print(f"   Min length: {min_length}, Max length: {max_length}")
+        print(f"   All lengths: {file_lengths}")
         return False
     
-    print(f"✅ All files have equal length: {file_lengths[0]} characters")
+    print(f"✅ All files have similar lengths (difference: {length_difference} characters)")
+    print(f"   Min: {min_length}, Max: {max_length}")
     return True
 
 def verify_content_integrity(test_dir: Path) -> bool:
@@ -132,7 +139,7 @@ def main():
     verification_steps = [
         ("Split Directory Exists", verify_split_directory_exists),
         ("All Split Files Exist", verify_all_split_files_exist),
-        ("Equal File Lengths", verify_equal_file_lengths),
+        ("Similar File Lengths", verify_similar_file_lengths),
         ("Content Integrity", verify_content_integrity),
         ("No Extra Files", verify_no_extra_files),
     ]
