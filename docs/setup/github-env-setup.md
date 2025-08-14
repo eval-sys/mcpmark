@@ -9,8 +9,9 @@ This guide walks you through preparing your GitHub environment for MCPLeague and
 
 ### **Phase 1: GitHub Setup**
 - [1.1 Create GitHub Organization](#1--prepare-your-evaluation-organization)
-- [1.2 Generate Personal Access Token (PAT)](#step-2-generate-fine-grained-personal-access-token-pat)
-- [1.3 Configure Environment Variables](#step-3-add-credentials-to-mcp_env)
+- [1.2 Create Multiple GitHub Accounts (Recommended)](#step-2-create-multiple-github-accounts-recommended)
+- [1.3 Generate Personal Access Tokens (PATs)](#step-3-generate-fine-grained-personal-access-tokens-pats)
+- [1.4 Configure Token Pooling](#step-4-configure-token-pooling-in-mcp_env)
 
 ### **Phase 2: Repository State Setup**
 - [2.1 Download Sample Repositories](#2--download-the-sample-repository-state)
@@ -21,16 +22,15 @@ This guide walks you through preparing your GitHub environment for MCPLeague and
 - [3.2 Update Configuration Files](#export-process)
 
 ### **Phase 4: Understanding Limits**
-- [4.1 GitHub Rate Limits](#4--github-rate-limits)
-- [4.2 MCPLeague Defaults](#important-limitations)
+- [4.1 GitHub Rate Limits](#4--mitigating-github-rate-limits-with-token-pooling)
+- [4.2 Token Pooling Benefits](#-token-pooling-benefits)
 
 ### **Phase 5: Verification & Troubleshooting**
 - [5.1 Quick Checklist](#-quick-checklist)
 - [5.2 Common Issues](#-troubleshooting)
 
-**Total Estimated Time**: 15-20 minutes
-
-**Difficulty Level**: ⭐⭐☆☆☆ (Beginner-friendly)
+**Total Estimated Time**: 20-30 minutes
+**Difficulty Level**: ⭐⭐⭐☆☆ (Intermediate - requires multiple account setup)
 
 </details>
 
@@ -57,31 +57,60 @@ This guide walks you through preparing your GitHub environment for MCPLeague and
 #### 🔑 **CRITICAL PERMISSION SETTINGS**
 - **Repository permissions**: ✅ **Enable ALL permissions (Read and Write if possible)**
 - **Organization permissions**: ✅ **Enable ALL permissions (Read and Write if possible)**
-- **Copy the token**: This becomes your `GITHUB_TOKEN`
+- **Copy and save your PAT token safely**: This serves the `GITHUB_TOKEN`
 
-**Visual Guides**:
+**Example**
 - ![Create Token](../../asset/github/github_create_token.png)
 - ![Token Permissions](../../asset/github/github_token_permissions.png)
 
-### Step 3: Add Credentials to `.mcp_env`
+### Step 3: Create Multiple GitHub Accounts (Recommended for Rate Limit Relief)
+To effectively distribute API load and avoid rate limiting, we recommend creating **2-4 additional GitHub accounts**:
+
+#### **Account Setup Process**
+- **Create new accounts**: Naming the accounts with something like `your-name-eval-1`, `your-name-eval-2`, etc.
+- **Add to organization**: Make all accounts **Owners** of your evaluation organization
+- **Generate PATs**: Repeat the token generation process for each account
+- **Token naming**: Use descriptive names like *MCPMark Eval Token - Account 1*
+
+#### **Why Multiple Accounts?**
+- **Rate limit distribution**: Spread API requests across multiple tokens
+- **Automatic failover**: If one account hits limits, others continue working
+- **Performance boost**: 4 tokens = 4x capacity for API operations
+
+### Step 4: Configure Token Pooling in `.mcp_env`
 **File**: Edit (or create) the `.mcp_env` file in your project root
-**Add these lines**:
+
+#### **Multiple Tokens Configuration (Recommended)**
 ```env
-## GitHub
-GITHUB_TOKEN="ghp_your-token-here"
-GITHUB_EVAL_ORG="mcp-eval"
+## GitHub - Token Pooling Configuration
+GITHUB_TOKENS="token1,token2,token3,token4"
+GITHUB_EVAL_ORG="your-eval-org-name"
 ```
 
+#### **Single Token Configuration (Basic Setup)**
+```env
+## GitHub - Single Token Configuration
+GITHUB_TOKENS="your-single-token-here"
+GITHUB_EVAL_ORG="your-eval-org-name"
+```
+
+#### **Important Configuration Notes**
+- **Token format**: Comma-separated tokens with no spaces
+- **Recommended count**: **2-4 tokens** for optimal rate limit distribution
+- **Permission consistency**: All tokens must have identical permissions on the evaluation organization
+- **Automatic rotation**: The system automatically rotates between tokens to distribute API load
+
 ---
+
 
 ## 2 · Download the Sample Repository State
 
 We have pre-exported several popular open-source repositories along with curated Issues and PRs.
 
 ### Quick Setup
-1. **Download**: Get the archive from [Google Drive](https://drive.google.com/your-link-here)
-2. **Extract**: Create the `./github_state/` directory in your project root
-3. **Verify**: Ensure the directory structure appears correctly
+1. **Download**: Find the code archive from [Google Drive](https://drive.google.com/your-link-here)
+2. **Extract**: Exact the zip file and place the `./github_state/` directory in your project root
+
 
 **Command**:
 ```bash
@@ -107,12 +136,39 @@ If you want to benchmark additional repositories:
 
 ---
 
-## 4 · GitHub Rate Limits
+## 4 · Mitigating GitHub Rate Limits with Token Pooling
 
-### ⚠️ **Important Limitations**
-- **Fine-grained tokens**: Subject to GitHub write-rate limits
-- **Rate limits**: **80 writes per minute** and **500 writes per hour**
-- **MCPLeague default**: Caps each repository at **≤ 20 Issues** and **≤ 10 PRs**
+### 📊 **Understanding Rate Limits**
+
+Fine-grained tokens are subject to GitHub API rate limits:
+
+#### **Rate Limit Overview**
+- **Read operations**: 5,000 requests per hour per token
+- **General write operations**: 80 writes per minute and 500 writes per hour per token
+- **Content creation** (Issues, PRs, Comments): 500 requests per hour per token (Secondary Rate Limit)
+
+### 🚀 **Token Pooling Benefits**
+
+MCPMark automatically distributes requests across multiple tokens:
+
+- **Rate limit multiplication**: 4 tokens = 4x capacity
+- **Automatic failover**: If one token hits limits, others continue working
+- **Load balancing**: Rotates tokens for optimal performance
+
+### 📈 **Capacity Examples**
+
+- **Read operations**: 5,000 → 20,000 requests/hour (with 4 tokens)
+- **Content creation**: 500 → 2,000 requests/hour (with 4 tokens)
+
+### 💡 **Key Benefits**
+
+- **Faster evaluations**: Handle large task batches without hitting rate limits
+- **Reliable performance**: Automatic failover ensures continuous operation
+- **Scalable testing**: Run more frequent evaluations and larger test suites
+
+### ⚠️ **Repository Limits**
+
+**MCPMark caps each repository at ≤ 20 Issues and ≤ 10 PRs by default** to ensure reasonable evaluation times while staying within rate limits.
 
 ---
 
@@ -120,8 +176,10 @@ If you want to benchmark additional repositories:
 
 Before proceeding, ensure you have:
 - [ ] Created GitHub organization (`mcpleague-eval-xxx`)
-- [ ] Generated PAT with **ALL permissions enabled**
-- [ ] Added `GITHUB_TOKEN` and `GITHUB_EVAL_ORG` to `.mcp_env`
+- [ ] Created 2-4 additional GitHub accounts for token pooling
+- [ ] Added all accounts as Owners to your evaluation organization
+- [ ] Generated PATs with **ALL permissions enabled** for each account
+- [ ] Added `GITHUB_TOKENS` and `GITHUB_EVAL_ORG` to `.mcp_env`
 - [ ] Downloaded and extracted `github_state/` directory
 - [ ] Verified network connectivity to `api.github.com`
 
@@ -129,5 +187,7 @@ Before proceeding, ensure you have:
 
 ### Common Issues
 - **Authentication failed**: Ensure **ALL permissions** are enabled (not just read)
+- **Token pooling not working**: Verify all tokens have identical permissions and are comma-separated
+- **Rate limit still hit**: Check that you have 2-4 tokens configured for optimal distribution
 - **Network timeout**: Check firewall settings or VPN configuration
-- **Rate limit exceeded**: Wait for the hourly limit to reset 
+- **Rate limit exceeded**: Wait for the hourly limit to reset or add more tokens to your pool 
