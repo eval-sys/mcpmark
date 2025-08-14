@@ -1,0 +1,1 @@
+去Team Projects这个page里，找到负责任务最多和最少的person，然后交换他们的负责任务。
