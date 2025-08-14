@@ -1,1 +1,1 @@
-去Team Projects这个page里，找到负责任务最多和最少的person，然后交换他们的负责任务。
+Go to the Team Projects page, find the person responsible for the most tasks and the person responsible for the fewest tasks, then swap their assigned tasks.
