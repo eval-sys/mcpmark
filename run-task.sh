@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Default values
-SERVICE="notion"
+SERVICE="filesystem"
 NETWORK_NAME="mcp-network"
 POSTGRES_CONTAINER="mcp-postgres"
 
@@ -58,7 +58,7 @@ EOF
 done
 
 # Always use Docker Hub image
-DOCKER_IMAGE="evalsysorg/mcpmark:pr-setup-docker-06d476c"
+DOCKER_IMAGE="evalsysorg/mcpmark:latest"
 
 # Check if Docker image exists locally, pull only if not found
 if ! docker image inspect "$DOCKER_IMAGE" >/dev/null 2>&1; then
@@ -121,6 +121,7 @@ if [ "$SERVICE" = "postgres" ]; then
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
         -e POSTGRES_DATABASE=postgres \
         -v "$(pwd)/results:/app/results" \
+        -v "$(pwd)/test_environments:/app/test_environments" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         "$DOCKER_IMAGE" \

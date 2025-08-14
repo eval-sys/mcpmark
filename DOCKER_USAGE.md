@@ -53,17 +53,17 @@ The benchmark script:
 The `run-task.sh` script simplifies Docker usage:
 
 ```bash
-# Run filesystem tasks
-./run-task.sh --mcp filesystem --models gpt-5.1-mini
+# Run filesystem tasks (by default)
+./run-task.sh --models gpt-5.1-mini
 
-# Run notion tasks
-./run-task.sh --mcp notion --models o3 --exp-name online_resume --tasks all
+# Run notion tasks with specific folder
+./run-task.sh --mcp notion --models o3 --exp-name online_resume
 
 # Run postgres tasks (automatically starts postgres)
 ./run-task.sh --mcp postgres --models gpt-4.1 --exp-name employees
 
 # Run specific GitHub task
-./run-task.sh --mcp github --models claude-3 --exp-name gh-test --tasks harmony/fix_conflict
+./run-task.sh --mcp github --models claude-4 --exp-name gh-test --tasks harmony/fix_conflict
 
 # The script passes all arguments to the pipeline
 ./run-task.sh --mcp playwright --models o3 --exp-name web-test --tasks web_search --timeout 600
