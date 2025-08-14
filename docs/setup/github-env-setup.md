@@ -55,11 +55,11 @@ This guide walks you through preparing your GitHub environment for MCPMark and a
 
 We have pre-exported several popular open-source repositories along with curated Issues and PRs.
 
-1. Download the archive from [Google Drive](https://drive.google.com/your-link-here).  
+1. Download the archive from [Google Drive](https://drive.google.com/drive/folders/16bFDjdtqJYzYJlqKcjKBGomo8DwOhWcN?usp=drive_link).  
 2. Extract it so that the directory `./github_state/` appears in the project root:
    ```bash
    mkdir -p github_state
-   unzip mcpleague_github_state.zip -d ./github_state
+   unzip github_state.zip -d ./github_state
    ```
 
 ---
@@ -104,4 +104,4 @@ With **token pooling**, MCPMark automatically:
 This dramatically improves evaluation performance, especially for large task batches or frequent testing cycles. **The content creation limit is often the bottleneck**, making token pooling essential for efficient evaluations.
 
 ### Repository Limits
-MCPMark caps each repository at **≤ 20 Issues** and **≤ 10 PRs** by default to ensure reasonable evaluation times while staying within rate limits. 
+MCPMark places a cap on the number of PRs and issues (≤ 50 in total) per repository to ensure reasonable evaluation times and to stay within rate limits.
