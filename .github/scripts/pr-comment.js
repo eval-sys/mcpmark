@@ -28,25 +28,25 @@ module.exports = async ({ github, context, dockerMetaJson, image, version, docke
     const pullSection = tags.length
       ? tags
           .map(
-            (ref) => `- \`${ref}\`\n  - 拉取: \`docker pull ${ref}\`\n  - 检查: \`docker buildx imagetools inspect ${ref}\``,
+            (ref) => `- \`${ref}\`\n  - Pull: \`docker pull ${ref}\`\n  - Inspect: \`docker buildx imagetools inspect ${ref}\``,
           )
           .join('\n')
-      : '- 暂无可用标签';
+      : '- No tags available';
 
     return [
       COMMENT_IDENTIFIER,
-      '### 🐳 Docker 镜像构建完成!',
+      '### 🐳 Docker Build Completed!',
       '',
       `**Image**: \`${image || 'N/A'}\``,
       `**Version**: \`${version || 'N/A'}\``,
       `**Platforms**: \`${platforms || 'linux/amd64, linux/arm64'}\``,
       `**Build Time**: \`${buildTime}\``,
       '',
-      '#### 可用标签与拉取方式',
+      '#### Available Tags & Commands',
       pullSection,
-      dockerhubUrl ? ['', `🔗 在 Docker Hub 查看所有标签: ${dockerhubUrl}`].join('\n') : '',
+      dockerhubUrl ? ['', `🔗 View all tags on Docker Hub: ${dockerhubUrl}`].join('\n') : '',
       '',
-      '> 注意：此构建用于测试与验证。',
+      '> Note: This build is for testing and validation purposes.',
     ]
       .filter(Boolean)
       .join('\n');
