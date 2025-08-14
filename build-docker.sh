@@ -17,12 +17,12 @@ docker build -t evalsysorg/mcpmark:latest . "$@"
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Docker image built successfully${NC}"
     echo "  Tag: evalsysorg/mcpmark:latest"
-    
+
     # Show image info
     echo ""
     echo "Image details:"
     docker images evalsysorg/mcpmark:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
-    
+
     echo ""
     echo "You can now run tasks using:"
     echo "  ./run-task.sh --mcp notion --models o3 --exp-name test --tasks all"

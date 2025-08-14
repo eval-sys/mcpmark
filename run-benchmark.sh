@@ -120,10 +120,10 @@ if [ "$USE_DOCKER" = true ]; then
         print_error "Docker is not installed"
         exit 1
     fi
-    
+
     # Always use Docker Hub image
     DOCKER_IMAGE="evalsysorg/mcpmark:latest"
-    
+
     # Check if Docker image exists locally, pull only if not found
     if ! docker image inspect "$DOCKER_IMAGE" >/dev/null 2>&1; then
         print_status "Docker image not found locally, pulling from Docker Hub..."
@@ -140,7 +140,7 @@ else
         print_error "Python 3 is not installed"
         exit 1
     fi
-    
+
     # Check if dependencies are installed
     if ! python3 -c "import src.evaluator" 2>/dev/null; then
         print_warning "Python dependencies not installed"
@@ -191,9 +191,9 @@ run_service() {
     local service=$1
     local start_time=$(date +%s)
     local start_time_formatted=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     print_status "[$start_time_formatted] Starting $service tasks..."
-    
+
     if [ "$USE_DOCKER" = true ]; then
         # Run with Docker
         ./run-task.sh --mcp "$service" \
@@ -210,11 +210,11 @@ run_service() {
             --tasks all \
             --timeout "$TIMEOUT" 2>&1 | tee -a "$LOG_FILE"
     fi
-    
+
     local exit_code=$?
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
-    
+
     if [ $exit_code -eq 0 ]; then
         print_success "$service completed in ${duration}s"
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] $service: SUCCESS (${duration}s)" >> "${RESULTS_DIR}/summary.txt"
@@ -222,7 +222,7 @@ run_service() {
         print_error "$service failed with exit code $exit_code"
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] $service: FAILED (exit code $exit_code)" >> "${RESULTS_DIR}/summary.txt"
     fi
-    
+
     return $exit_code
 }
 
@@ -236,7 +236,7 @@ BENCHMARK_START=$(date +%s)
 
 if [ "$PARALLEL" = true ]; then
     print_status "Running services in parallel..."
-    
+
     # Run all services in background
     for service in "${SERVICE_ARRAY[@]}"; do
         (
@@ -244,7 +244,7 @@ if [ "$PARALLEL" = true ]; then
         ) &
         pids+=($!)
     done
-    
+
     # Wait for all background jobs and collect exit codes
     for pid in "${pids[@]}"; do
         if wait $pid; then
@@ -255,7 +255,7 @@ if [ "$PARALLEL" = true ]; then
     done
 else
     print_status "Running services sequentially..."
-    
+
     for service in "${SERVICE_ARRAY[@]}"; do
         if run_service "$service"; then
             ((COMPLETED_SERVICES++))
