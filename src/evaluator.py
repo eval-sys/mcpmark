@@ -171,7 +171,7 @@ class MCPEvaluator:
         # Stage 1: Set up the initial state for the task
         setup_start_time = time.time()
         logger.info(
-            "==================== Stage 1: Setting Up Task ===================="
+            "\n┌─ Stage 1: Setup ─────────────────────────────────────────────────────"
         )
         setup_success = self.state_manager.set_up(task)
         setup_time = time.time() - setup_start_time
@@ -186,10 +186,13 @@ class MCPEvaluator:
                 category=task.category,
                 task_id=task.task_id,
             )
+        logger.info(
+            f"└─ Completed in {setup_time}s\n"
+        )
 
         # Stage 2: Execute the task using the agent
         logger.info(
-            "\n==================== Stage 2: Executing Task ======================="
+            "┌─ Stage 2: Execute ───────────────────────────────────────────────────"
         )
 
         # NOTE: The agent now refreshes its service configuration internally, so
@@ -211,10 +214,13 @@ class MCPEvaluator:
 
         # Set service-specific environment variables for verification scripts
         self.state_manager.set_verification_environment(str(messages_path))
+        logger.info(
+            f"└─ Completed in {setup_time}s\n"
+        )
 
         # Stage 3: Verify
         logger.info(
-            "\n==================== Stage 3: Verifying Task ======================="
+            "┌─ Stage 3: Verify ────────────────────────────────────────────────────"
         )
         try:
             result = self.task_manager.execute_task(task, agent_result)
@@ -224,11 +230,20 @@ class MCPEvaluator:
             os.environ.pop("MCP_MESSAGES", None)
             os.environ.pop("MCP_GITHUB_TOKEN", None)
 
+        logger.info(
+            f"└─ Completed\n"
+        )
+
+
         # Stage 4: Clean up
         logger.info(
-            "\n==================== Stage 4: Cleaning Up ========================="
+            "┌─ Stage 4: Cleanup ───────────────────────────────────────────────────"
         )
         self.state_manager.clean_up(task)
+
+        logger.info(
+            f"└─ Completed\n"
+        )
 
         return result
 

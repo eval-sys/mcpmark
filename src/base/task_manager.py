@@ -190,7 +190,7 @@ class BaseTaskManager(ABC):
     def execute_task(self, task: BaseTask, agent_result: Dict[str, Any]) -> TaskResult:
         """Execute task verification (template method)."""
         start_time = time.time()
-        logger.info(f"- Verifying {self.mcp_service.title()} task: {task.name}")
+        logger.info(f"| - Verifying {self.mcp_service.title()} task: {task.name}")
 
         try:
             # Check for any pre-execution conditions
@@ -231,7 +231,7 @@ class BaseTaskManager(ABC):
                 )
 
             # Run verification using service-specific command
-            logger.info(f"- Running verification for task: {task.name}")
+            logger.info(f"| - Running verification for task: {task.name}")
             verify_result = self.run_verification(task)
 
             # Process results
@@ -247,8 +247,8 @@ class BaseTaskManager(ABC):
             if success:
                 logger.info(f"✓ Verification passed for task: {task.name}")
             else:
-                logger.error(f"✗ Verification failed for task: {task.name}")
-                logger.error(f"⚠️ Error: {error_message}")
+                logger.error(f"| ✗ Verification failed for task: {task.name}")
+                logger.error(f"| ⚠️ Error: {error_message}")
 
             return TaskResult(
                 task_name=task.name,

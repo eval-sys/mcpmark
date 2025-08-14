@@ -373,8 +373,19 @@ class MCPAgent:
                                     "name",
                                     "Unknown",
                                 )
+
+                                arguments = getattr(getattr(event.item, "raw_item", None), 'arguments', None)
+
+                                if isinstance(arguments, str):
+                                    # 如果参数字符串包含多于1行，则只显示第一行
+                                    if "\n" in arguments:
+                                        display_arguments = arguments.split("\n", 1)[0]
+                                    else:
+                                        display_arguments = arguments
+                                else:
+                                    display_arguments = arguments
                                 logger.info(
-                                    f"\n-- Calling {self.mcp_service.title()} Tool: {tool_name}..."
+                                    f"| \033[1m{tool_name}\033[0m {display_arguments}"
                                 )
 
                 # Extract token usage from raw responses
