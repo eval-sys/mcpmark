@@ -1,5 +1,5 @@
 """
-Verification script for PostgreSQL Task 2: Employee Retention Analysis
+Verification script for PostgreSQL Task 5: Database Schema and Data Operations
 """
 
 import os
@@ -11,14 +11,18 @@ def rows_match(actual_row, expected_row):
     """
     Compare two rows with appropriate tolerance.
     For Decimal types: allows 0.1 tolerance
+    For date types: convert to string for comparison
     For other types: requires exact match
     """
     if len(actual_row) != len(expected_row):
         return False
     
     for actual, expected in zip(actual_row, expected_row):
-        if isinstance(actual, Decimal) and isinstance(expected, Decimal):
+        if isinstance(actual, Decimal) and isinstance(expected, (Decimal, float, int)):
             if abs(float(actual) - float(expected)) > 0.1:
+                return False
+        elif hasattr(actual, 'strftime'):  # datetime.date or datetime.datetime
+            if str(actual) != str(expected):
                 return False
         elif actual != expected:
             return False
@@ -35,214 +39,220 @@ def get_connection_params() -> dict:
         "password": os.getenv("POSTGRES_PASSWORD")
     }
 
-def verify_retention_analysis_results(conn) -> bool:
-    """Verify the employee retention analysis results."""
+def verify_table_structures(conn) -> bool:
+    """Verify that all three tables were created with correct structure."""
     with conn.cursor() as cur:
-        # Get actual results from the created table
+        # Check if tables exist
         cur.execute("""
-            SELECT department_name, total_employees_ever, current_employees, 
-                   former_employees, retention_rate
-            FROM employees.employee_retention_analysis
-            ORDER BY department_name
+            SELECT table_name FROM information_schema.tables 
+            WHERE table_schema = 'employees' 
+            AND table_name IN ('employee_projects', 'project_assignments', 'project_milestones')
+            ORDER BY table_name
         """)
-        actual_results = cur.fetchall()
+        tables = [row[0] for row in cur.fetchall()]
         
-        # Execute ground truth query
+        if len(tables) != 3:
+            print(f"❌ Expected 3 tables, found {len(tables)}: {tables}")
+            return False
+            
+        # Check foreign key constraints exist
         cur.execute("""
-            SELECT
-            d.dept_name AS department_name,
-            COUNT(DISTINCT de.employee_id) AS total_employees_ever,
-            COUNT(DISTINCT de.employee_id) FILTER (WHERE de.to_date = DATE '9999-01-01') AS current_employees,
-            (COUNT(DISTINCT de.employee_id)
-            - COUNT(DISTINCT de.employee_id) FILTER (WHERE de.to_date = DATE '9999-01-01')) AS former_employees,
-            (COUNT(DISTINCT de.employee_id) FILTER (WHERE de.to_date = DATE '9999-01-01'))::DECIMAL
-                / NULLIF(COUNT(DISTINCT de.employee_id), 0) * 100 AS retention_rate
-            FROM employees.department d
-            LEFT JOIN employees.department_employee de
-            ON d.id = de.department_id
-            GROUP BY d.id, d.dept_name
+            SELECT COUNT(*) FROM information_schema.table_constraints 
+            WHERE table_schema = 'employees' 
+            AND constraint_type = 'FOREIGN KEY'
+            AND table_name IN ('project_assignments', 'project_milestones')
+        """)
+        fkey_count = cur.fetchone()[0]
+        
+        if fkey_count != 3:
+            print(f"❌ Expected 3 foreign key constraints, found {fkey_count}")
+            return False
+            
+        # Check if priority column exists (added in step 6)
+        cur.execute("""
+            SELECT COUNT(*) FROM information_schema.columns 
+            WHERE table_schema = 'employees' AND table_name = 'employee_projects'
+            AND column_name = 'priority'
+        """)
+        priority_exists = cur.fetchone()[0]
+        
+        if priority_exists == 0:
+            print("❌ Priority column was not added to employee_projects table")
+            return False
+            
+        print("✅ Table structures are correct")
+        return True
+
+def verify_indexes(conn) -> bool:
+    """Verify that required indexes were created."""
+    with conn.cursor() as cur:
+        # Check for specific indexes
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM pg_indexes 
+            WHERE schemaname = 'employees' 
+            AND indexname IN ('idx_projects_status', 'idx_assignments_emp_proj', 'idx_milestones_due_date')
+        """)
+        index_count = cur.fetchone()[0]
+        
+        if index_count != 3:
+            print(f"❌ Expected 3 required indexes, got {index_count}")
+            return False
+                
+        print("✅ All required indexes are present")
+        return True
+
+def verify_project_data(conn) -> bool:
+    """Verify that project data was inserted and updated correctly."""
+    with conn.cursor() as cur:
+        # Check project data after updates
+        cur.execute("""
+            SELECT project_name, start_date, end_date, budget, status, priority
+            FROM employees.employee_projects
+            ORDER BY project_name
+        """)
+        projects = cur.fetchall()
+        
+        if len(projects) != 3:
+            print(f"❌ Expected 3 projects, found {len(projects)}")
+            return False
+            
+        # Expected final state after all updates
+        expected = {
+            'Database Modernization': ('2024-01-15', '2024-06-30', 287500.00, 'active', 'high'),
+            'Employee Portal Upgrade': ('2024-02-01', '2024-05-15', 207000.00, 'active', 'medium'),
+            'HR Analytics Dashboard': ('2023-11-01', '2024-01-31', 120000.00, 'completed', 'medium')
+        }
+        
+        for project in projects:
+            name = project[0]
+            if name not in expected:
+                print(f"❌ Unexpected project: {name}")
+                return False
+                
+            exp = expected[name]
+            # Use rows_match for comparison
+            expected_row = (name,) + exp
+            if not rows_match(project, expected_row):
+                print(f"❌ Project {name} data mismatch: expected {expected_row}, got {project}")
+                return False
+                
+        print("✅ Project data is correct")
+        return True
+
+def verify_assignment_data(conn) -> bool:
+    """Verify that all current employees were assigned to projects by department."""
+    with conn.cursor() as cur:
+        # Check total assignment count matches current employee count
+        cur.execute("""
+            SELECT COUNT(*) FROM employees.project_assignments
+        """)
+        assignment_count = cur.fetchone()[0]
+        
+        cur.execute("""
+            SELECT COUNT(DISTINCT de.employee_id) 
+            FROM employees.department_employee de
+            WHERE de.to_date = '9999-01-01'
+        """)
+        current_employee_count = cur.fetchone()[0]
+        
+        if assignment_count != current_employee_count:
+            print(f"❌ Expected {current_employee_count} assignments, found {assignment_count}")
+            return False
+            
+        # Check department-project mapping
+        cur.execute("""
+            SELECT d.dept_name, pa.project_id, pa.role, pa.allocation_percentage, COUNT(*)
+            FROM employees.project_assignments pa
+            JOIN employees.department_employee de ON pa.employee_id = de.employee_id AND de.to_date = '9999-01-01'
+            JOIN employees.department d ON de.department_id = d.id
+            JOIN employees.employee_projects ep ON pa.project_id = ep.project_id
+            GROUP BY d.dept_name, pa.project_id, pa.role, pa.allocation_percentage
             ORDER BY d.dept_name
         """)
-        expected_results = cur.fetchall()
-
-        if len(actual_results) != len(expected_results):
-            print(f"❌ Expected {len(expected_results)} retention analysis results, got {len(actual_results)}")
+        dept_assignments = cur.fetchall()
+        
+        # Expected department-project mappings
+        expected_mappings = {
+            'Development': (1, 'Developer', 80),
+            'Human Resources': (2, 'Business Analyst', 60),
+            'Marketing': (3, 'Marketing Specialist', 40),
+            'Finance': (1, 'Financial Analyst', 30),
+            'Sales': (2, 'Sales Representative', 50),
+            'Research': (3, 'Research Analyst', 70),
+            'Production': (1, 'Production Coordinator', 45),
+            'Quality Management': (2, 'QA Specialist', 85),
+            'Customer Service': (3, 'Customer Success', 35)
+        }
+        
+        dept_found = {}
+        for assignment in dept_assignments:
+            dept_name, project_id, role, allocation, _ = assignment  # Ignore count
+            if dept_name in dept_found:
+                print(f"❌ Department {dept_name} has multiple assignments")
+                return False
+            dept_found[dept_name] = (project_id, role, allocation)
+            
+        for dept, expected in expected_mappings.items():
+            if dept not in dept_found:
+                print(f"❌ Department {dept} has no assignments")
+                return False
+            if dept_found[dept] != expected:
+                print(f"❌ Department {dept} assignment mismatch: expected {expected}, got {dept_found[dept]}")
+                return False
+                
+        # Check that all assignments have correct assigned_date
+        cur.execute("""
+            SELECT COUNT(*) FROM employees.project_assignments 
+            WHERE assigned_date != '2024-01-01'
+        """)
+        wrong_date_count = cur.fetchone()[0]
+        
+        if wrong_date_count > 0:
+            print(f"❌ {wrong_date_count} assignments have incorrect assigned_date")
             return False
-
-        mismatches = 0
-        for i, (actual, expected) in enumerate(zip(actual_results, expected_results)):
-            if not rows_match(actual, expected):
-                if mismatches < 5:  # Only show first 5 mismatches
-                    print(f"❌ Row {i+1} mismatch: expected {expected}, got {actual}")
-                mismatches += 1
-
-        if mismatches > 0:
-            print(f"❌ Total mismatches: {mismatches}")
-            return False
-
-        print(f"✅ Employee retention analysis results are correct ({len(actual_results)} records)")
+                
+        print("✅ Assignment data is correct")
         return True
 
-def verify_high_risk_results(conn) -> bool:
-    """Verify the high risk employee analysis results."""
+def verify_milestone_data(conn) -> bool:
+    """Verify that milestone data was inserted and updated correctly."""
     with conn.cursor() as cur:
-        # Get actual results from the created table
         cur.execute("""
-            SELECT employee_id, full_name, current_department, tenure_days, 
-                   current_salary, risk_category
-            FROM employees.high_risk_employees
-            ORDER BY employee_id
+            SELECT project_id, milestone_name, due_date, completed
+            FROM employees.project_milestones
+            ORDER BY project_id, milestone_name
         """)
-        actual_results = cur.fetchall()
+        milestones = cur.fetchall()
         
-        # Execute ground truth query - only current employees
-        cur.execute("""
-            WITH current_salary AS (
-            SELECT employee_id, amount AS current_amount
-            FROM (
-                SELECT s.*,
-                    ROW_NUMBER() OVER (PARTITION BY s.employee_id
-                                        ORDER BY s.from_date DESC, s.amount DESC) AS rn
-                FROM employees.salary s
-                WHERE s.to_date = DATE '9999-01-01'
-            ) x
-            WHERE rn = 1
-            ),
-            current_dept AS (
-            SELECT employee_id, department_id
-            FROM (
-                SELECT de.*,
-                    ROW_NUMBER() OVER (PARTITION BY de.employee_id
-                                        ORDER BY de.from_date DESC, de.department_id) AS rn
-                FROM employees.department_employee de
-                WHERE de.to_date = DATE '9999-01-01'
-            ) x
-            WHERE rn = 1
-            ),
-            dept_retention AS (
-            SELECT
-                d.id   AS department_id,
-                d.dept_name,
-                COUNT(DISTINCT de.employee_id) AS total_employees_ever,
-                COUNT(DISTINCT de.employee_id) FILTER (WHERE de.to_date = DATE '9999-01-01') AS current_employees,
-                (COUNT(DISTINCT de.employee_id) FILTER (WHERE de.to_date = DATE '9999-01-01'))::NUMERIC
-                / NULLIF(COUNT(DISTINCT de.employee_id), 0) * 100 AS retention_rate
-            FROM employees.department d
-            LEFT JOIN employees.department_employee de
-                    ON de.department_id = d.id
-            GROUP BY d.id, d.dept_name
-            )
-            SELECT
-            e.id AS employee_id,
-            CONCAT(e.first_name, ' ', e.last_name) AS full_name,
-            d.dept_name AS current_department,
-            (CURRENT_DATE - e.hire_date)::INTEGER AS tenure_days,
-            cs.current_amount::INTEGER AS current_salary,
-            CASE
-                WHEN dr.retention_rate < 80  AND (CURRENT_DATE - e.hire_date) < 1095 THEN 'high_risk'
-                WHEN dr.retention_rate < 85  AND (CURRENT_DATE - e.hire_date) < 1825 THEN 'medium_risk'
-                ELSE 'low_risk'
-            END AS risk_category
-            FROM employees.employee e
-            JOIN current_salary cs ON cs.employee_id = e.id
-            JOIN current_dept   cd ON cd.employee_id = e.id
-            JOIN employees.department d ON d.id = cd.department_id
-            JOIN dept_retention dr ON dr.department_id = d.id
-            ORDER BY e.id;
-        """)
-        expected_results = cur.fetchall()
-
-        if len(actual_results) != len(expected_results):
-            print(f"❌ Expected {len(expected_results)} high risk analysis results, got {len(actual_results)}")
+        if len(milestones) != 6:
+            print(f"❌ Expected 6 milestones, found {len(milestones)}")
             return False
-
-        mismatches = 0
-        for i, (actual, expected) in enumerate(zip(actual_results, expected_results)):
-            if not rows_match(actual, expected):
-                if mismatches < 5:  # Only show first 5 mismatches
-                    print(f"❌ Row {i+1} mismatch: expected {expected}, got {actual}")
-                mismatches += 1
-
-        if mismatches > 0:
-            print(f"❌ Total mismatches: {mismatches}")
-            return False
-
-        print(f"✅ High risk employee analysis results are correct ({len(actual_results)} records)")
-        return True
-
-def verify_turnover_trend_results(conn) -> bool:
-    """Verify the turnover trend analysis results."""
-    with conn.cursor() as cur:
-        # Get actual results from the created table
-        cur.execute("""
-            SELECT departure_year, departures_count, avg_tenure_days, avg_final_salary
-            FROM employees.turnover_trend_analysis
-            ORDER BY departure_year
-        """)
-        actual_results = cur.fetchall()
+            
+        # Expected milestones
+        expected_milestones = {
+            (1, 'Design Phase Complete'): ('2024-03-01', False),
+            (1, 'Implementation Complete'): ('2024-05-15', False),
+            (2, 'UI/UX Approval'): ('2024-03-15', False),
+            (2, 'Beta Testing'): ('2024-04-30', False),
+            (3, 'Data Collection'): ('2023-12-15', True),  # Should be completed
+            (3, 'Dashboard Launch'): ('2024-01-25', False)
+        }
         
-        # Execute ground truth query - simplified version
-        cur.execute("""
-            WITH last_non_current_salary AS (
-            SELECT
-                s.employee_id,
-                s.to_date      AS departure_date,
-                s.amount       AS final_salary,
-                ROW_NUMBER() OVER (
-                PARTITION BY s.employee_id
-                ORDER BY s.to_date DESC, s.from_date DESC, s.amount DESC
-                ) AS rn
-            FROM employees.salary s
-            WHERE s.to_date <> DATE '9999-01-01'
-                AND NOT EXISTS (
-                SELECT 1
-                FROM employees.salary s_cur
-                WHERE s_cur.employee_id = s.employee_id
-                    AND s_cur.to_date = DATE '9999-01-01'
-                )
-            ),
-            departed AS (
-            SELECT employee_id, departure_date, final_salary
-            FROM last_non_current_salary
-            WHERE rn = 1
-            ),
-            with_tenure AS (
-            SELECT
-                e.id AS employee_id,
-                d.departure_date,
-                d.final_salary,
-                (d.departure_date - e.hire_date)::INTEGER AS tenure_days
-            FROM employees.employee e
-            JOIN departed d ON d.employee_id = e.id
-            )
-            SELECT
-            EXTRACT(YEAR FROM departure_date)::INTEGER AS departure_year,
-            COUNT(*)::INTEGER                         AS departures_count,
-            AVG(tenure_days)                          AS avg_tenure_days,
-            AVG(final_salary)                         AS avg_final_salary
-            FROM with_tenure
-            WHERE departure_date BETWEEN DATE '1985-01-01' AND DATE '2002-12-31'
-            GROUP BY EXTRACT(YEAR FROM departure_date)
-            ORDER BY departure_year;
-        """)
-        expected_results = cur.fetchall()
-
-        if len(actual_results) != len(expected_results):
-            print(f"❌ Expected {len(expected_results)} turnover trend results, got {len(actual_results)}")
-            return False
-
-        mismatches = 0
-        for i, (actual, expected) in enumerate(zip(actual_results, expected_results)):
-            if not rows_match(actual, expected):
-                if mismatches < 5:  # Only show first 5 mismatches
-                    print(f"❌ Row {i+1} mismatch: expected {expected}, got {actual}")
-                mismatches += 1
-
-        if mismatches > 0:
-            print(f"❌ Total mismatches: {mismatches}")
-            return False
-
-        print(f"✅ Turnover trend analysis results are correct ({len(actual_results)} records)")
+        for milestone in milestones:
+            project_id, name, due_date, completed = milestone
+            key = (project_id, name)
+            
+            if key not in expected_milestones:
+                print(f"❌ Unexpected milestone: {key}")
+                return False
+                
+            expected_due, expected_completed = expected_milestones[key]
+            if str(due_date) != expected_due or completed != expected_completed:
+                print(f"❌ Milestone {name} mismatch: expected ({expected_due}, {expected_completed}), got ({due_date}, {completed})")
+                return False
+                
+        print("✅ Milestone data is correct")
         return True
 
 def main():
@@ -260,11 +270,13 @@ def main():
         # Connect to database
         conn = psycopg2.connect(**conn_params)
 
-        # Verify all three analysis results
+        # Verify all components
         success = (
-            verify_retention_analysis_results(conn) and 
-            verify_high_risk_results(conn) and 
-            verify_turnover_trend_results(conn)
+            verify_table_structures(conn) and 
+            verify_indexes(conn) and
+            verify_project_data(conn) and
+            verify_assignment_data(conn) and
+            verify_milestone_data(conn)
         )
 
         conn.close()

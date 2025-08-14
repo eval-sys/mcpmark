@@ -1,40 +1,52 @@
-Generate a comprehensive employee demographics and basic statistics report for the annual company overview. The HR team needs simple, clear statistical summaries about our workforce composition to include in the annual report and diversity initiatives.
+Design a comprehensive reporting and automation system for executive dashboard and real-time monitoring. The executive team needs automated reports, data views, and trigger-based notifications to track key business metrics without manual intervention.
 
 ## Your Tasks:
 
-1. **Create the gender statistics table** — build a table called `gender_statistics` in the `employees` schema with these exact columns:
-   * `gender` (varchar) — gender ('M' or 'F')
-   * `total_employees` (integer) — total number of employees of this gender
-   * `current_employees` (integer) — current employees of this gender (have active salary)
-   * `percentage_of_workforce` (decimal) — percentage of current workforce
+1. **Create executive summary views** — build three materialized views in the `employees` schema:
+   
+   **View 1: `exec_department_summary`**
+   * `department_name` (varchar) — department name
+   * `total_employees` (integer) — current active employee count
+   * `avg_salary` (decimal) — average current salary
+   * `total_payroll` (bigint) — total monthly payroll cost
+   * `manager_name` (varchar) — current department manager name
 
-2. **Create the age group analysis table** — build a table called `age_group_analysis` in the `employees` schema with:
-   * `age_group` (varchar) — age range ('20-29', '30-39', '40-49', '50-59', '60+')
-   * `employee_count` (integer) — number of current employees in age group
-   * `avg_salary` (decimal) — average current salary for age group
-   * `avg_tenure_days` (decimal) — average days of service
-
-3. **Create the birth month distribution table** — build a table called `birth_month_distribution` in the `employees` schema with:
-   * `birth_month` (integer) — month number (1-12)
-   * `month_name` (varchar) — month name ('January', 'February', etc.)
-   * `employee_count` (integer) — total employees born in this month
-   * `current_employee_count` (integer) — current employees born in this month
-
-4. **Create the hiring year summary table** — build a table called `hiring_year_summary` in the `employees` schema with:
+   **View 2: `exec_hiring_trends`**  
    * `hire_year` (integer) — year employees were hired
-   * `employees_hired` (integer) — number of employees hired that year
-   * `still_employed` (integer) — how many from that year are still employed
-   * `retention_rate` (decimal) — percentage still employed (still_employed/employees_hired * 100)
+   * `employees_hired` (integer) — number hired that year
+   * `avg_starting_salary` (decimal) — average first salary of hires that year
+   * `retention_rate` (decimal) — percentage still employed
+   * `top_hiring_department` (varchar) — department that hired the most that year
 
-5. **Apply age group classification** based on current age:
-   * **20-29**: Ages 20-29
-   * **30-39**: Ages 30-39  
-   * **40-49**: Ages 40-49
-   * **50-59**: Ages 50-59
-   * **60+**: Ages 60 and above
+   **View 3: `exec_salary_distribution`**
+   * `salary_band` (varchar) — salary ranges ('30K-50K', '50K-70K', '70K-90K', '90K-110K', '110K+')  
+   * `employee_count` (integer) — employees in this salary band
+   * `percentage_of_workforce` (decimal) — percentage of total workforce
+   * `most_common_title` (varchar) — most frequent job title in this band
 
-6. **Calculate workforce composition** — determine current workforce demographics using employees with active salary records (to_date = '9999-01-01').
+2. **Create stored procedure for report generation**:
+   
+   **Procedure: `generate_monthly_report(report_date DATE)`**
+   * Create a table `monthly_reports` with columns: report_id (auto-increment), report_date, department_count, total_employees (current active employees only), avg_salary, generated_at
+   * Insert one summary record using the report_date as identifier and current database statistics (not historical data for that date)
+   * Return the generated report_id
 
-7. **Focus on basic statistics** — create simple counts, averages, and percentages that are easy to understand and verify.
+3. **Create notification triggers**:
+   
+   **Trigger: `high_salary_alert`**
+   * Fires when a new salary record is inserted with amount > 120000
+   * Inserts alert into `salary_alerts` table with: employee_id, salary_amount, alert_date, status='new'
 
-The analysis will provide clear demographic insights for HR reporting and workforce planning.
+4. **Insert test data to verify triggers**:
+   * Update employee 10001's current salary: first set their current salary record to_date='2024-01-31', then insert new salary record with amount 125000, from_date='2024-02-01', to_date='9999-01-01'
+   * Refresh all materialized views after inserting new data to ensure they reflect the updated information
+
+5. **Execute the stored procedure**:
+   * Call `generate_monthly_report('2024-01-01')` to create January report
+   * Query the generated report to verify execution
+
+6. **Create performance indexes**:
+   * Index on `salary_alerts.status` for alert processing
+   * Composite index on `monthly_reports(report_date, department_count)` for trend analysis
+
+The task tests advanced database features including materialized views, stored procedures, triggers, and automated reporting systems.

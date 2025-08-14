@@ -1,5 +1,5 @@
 """
-Verification script for PostgreSQL Task 1: Employee Performance Analysis
+Verification script for PostgreSQL Task 4: Management Structure Analysis
 """
 
 import os
@@ -35,82 +35,67 @@ def get_connection_params() -> dict:
         "password": os.getenv("POSTGRES_PASSWORD")
     }
 
-def verify_performance_results(conn) -> bool:
-    """Verify the employee performance analysis results."""
+def verify_manager_profile_results(conn) -> bool:
+    """Verify the manager profile results."""
     with conn.cursor() as cur:
         # Get actual results from the created table
         cur.execute("""
-            SELECT employee_id, performance_category, salary_growth_rate, 
-                   days_of_service, promotion_count
-            FROM employees.employee_performance_analysis 
-            ORDER BY employee_id
+            SELECT manager_id, manager_name, current_department, 
+                   management_periods, current_manager
+            FROM employees.manager_profile
+            ORDER BY manager_id
         """)
         actual_results = cur.fetchall()
         
-        # Execute ground truth query - use first salary record as starting salary
+        # Execute ground truth query
         cur.execute("""
-            WITH current_salary AS (
-            SELECT employee_id, amount AS current_amount
+            WITH dm AS (
+            SELECT dm.employee_id,
+                    dm.department_id,
+                    dm.from_date,
+                    dm.to_date
+            FROM employees.department_manager dm
+            ),
+            manager_periods AS (
+            SELECT employee_id, COUNT(*)::INT AS management_periods
+            FROM dm
+            GROUP BY employee_id
+            ),
+            current_assignment AS (
+            SELECT employee_id, department_id
             FROM (
-                SELECT s.*,
-                    ROW_NUMBER() OVER (PARTITION BY s.employee_id
-                                        ORDER BY s.from_date DESC, s.amount DESC) AS rn
-                FROM employees.salary s
-                WHERE s.to_date = DATE '9999-01-01'
+                SELECT d.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY d.employee_id
+                        ORDER BY d.from_date DESC, d.department_id
+                    ) AS rn
+                FROM dm d
+                WHERE d.to_date = DATE '9999-01-01'
             ) x
             WHERE rn = 1
             ),
-            first_salary AS (
-            SELECT employee_id, amount AS first_amount
-            FROM (
-                SELECT s.*,
-                    ROW_NUMBER() OVER (PARTITION BY s.employee_id
-                                        ORDER BY s.from_date ASC, s.amount ASC) AS rn
-                FROM employees.salary s
-            ) x
-            WHERE rn = 1
-            ),
-            title_counts AS (
-            SELECT t.employee_id, COUNT(DISTINCT t.title) AS promotion_count
-            FROM employees.title t
-            GROUP BY t.employee_id
-            ),
-            base AS (
-            SELECT e.id AS employee_id,
-                    e.hire_date,
-                    cs.current_amount,
-                    fs.first_amount,
-                    COALESCE(tc.promotion_count, 0) AS promotion_count
+            manager_names AS (
+            SELECT e.id AS manager_id,
+                    CONCAT(e.first_name, ' ', e.last_name) AS manager_name
             FROM employees.employee e
-            JOIN current_salary cs ON cs.employee_id = e.id
-            JOIN first_salary  fs ON fs.employee_id = e.id
-            LEFT JOIN title_counts tc ON tc.employee_id = e.id
-            ),
-            scored AS (
-            SELECT
-                employee_id,
-                ((current_amount - first_amount) / NULLIF(first_amount, 0)::NUMERIC) * 100 AS salary_growth_rate,
-                (CURRENT_DATE - hire_date)::INTEGER AS days_of_service,
-                promotion_count
-            FROM base
+            WHERE EXISTS (SELECT 1 FROM dm WHERE employee_id = e.id)
             )
             SELECT
-            s.employee_id,
-            CASE
-                WHEN s.salary_growth_rate > 40 AND s.promotion_count > 1 THEN 'high_achiever'
-                WHEN s.salary_growth_rate < 15 AND s.days_of_service > 3650 THEN 'needs_attention'
-                ELSE 'steady_performer'
-            END AS performance_category,
-            s.salary_growth_rate,
-            s.days_of_service,
-            s.promotion_count AS promotion_count
-            FROM scored s
-            ORDER BY s.employee_id;
+            mn.manager_id,
+            mn.manager_name,
+            d.dept_name AS current_department,
+            mp.management_periods,
+            (d.dept_name IS NOT NULL) AS current_manager
+            FROM manager_names mn
+            JOIN manager_periods mp ON mp.employee_id = mn.manager_id
+            LEFT JOIN current_assignment ca ON ca.employee_id = mn.manager_id
+            LEFT JOIN employees.department d ON d.id = ca.department_id
+            ORDER BY mn.manager_id;
         """)
         expected_results = cur.fetchall()
 
         if len(actual_results) != len(expected_results):
-            print(f"❌ Expected {len(expected_results)} performance results, got {len(actual_results)}")
+            print(f"❌ Expected {len(expected_results)} manager profile results, got {len(actual_results)}")
             return False
 
         mismatches = 0
@@ -124,66 +109,216 @@ def verify_performance_results(conn) -> bool:
             print(f"❌ Total mismatches: {mismatches}")
             return False
 
-        print(f"✅ Employee performance results are correct ({len(actual_results)} records)")
+        print(f"✅ Manager profile results are correct ({len(actual_results)} records)")
         return True
 
-def verify_department_results(conn) -> bool:
-    """Verify the department salary analysis results."""
+def verify_department_leadership_results(conn) -> bool:
+    """Verify the department leadership results."""
     with conn.cursor() as cur:
         # Get actual results from the created table
         cur.execute("""
-            SELECT department_name, avg_current_salary, employee_count, salary_range_spread
-            FROM employees.department_salary_analysis
+            SELECT department_name, current_manager_name, manager_start_date, 
+                   total_historical_managers
+            FROM employees.department_leadership
             ORDER BY department_name
         """)
         actual_results = cur.fetchall()
-
+        
         # Execute ground truth query
         cur.execute("""
-            WITH current_salary AS (
-            SELECT employee_id, amount
+            WITH current_mgr AS (
+            SELECT department_id,
+                    CONCAT(e.first_name, ' ', e.last_name) AS current_manager_name,
+                    dm.from_date AS manager_start_date
             FROM (
-                SELECT s.*,
-                    ROW_NUMBER() OVER (PARTITION BY s.employee_id
-                                        ORDER BY s.from_date DESC, s.amount DESC) AS rn
-                FROM employees.salary s
-                WHERE s.to_date = DATE '9999-01-01'
-            ) x
-            WHERE rn = 1
+                SELECT dm.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY dm.department_id
+                        ORDER BY dm.from_date DESC, dm.employee_id
+                    ) AS rn
+                FROM employees.department_manager dm
+                WHERE dm.to_date = DATE '9999-01-01'
+            ) dm
+            JOIN employees.employee e ON e.id = dm.employee_id
+            WHERE dm.rn = 1
             ),
-            current_dept AS (
-            SELECT DISTINCT de.employee_id, de.department_id
-            FROM employees.department_employee de
-            WHERE de.to_date = DATE '9999-01-01'
+            hist AS (
+            SELECT dm.department_id, COUNT(DISTINCT dm.employee_id)::INT AS total_historical_managers
+            FROM employees.department_manager dm
+            GROUP BY dm.department_id
             )
-            SELECT 
-            d.dept_name AS department_name,
-            AVG(cs.amount)::DECIMAL AS avg_current_salary,
-            COUNT(DISTINCT cd.employee_id) AS employee_count,
-            (MAX(cs.amount) - MIN(cs.amount)) AS salary_range_spread
+            SELECT
+            d.dept_name                              AS department_name,
+            cm.current_manager_name,
+            cm.manager_start_date,
+            COALESCE(h.total_historical_managers,0)  AS total_historical_managers
             FROM employees.department d
-            JOIN current_dept cd ON cd.department_id = d.id
-            JOIN current_salary cs ON cs.employee_id = cd.employee_id
-            GROUP BY d.id, d.dept_name
+            LEFT JOIN current_mgr cm ON cm.department_id = d.id
+            LEFT JOIN hist        h  ON h.department_id = d.id
             ORDER BY d.dept_name;
         """)
         expected_results = cur.fetchall()
 
         if len(actual_results) != len(expected_results):
-            print(f"❌ Expected {len(expected_results)} department results, got {len(actual_results)}")
+            print(f"❌ Expected {len(expected_results)} department leadership results, got {len(actual_results)}")
             return False
 
         mismatches = 0
         for i, (actual, expected) in enumerate(zip(actual_results, expected_results)):
             if not rows_match(actual, expected):
-                print(f"❌ Row {i+1} mismatch: expected {expected}, got {actual}")
+                if mismatches < 5:  # Only show first 5 mismatches
+                    print(f"❌ Row {i+1} mismatch: expected {expected}, got {actual}")
                 mismatches += 1
 
         if mismatches > 0:
             print(f"❌ Total mismatches: {mismatches}")
             return False
 
-        print(f"✅ Department salary results are correct ({len(actual_results)} records)")
+        print(f"✅ Department leadership results are correct ({len(actual_results)} records)")
+        return True
+
+def verify_management_transitions_results(conn) -> bool:
+    """Verify the management transitions results."""
+    with conn.cursor() as cur:
+        # Get actual results from the created table
+        cur.execute("""
+            SELECT department_name, transition_year, outgoing_manager, incoming_manager, transition_gap_days
+            FROM employees.management_transitions
+            ORDER BY department_name, transition_year
+        """)
+        actual_results = cur.fetchall()
+        
+        # Execute ground truth query
+        cur.execute("""
+            WITH mgr AS (
+            SELECT
+                d.id AS department_id,
+                d.dept_name,
+                dm.employee_id,
+                dm.from_date,
+                dm.to_date,
+                CONCAT(e.first_name, ' ', e.last_name) AS manager_name
+            FROM employees.department_manager dm
+            JOIN employees.department d ON d.id = dm.department_id
+            JOIN employees.employee  e ON e.id = dm.employee_id
+            ),
+            ordered AS (
+            SELECT
+                department_id,
+                dept_name,
+                employee_id,
+                manager_name,
+                from_date,
+                to_date,
+                ROW_NUMBER() OVER (
+                PARTITION BY department_id
+                ORDER BY from_date, to_date, employee_id
+                ) AS rn,
+                LEAD(manager_name) OVER (
+                PARTITION BY department_id
+                ORDER BY from_date, to_date, employee_id
+                ) AS next_manager_name,
+                LEAD(from_date) OVER (
+                PARTITION BY department_id
+                ORDER BY from_date, to_date, employee_id
+                ) AS next_from_date
+            FROM mgr
+            )
+            SELECT
+            o.dept_name                                   AS department_name,
+            EXTRACT(YEAR FROM o.to_date)::INT             AS transition_year,
+            o.manager_name                                AS outgoing_manager,
+            COALESCE(o.next_manager_name, 'No Successor') AS incoming_manager,
+            COALESCE(GREATEST((o.next_from_date - o.to_date - 1), 0), 0)::INT AS transition_gap_days
+            FROM ordered o
+            WHERE o.to_date <> DATE '9999-01-01'
+            ORDER BY department_name, transition_year;
+        """)
+        expected_results = cur.fetchall()
+
+        if len(actual_results) != len(expected_results):
+            print(f"❌ Expected {len(expected_results)} management transitions results, got {len(actual_results)}")
+            return False
+
+        mismatches = 0
+        for i, (actual, expected) in enumerate(zip(actual_results, expected_results)):
+            if not rows_match(actual, expected):
+                if mismatches < 5:  # Only show first 5 mismatches
+                    print(f"❌ Row {i+1} mismatch: expected {expected}, got {actual}")
+                mismatches += 1
+
+        if mismatches > 0:
+            print(f"❌ Total mismatches: {mismatches}")
+            return False
+
+        print(f"✅ Management transitions results are correct ({len(actual_results)} records)")
+        return True
+
+def verify_span_of_control_results(conn) -> bool:
+    """Verify the span of control results."""
+    with conn.cursor() as cur:
+        # Get actual results from the created table
+        cur.execute("""
+            SELECT manager_id, manager_name, department_name, total_employees, 
+                   current_employees, management_load
+            FROM employees.span_of_control
+            ORDER BY manager_id
+        """)
+        actual_results = cur.fetchall()
+        
+        # Execute ground truth query
+        cur.execute("""
+            WITH dept_total AS (
+            SELECT de.department_id, COUNT(DISTINCT de.employee_id)::INT AS total_employees
+            FROM employees.department_employee de
+            GROUP BY de.department_id
+            ),
+            dept_current AS (
+            SELECT de.department_id, COUNT(DISTINCT de.employee_id)::INT AS current_employees
+            FROM employees.department_employee de
+            JOIN employees.salary s
+                ON s.employee_id = de.employee_id
+            AND s.to_date = DATE '9999-01-01'
+            WHERE de.to_date = DATE '9999-01-01'
+            GROUP BY de.department_id
+            )
+            SELECT
+            dm.employee_id AS manager_id,
+            CONCAT(e.first_name, ' ', e.last_name) AS manager_name,
+            d.dept_name AS department_name,
+            COALESCE(dt.total_employees, 0)  AS total_employees,
+            COALESCE(dc.current_employees, 0) AS current_employees,
+            CASE
+                WHEN COALESCE(dc.current_employees, 0) < 5000  THEN 'light'
+                WHEN COALESCE(dc.current_employees, 0) <= 15000 THEN 'moderate'
+                ELSE 'heavy'
+            END AS management_load
+            FROM employees.department_manager dm
+            JOIN employees.employee  e ON e.id = dm.employee_id
+            JOIN employees.department d ON d.id = dm.department_id
+            LEFT JOIN dept_total  dt ON dt.department_id = dm.department_id
+            LEFT JOIN dept_current dc ON dc.department_id = dm.department_id
+            WHERE dm.to_date = DATE '9999-01-01'
+            ORDER BY dm.employee_id, d.dept_name;
+        """)
+        expected_results = cur.fetchall()
+
+        if len(actual_results) != len(expected_results):
+            print(f"❌ Expected {len(expected_results)} span of control results, got {len(actual_results)}")
+            return False
+
+        mismatches = 0
+        for i, (actual, expected) in enumerate(zip(actual_results, expected_results)):
+            if not rows_match(actual, expected):
+                if mismatches < 5:  # Only show first 5 mismatches
+                    print(f"❌ Row {i+1} mismatch: expected {expected}, got {actual}")
+                mismatches += 1
+
+        if mismatches > 0:
+            print(f"❌ Total mismatches: {mismatches}")
+            return False
+
+        print(f"✅ Span of control results are correct ({len(actual_results)} records)")
         return True
 
 def main():
@@ -201,8 +336,13 @@ def main():
         # Connect to database
         conn = psycopg2.connect(**conn_params)
 
-        # Verify results
-        success = verify_performance_results(conn) and verify_department_results(conn)
+        # Verify all four analysis results
+        success = (
+            verify_manager_profile_results(conn) and 
+            verify_department_leadership_results(conn) and 
+            verify_management_transitions_results(conn) and
+            verify_span_of_control_results(conn)
+        )
 
         conn.close()
 
