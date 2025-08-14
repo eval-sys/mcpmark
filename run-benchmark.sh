@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
             USE_DOCKER=true
             shift
             ;;
-        --services)
+        --mcps)
             SERVICES="$2"
             shift 2
             ;;
@@ -77,7 +77,7 @@ Required Options:
 
 Optional Options:
     --docker            Run tasks in Docker containers (recommended)
-    --services SERVICES Comma-separated list of services to test
+    --mcps SERVICES     Comma-separated list of services to test
                         Default: filesystem,notion,github,postgres,playwright
     --parallel          Run services in parallel (experimental)
     --timeout SECONDS   Timeout per task in seconds (default: 300)
@@ -87,7 +87,7 @@ Examples:
     $0 --models o3,gpt-4.1 --exp-name benchmark-1 --docker
 
     # Run specific services locally
-    $0 --models o3 --exp-name test-1 --services filesystem,postgres
+    $0 --models o3 --exp-name test-1 --mcps filesystem,postgres
 
     # Run with parallel execution
     $0 --models claude-4 --exp-name parallel-test --docker --parallel
