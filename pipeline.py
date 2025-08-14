@@ -17,9 +17,6 @@ from src.evaluator import MCPEvaluator
 from src.factory import MCPServiceFactory
 from src.model_config import ModelConfig
 
-import os
-import pdb
-
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -70,8 +67,7 @@ def main():
 
     # Load arguments and environment variables
     args = parser.parse_args()
-    # load_dotenv(dotenv_path=".mcp_env", override=False)
-    load_dotenv(dotenv_path=Path(__file__).parent.parent / ".mcp_env", override=False)
+    load_dotenv(dotenv_path=".mcp_env", override=False)
 
 
     # Generate default exp-name if not provided
