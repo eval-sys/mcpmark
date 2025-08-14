@@ -71,10 +71,7 @@ class ConfigSchema(ABC):
         """Load environment variables from .mcp_env file."""
 
         # original
-        # load_dotenv(dotenv_path=".mcp_env", override=False)
-
-        # Use Path to construct the correct path relative to this script
-        dotenv_path = Path(__file__).parent.parent.parent / ".mcp_env"
+        dotenv_path = ".mcp_env"
         load_dotenv(dotenv_path=dotenv_path, override=False)
 
     def _add_config(
