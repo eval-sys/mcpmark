@@ -132,6 +132,7 @@ else
         --memory="$DOCKER_MEMORY_LIMIT" \
         --cpus="$DOCKER_CPU_LIMIT" \
         -v "$(pwd)/results:/app/results" \
+        -v "$(pwd)/test_environments:/app/test_environments" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         "$DOCKER_IMAGE" \
