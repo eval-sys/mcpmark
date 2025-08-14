@@ -1,31 +1,23 @@
-# MCPMark Docker image with multi-stage build
-FROM python:3.12-slim AS builder
+# Base image - stable layer
+FROM python:3.12-slim AS base-runtime
 
-# Install build essentials for compiling Python packages
+# Layer 1: Core system dependencies (very stable, rarely changes)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    libpq-dev \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
-
-# Copy and install Python dependencies
-COPY requirements.txt pyproject.toml ./
-RUN pip install --no-cache-dir --user -r requirements.txt && \
-    pip install --no-cache-dir --user -e .
-
-# Final stage
-FROM python:3.12-slim
-
-# Install runtime dependencies
+# Layer 2: PostgreSQL runtime (stable, only changes with postgres version)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # PostgreSQL runtime library (only for postgres service, ~200KB)
     libpq5 \
-    # Git (required for version control tasks)
+    && rm -rf /var/lib/apt/lists/*
+
+# Layer 3: Git (stable)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    ca-certificates \
-    # Minimal Playwright dependencies
+    && rm -rf /var/lib/apt/lists/*
+
+# Layer 4: Playwright system dependencies (changes with browser requirements)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -46,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js from NodeSource (curl is required temporarily)
+# Layer 5: Node.js (changes with Node version)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
@@ -55,33 +47,51 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
+# Builder stage for Python dependencies
+FROM python:3.12-slim AS builder
+
+# Install build essentials for compiling Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Layer 6: Python dependencies (changes with requirements)
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Final stage
+FROM base-runtime
+
 # Copy Python packages from builder
 COPY --from=builder /root/.local /root/.local
 
-WORKDIR /app
-
-# Copy application code
-COPY . .
-
-# Install Playwright with chromium only (smaller than installing all browsers)
-# Install for both Python and Node.js versions
-RUN python3 -m playwright install chromium && \
-    npx -y playwright install chromium
-
-# Install pipx (for running Python-based MCP servers)
+# Layer 8: pipx (rarely changes)
 RUN pip install --no-cache-dir pipx && \
     pipx ensurepath
 
-# Create results directory
+# Layer 9: Playwright browsers (changes with browser versions)
+RUN python3 -m playwright install chromium && \
+    npx -y playwright install chromium
+
+# Set working directory
+WORKDIR /app
+
+# Layer 10: Create directory structure (rarely changes)
 RUN mkdir -p /app/results
 
+# Layer 11: Application code (changes frequently)
+COPY . .
+
 # Set environment
-# Include both Python user packages and pipx binaries in PATH
 ENV PATH="/root/.local/bin:/root/.local/pipx/venvs/*/bin:${PATH}"
 ENV PYTHONPATH="/app"
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 ENV PIPX_HOME=/root/.local/pipx
 ENV PIPX_BIN_DIR=/root/.local/bin
 
-# Default command (shows help, override when running)
+# Default command
 CMD ["python3", "-m", "pipeline", "--help"]
