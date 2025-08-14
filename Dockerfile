@@ -1,5 +1,21 @@
-# Base image - stable layer
-FROM python:3.12-slim AS base-runtime
+# MCPMark Docker image with optimized layer caching
+# Stage 1: Builder for Python dependencies only
+FROM python:3.12-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy and install Python dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 2: Final image with all runtime dependencies
+FROM python:3.12-slim
 
 # Layer 1: Core system dependencies (very stable, rarely changes)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -47,43 +63,24 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Builder stage for Python dependencies
-FROM python:3.12-slim AS builder
-
-# Install build essentials for compiling Python packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /build
-
-# Layer 6: Python dependencies (changes with requirements)
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Final stage
-FROM base-runtime
-
-# Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
-
-# Layer 8: pipx (rarely changes)
+# Layer 6: pipx (rarely changes)
 RUN pip install --no-cache-dir pipx && \
     pipx ensurepath
 
-# Layer 9: Playwright browsers (changes with browser versions)
+# Layer 7: Copy Python packages from builder (changes with dependencies)
+COPY --from=builder /root/.local /root/.local
+
+# Layer 8: Playwright browsers (changes with browser versions)
 RUN python3 -m playwright install chromium && \
     npx -y playwright install chromium
 
 # Set working directory
 WORKDIR /app
 
-# Layer 10: Create directory structure (rarely changes)
+# Layer 9: Create directory structure (rarely changes)
 RUN mkdir -p /app/results
 
-# Layer 11: Application code (changes frequently)
+# Layer 10: Application code (changes frequently)
 COPY . .
 
 # Set environment
