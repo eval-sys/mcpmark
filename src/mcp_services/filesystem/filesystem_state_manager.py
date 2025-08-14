@@ -134,7 +134,7 @@ class FilesystemStateManager(BaseStateManager):
             )  # Use backup directory for operations
 
             logger.info(
-                f"| Using backup environment for operations: {self.current_task_dir}"
+                f"| ✓ Using the backup environment for operations"
             )
 
             # Store the test directory path in the task object for use by task manager
@@ -171,7 +171,7 @@ class FilesystemStateManager(BaseStateManager):
             self.test_root = base_test_path / task.category
             # Store the current task category for URL selection
             self._current_task_category = task.category
-            logger.info(f"| Setting test root to category-specific directory: {self.test_root}")
+            logger.info(f"| ✓ Setting test root to category-specific directory: {self.test_root}")
         else:
             # Use the base test environments directory
             self.test_root = base_test_path
@@ -209,7 +209,7 @@ class FilesystemStateManager(BaseStateManager):
                 try:
                     shutil.rmtree(self.backup_dir)
                     logger.info(
-                        f"| ✅ Cleaned up backup directory for task {task.name if task else 'unknown'}"
+                        f"| ✓ Cleaned up backup directory for task {task.name if task else 'unknown'}"
                     )
                     self.backup_dir = None
                 except Exception as e:
@@ -325,7 +325,7 @@ class FilesystemStateManager(BaseStateManager):
             # Create fresh backup by copying entire test environment
             shutil.copytree(self.test_root, self.backup_dir)
 
-            logger.info(f"| ✅ Created backup for task {task.name}: {self.backup_dir}")
+            logger.info(f"| ✓ Created backup for task {task.name}: {self.backup_dir}")
             return True
 
         except Exception as e:

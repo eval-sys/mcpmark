@@ -106,7 +106,7 @@ def main():
 
         pipeline.run_evaluation(args.tasks)
         logger.info(
-            f"✓ Evaluation completed for {model}. Results saved in: {pipeline.base_experiment_dir}"
+            f"📁 Results: {pipeline.base_experiment_dir}"
         )
 
     logger.info(f"\n{'=' * 60}")
