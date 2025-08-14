@@ -25,28 +25,35 @@ module.exports = async ({ github, context, dockerMetaJson, image, version, docke
     const tags = parseTags();
     const buildTime = new Date().toISOString();
 
-    const pullSection = tags.length
-      ? tags
-          .map(
-            (ref) => `- \`${ref}\`\n  - Pull: \`docker pull ${ref}\`\n  - Inspect: \`docker buildx imagetools inspect ${ref}\``,
-          )
-          .join('\n')
-      : '- No tags available';
+    // Use the first tag as the main version
+    const mainTag = tags.length > 0 ? tags[0] : `${image}:${version}`;
+    const tagVersion = mainTag.includes(':') ? mainTag.split(':')[1] : version;
 
     return [
       COMMENT_IDENTIFIER,
-      '### 🐳 Docker Build Completed!',
       '',
-      `**Image**: \`${image || 'N/A'}\``,
-      `**Version**: \`${version || 'N/A'}\``,
-      `**Platforms**: \`${platforms || 'linux/amd64, linux/arm64'}\``,
+      '> [!IMPORTANT]'
+      '> This build is for testing and validation purposes.',
+      '',
+      '### 🐳 Docker Build Completed!',
+      `**Version**: \`${tagVersion || 'N/A'}\``,
       `**Build Time**: \`${buildTime}\``,
       '',
-      '#### Available Tags & Commands',
-      pullSection,
-      dockerhubUrl ? ['', `🔗 View all tags on Docker Hub: ${dockerhubUrl}`].join('\n') : '',
+      dockerhubUrl ? `🔗 View all tags on Docker Hub: ${dockerhubUrl}` : '',
       '',
-      '> Note: This build is for testing and validation purposes.',
+      '#### Pull Image',
+      'Download the Docker image to your local machine:',
+      '',
+      '```bash',
+      `docker pull ${mainTag}`,
+      '```',
+      '',
+      '#### Run Eval',
+      'Execute evaluation tasks using the built image:',
+      '',
+      '```bash',
+      `DOCKER_IMAGE_VERSION=${tagVersion} ./run-task.sh --models gpt-5-mini`,
+      '```',
     ]
       .filter(Boolean)
       .join('\n');
@@ -80,5 +87,6 @@ module.exports = async ({ github, context, dockerMetaJson, image, version, docke
   });
   return { updated: false, id: result.data.id };
 };
+
 
 

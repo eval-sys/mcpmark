@@ -44,6 +44,7 @@ Options:
 Environment Variables:
     DOCKER_MEMORY_LIMIT  Memory limit for container (default: 4g)
     DOCKER_CPU_LIMIT     CPU limit for container (default: 2)
+    DOCKER_IMAGE_VERSION Docker image tag to use (default: latest)
 
 All other arguments are passed directly to the pipeline.
 
@@ -57,8 +58,10 @@ EOF
     esac
 done
 
-# Always use Docker Hub image
-DOCKER_IMAGE="evalsysorg/mcpmark:latest"
+# Docker image tag can be overridden by environment variable
+DOCKER_IMAGE_REPO="evalsysorg/mcpmark"
+DOCKER_IMAGE_VERSION="${DOCKER_IMAGE_VERSION:-latest}"
+DOCKER_IMAGE="${DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_VERSION}"
 
 # Check if Docker image exists locally, pull only if not found
 if ! docker image inspect "$DOCKER_IMAGE" >/dev/null 2>&1; then
