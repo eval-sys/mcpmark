@@ -135,6 +135,21 @@ class BaseStateManager(ABC):
         """
         return {}
 
+    def set_verification_environment(self, messages_path: str = None) -> None:
+        """
+        Set environment variables needed for verification scripts.
+        
+        Args:
+            messages_path: Optional path to messages.json file for verification
+        
+        This method can be overridden by service implementations that need
+        to set specific environment variables for their verification scripts.
+        The default implementation sets MCP_MESSAGES if provided.
+        """
+        import os
+        if messages_path:
+            os.environ["MCP_MESSAGES"] = str(messages_path)
+
     def _cleanup_tracked_resources(self) -> bool:
         """Clean up all tracked resources."""
         cleanup_success = True

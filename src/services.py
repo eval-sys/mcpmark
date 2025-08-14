@@ -73,10 +73,11 @@ SERVICES = {
     },
     "github": {
         "config_schema": {
-            "api_key": {
-                "env_var": "GITHUB_TOKEN",
+            "github_tokens": {
+                "env_var": "GITHUB_TOKENS",
                 "required": True,
-                "description": "GitHub personal access token",
+                "description": "GitHub personal access token(s) - comma-separated for round-robin",
+                "transform": "list",  # Will split by comma
             },
             # Evaluation organisation / user that hosts ephemeral test repositories
             "eval_org": {
@@ -94,12 +95,12 @@ SERVICES = {
         },
         "config_mapping": {
             "state_manager": {
-                "github_token": "api_key",
-                # Map evaluation org / account
+                "github_token": "github_tokens",
                 "eval_org": "eval_org",
             },
             "login_helper": {
-                "token": "api_key",
+                # Login helper needs a single token, we'll use the first one
+                "token": "github_tokens",
             },
         },
         "mcp_server": None,

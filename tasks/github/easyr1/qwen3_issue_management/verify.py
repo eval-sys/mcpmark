@@ -167,9 +167,9 @@ def verify() -> bool:
     Verify that all Qwen3-related closed issues have been reopened and tagged.
     """
     # Get GitHub token
-    github_token = os.environ.get("GITHUB_TOKEN")
+    github_token = os.environ.get("MCP_GITHUB_TOKEN")
     if not github_token:
-        print("Error: GITHUB_TOKEN environment variable not set", file=sys.stderr)
+        print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
 
     headers = {

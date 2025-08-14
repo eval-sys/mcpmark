@@ -209,10 +209,8 @@ class MCPEvaluator:
             agent_result.get("output", []), messages_path
         )
 
-        # ---------- NEW: tmp environment varient ------------------------
-        import os
-
-        os.environ["MCP_MESSAGES"] = str(messages_path)
+        # Set service-specific environment variables for verification scripts
+        self.state_manager.set_verification_environment(str(messages_path))
 
         # Stage 3: Verify
         logger.info(
@@ -221,7 +219,10 @@ class MCPEvaluator:
         try:
             result = self.task_manager.execute_task(task, agent_result)
         finally:
+            # Clean up environment variables
+            import os
             os.environ.pop("MCP_MESSAGES", None)
+            os.environ.pop("MCP_GITHUB_TOKEN", None)
 
         # Stage 4: Clean up
         logger.info(

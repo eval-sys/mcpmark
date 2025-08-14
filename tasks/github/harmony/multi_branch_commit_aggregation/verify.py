@@ -267,9 +267,9 @@ def _check_pr_body_format(pr_body: str) -> bool:
 def verify_task() -> bool:
     """Verify the multi-branch commit aggregation task."""
     # Get GitHub token from environment
-    github_token = os.environ.get("GITHUB_TOKEN")
+    github_token = os.environ.get("MCP_GITHUB_TOKEN")
     if not github_token:
-        print("Error: GITHUB_TOKEN environment variable not set", file=sys.stderr)
+        print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
 
     headers = {
