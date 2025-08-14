@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Build Docker image for MCP Arena
+# Build Docker image for MCPMark
 set -e
 
 # Color codes for output

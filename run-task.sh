@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MCP Arena Task Runner
+# MCPMark Task Runner
 # Enable strict error handling
 set -euo pipefail
 
@@ -35,11 +35,11 @@ while [[ $# -gt 0 ]]; do
             cat << EOF
 Usage: $0 [--mcp SERVICE] [PIPELINE_ARGS]
 
-Run MCP Arena tasks in Docker containers.
+Run MCPMark tasks in Docker containers.
 
 Options:
     --mcp SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
-                        Default: notion
+                        Default: filesystem
 
 Environment Variables:
     DOCKER_MEMORY_LIMIT  Memory limit for container (default: 4g)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MCP Arena Full Benchmark Runner
+# MCPMark Full Benchmark Runner
 # Runs all tasks across all MCP services for comprehensive model evaluation
 
 set -e
@@ -163,7 +163,7 @@ IFS=',' read -ra SERVICE_ARRAY <<< "$SERVICES"
 
 # Summary
 echo ""
-print_status "MCP Arena Benchmark Configuration"
+print_status "MCPMark Benchmark Configuration"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Models:      $MODELS"
 echo "Experiment:  $EXP_NAME"
