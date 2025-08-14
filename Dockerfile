@@ -1,4 +1,3 @@
-# MCPMark Docker image with optimized layer caching
 # Base image - stable layer
 FROM python:3.12-slim AS base-runtime
 
