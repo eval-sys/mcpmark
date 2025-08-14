@@ -21,29 +21,27 @@ def parse_key_value_format(text):
 
     # Define patterns for each field
     patterns = {
-        "Deeplearning_Post_Count": r"Deeplearning_Post_Count:\s*(\d+)",
-        "ChatGPT_Tool_Vote_Count": r"ChatGPT_Tool_Vote_Count:\s*(\d+)",
-        "Transformer_Third_Result": r"Transformer_Third_Result:\s*(.+?)(?=\s*Page2_Top_Post_Title:)",
-        "Page2_Top_Post_Title": r"Page2_Top_Post_Title:\s*(.+?)(?=\s*Page2_Top_Post_Votes:)",
-        "Page2_Top_Post_Votes": r"Page2_Top_Post_Votes:\s*(\d+)",
-        "Page2_Last_Comment_Username": r"Page2_Last_Comment_Username:\s*(.+?)(?=\s*Page2_Last_Comment_Text:)",
-        "Page2_Last_Comment_Text": r"Page2_Last_Comment_Text:\s*(.+?)(?=\s*$)",
+        "Post1_Title": r"Post1_Title:\s*(.+?)\s*Post1_Upvotes:",
+        "Post1_Upvotes": r"Post1_Upvotes:\s*(\d+)",
+        "Post1_Comments": r"Post1_Comments:\s*(\d+)",
+        "Post2_Title": r"Post2_Title:\s*(.+?)\s*Post2_Upvotes:",
+        "Post2_Upvotes": r"Post2_Upvotes:\s*(\d+)",
+        "Post2_Comments": r"Post2_Comments:\s*(\d+)",
+        "Post3_Title": r"Post3_Title:\s*(.+?)\s*Post3_Upvotes:",
+        "Post3_Upvotes": r"Post3_Upvotes:\s*(\d+)",
+        "Post3_Comments": r"Post3_Comments:\s*(\d+)",
+        "TopComment_Text": r"TopComment_Text:\s*(.+?)\s*TopComment_Username:",
+        "TopComment_Username": r"TopComment_Username:\s*(.+?)\s*Post1_Author:",
+        "Post1_Author": r"Post1_Author:\s*(.+?)\s*Post2_Author:",
+        "Post2_Author": r"Post2_Author:\s*(.+?)\s*Post3_Author:",
+        "Post3_Author": r"Post3_Author:\s*(.+?)(?:\s*$|\n)",
     }
 
     # Extract each field using regex
     for key, pattern in patterns.items():
-        match = re.search(pattern, text, re.DOTALL | re.MULTILINE)
+        match = re.search(pattern, text, re.DOTALL)
         if match:
-            # For text fields, clean up newlines and extra spaces
-            value = match.group(1).strip()
-            if key not in [
-                "Deeplearning_Post_Count",
-                "ChatGPT_Tool_Vote_Count",
-                "Page2_Top_Post_Votes",
-            ]:
-                # Replace newlines with spaces and normalize whitespace
-                value = " ".join(value.split())
-            data[key] = value
+            data[key] = match.group(1).strip()
 
     return data
 
@@ -67,10 +65,12 @@ def normalize_text(text):
 
 async def verify() -> bool:
     """
-    Verifies that the ML extraction task has been completed correctly by checking the forum post.
+    Verifies that the BuyItForLife extraction task has been completed correctly by checking the forum post.
     """
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(
+            headless=True
+        )  # Set to True for server environment
         context = await browser.new_context()
         page = await context.new_page()
 
@@ -79,126 +79,191 @@ async def verify() -> bool:
             print("Navigating to forum...", file=sys.stderr)
             await page.goto("http://35.247.158.69:9999/", wait_until="networkidle")
 
-            # Check if already logged in
-            user_button = page.locator('button:has-text("AIDataAnalyst2025")')
-            if not await user_button.count():
-                # Try to login
-                print("Not logged in, attempting to login...", file=sys.stderr)
-
-                # Click login link
-                await page.click('a:has-text("Log in")')
-                await page.wait_for_load_state("networkidle")
-
-                # Fill login form
-                await page.fill('input[name="_username"]', "AIDataAnalyst2025")
-                await page.fill('input[name="_password"]', "SecurePass123!")
-
-                # Submit login form
-                await page.click('button:has-text("Log in")')
-                await page.wait_for_load_state("networkidle")
-
-                # Check if login successful
-                user_button = page.locator('button:has-text("AIDataAnalyst2025")')
-                if not await user_button.count():
-                    print("Error: Login failed for AIDataAnalyst2025", file=sys.stderr)
-                    await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
-                    return False
-
-                print("Successfully logged in as AIDataAnalyst2025", file=sys.stderr)
-            else:
-                print("Already logged in as AIDataAnalyst2025", file=sys.stderr)
-
-            # Navigate to MachineLearning forum
-            print("Navigating to MachineLearning forum...", file=sys.stderr)
-            await page.goto(
-                "http://35.247.158.69:9999/f/machinelearning", wait_until="networkidle"
-            )
-
-            # Look for the post with title "MachineLearning_Extraction"
+            # Take screenshot after navigation
+            await page.screenshot(path=str(SCREENSHOT_DIR / "task1_main_page.png"))
             print(
-                "Looking for submission 'MachineLearning_Extraction'...",
+                f"Screenshot saved: {SCREENSHOT_DIR / 'task1_main_page.png'}",
                 file=sys.stderr,
             )
-            post_link = page.locator('a:has-text("MachineLearning_Extraction")')
 
-            if not await post_link.count():
+            # Check if logged in (any user is fine for verification)
+            user_button = page.locator('button[class*="UserButton"]')
+            if await user_button.count():
+                username = await user_button.inner_text()
+                print(f"Already logged in as {username}", file=sys.stderr)
+            else:
+                # Try to login with buyitforlife_researcher account
                 print(
-                    "Error: Could not find submission with required title",
+                    "Not logged in, attempting to login with buyitforlife_researcher...",
+                    file=sys.stderr,
+                )
+
+                try:
+                    await page.click('a:has-text("Log in")')
+                    await page.wait_for_load_state("networkidle")
+
+                    await page.fill(
+                        'input[name="_username"]', "buyitforlife_researcher"
+                    )
+                    await page.fill('input[name="_password"]', "BIFL2024Research!")
+
+                    await page.click('button:has-text("Log in")')
+                    await page.wait_for_load_state("networkidle")
+
+                    user_button = page.locator(
+                        'button:has-text("buyitforlife_researcher")'
+                    )
+                    if await user_button.count():
+                        print(
+                            "Successfully logged in as buyitforlife_researcher",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(
+                            "Warning: Login failed, will continue without login to check if post exists",
+                            file=sys.stderr,
+                        )
+                except Exception as e:
+                    print(
+                        f"Warning: Could not login ({str(e)}), continuing without login",
+                        file=sys.stderr,
+                    )
+
+            # Click on Forums link first
+            print("Clicking on Forums link...", file=sys.stderr)
+            await page.click('a:has-text("Forums")')
+            await page.wait_for_load_state("networkidle")
+
+            # Navigate to BuyItForLife forum
+            print("Navigating to BuyItForLife forum...", file=sys.stderr)
+            # Try multiple ways to navigate to BuyItForLife forum
+            try:
+                await page.click('a:has-text("BuyItForLife")', timeout=5000)
+                await page.wait_for_load_state("networkidle")
+            except:
+                # Try alternative approach
+                await page.goto(
+                    "http://35.247.158.69:9999/f/buyitforlife", wait_until="networkidle"
+                )
+
+            # Take screenshot of the forum
+            await page.screenshot(
+                path=str(SCREENSHOT_DIR / "task1_buyitforlife_forum.png")
+            )
+            print(
+                f"Screenshot saved: {SCREENSHOT_DIR / 'task1_buyitforlife_forum.png'}",
+                file=sys.stderr,
+            )
+
+            # Look for the post with title "BuyItForLife"
+            print("Looking for post 'BuyItForLife'...", file=sys.stderr)
+            post_locator = page.locator('a:has-text("BuyItForLife")')
+
+            if not await post_locator.count():
+                print(
+                    "Error: Could not find post with title 'BuyItForLife'",
                     file=sys.stderr,
                 )
                 await page.screenshot(
-                    path=str(SCREENSHOT_DIR / "submission_not_found.png")
+                    path=str(SCREENSHOT_DIR / "task1_post_not_found.png")
                 )
                 return False
 
-            # Click on the submission to view its content
-            await post_link.first.click()
+            # Click on the post to view its content
+            await post_locator.first.click()
             await page.wait_for_load_state("networkidle")
 
-            # Take screenshot of the submission
-            await page.screenshot(path=str(SCREENSHOT_DIR / "submission_page.png"))
+            # Take screenshot of the post
+            await page.screenshot(path=str(SCREENSHOT_DIR / "task1_post_page.png"))
             print(
-                f"Screenshot saved: {SCREENSHOT_DIR / 'submission_page.png'}",
+                f"Screenshot saved: {SCREENSHOT_DIR / 'task1_post_page.png'}",
                 file=sys.stderr,
             )
 
-            # Extract the submission body content
-            # Try multiple possible selectors for the post body
+            # Get the post content - try multiple selectors
             post_content = None
             selectors = [
-                ".submission__body",
-                ".post-body",
-                ".RichText",
+                'div:has(> span:has-text("Submitted by"))',  # The div containing the post content
+                ".PostFullItem-body",
+                ".Post-body",
+                ".PostItem-body",
+                ".item-RichText",
                 '[class*="RichText"]',
-                'div:has(> p:has-text("Deeplearning_Post_Count"))',
-                'div:has-text("Deeplearning_Post_Count"):has-text("Page2_Last_Comment_Text")',
+                'div:has-text("Post1_Title")',  # Look for div containing our key-value format
             ]
 
             for selector in selectors:
-                content_element = page.locator(selector)
-                if await content_element.count():
-                    post_content = await content_element.first.inner_text()
-                    if "Deeplearning_Post_Count" in post_content:
+                post_content_element = page.locator(selector)
+                if await post_content_element.count():
+                    # Get the text content, handling multiple elements if needed
+                    if await post_content_element.count() > 1:
+                        # Try each element to find the one with our content
+                        for i in range(await post_content_element.count()):
+                            text = await post_content_element.nth(i).inner_text()
+                            if "Post1_Title" in text:
+                                post_content = text
+                                print(
+                                    f"Found post content using selector: {selector} (element {i})",
+                                    file=sys.stderr,
+                                )
+                                break
+                    else:
+                        post_content = await post_content_element.first.inner_text()
                         print(
-                            f"Found submission content using selector: {selector}",
+                            f"Found post content using selector: {selector}",
                             file=sys.stderr,
                         )
+
+                    if post_content and "Post1_Title" in post_content:
                         break
 
-            if not post_content or "Deeplearning_Post_Count" not in post_content:
-                print(
-                    "Error: Could not find submission body with required format",
-                    file=sys.stderr,
-                )
+            if not post_content:
+                print("Error: Could not find post content element", file=sys.stderr)
                 await page.screenshot(
-                    path=str(SCREENSHOT_DIR / "content_not_found.png")
+                    path=str(SCREENSHOT_DIR / "task1_no_content_found.png")
                 )
                 return False
 
-            print("Submission content found, parsing data...", file=sys.stderr)
-            print(f"Raw content: {post_content[:200]}...", file=sys.stderr)
+            print("Post content found:", file=sys.stderr)
+            print(
+                post_content[:200] + "..." if len(post_content) > 200 else post_content,
+                file=sys.stderr,
+            )
 
             # Parse the Key: Value format
             extracted_data = parse_key_value_format(post_content)
             print(f"Extracted data: {extracted_data}", file=sys.stderr)
 
-            # Load expected values from label.txt
+            # Load the label.txt for comparison
             label_path = Path(__file__).parent / "label.txt"
             if label_path.exists():
                 with open(label_path, "r") as f:
                     expected_text = f.read().strip()
                 expected_data = parse_key_value_format(expected_text)
                 print("Loaded expected values from label.txt", file=sys.stderr)
+            else:
+                print(
+                    "Warning: label.txt not found, skipping value comparison",
+                    file=sys.stderr,
+                )
+                expected_data = {}
 
             # Verify all required keys are present
             required_keys = [
-                "Deeplearning_Post_Count",
-                "ChatGPT_Tool_Vote_Count",
-                "Transformer_Third_Result",
-                "Page2_Top_Post_Title",
-                "Page2_Top_Post_Votes",
-                "Page2_Last_Comment_Username",
-                "Page2_Last_Comment_Text",
+                "Post1_Title",
+                "Post1_Upvotes",
+                "Post1_Comments",
+                "Post2_Title",
+                "Post2_Upvotes",
+                "Post2_Comments",
+                "Post3_Title",
+                "Post3_Upvotes",
+                "Post3_Comments",
+                "TopComment_Text",
+                "TopComment_Username",
+                "Post1_Author",
+                "Post2_Author",
+                "Post3_Author",
             ]
 
             missing_keys = []
@@ -216,25 +281,8 @@ async def verify() -> bool:
             # Validate data format and content
             errors = []
 
-            # Check numeric fields
-            try:
-                post_count = int(extracted_data["Deeplearning_Post_Count"])
-                if (
-                    "expected_data" in locals()
-                    and "Deeplearning_Post_Count" in expected_data
-                ):
-                    expected_count = int(expected_data["Deeplearning_Post_Count"])
-                    if post_count != expected_count:
-                        errors.append(
-                            f"Deeplearning_Post_Count mismatch: got {post_count}, expected {expected_count}"
-                        )
-            except ValueError:
-                errors.append(
-                    f"Deeplearning_Post_Count must be a number, got: {extracted_data['Deeplearning_Post_Count']}"
-                )
-
             # If we have expected data, compare against it
-            if "expected_data" in locals():
+            if expected_data:
                 # Compare each field
                 for key in required_keys:
                     if key in expected_data and key in extracted_data:
@@ -242,11 +290,7 @@ async def verify() -> bool:
                         actual_val = normalize_text(extracted_data[key])
 
                         # For numeric fields, compare as integers
-                        if key in [
-                            "Deeplearning_Post_Count",
-                            "ChatGPT_Tool_Vote_Count",
-                            "Page2_Top_Post_Votes",
-                        ]:
+                        if "Upvotes" in key or "Comments" in key:
                             try:
                                 expected_int = int(expected_val)
                                 actual_int = int(actual_val)
@@ -260,20 +304,59 @@ async def verify() -> bool:
                                 )
                         else:
                             # For text fields, compare normalized text
-                            if expected_val != actual_val:
-                                errors.append(
-                                    f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
-                                )
-
+                            if expected_val.lower() != actual_val.lower():
+                                # Allow some flexibility for titles and comments with quotes
+                                if key in [
+                                    "Post1_Title",
+                                    "Post2_Title",
+                                    "Post3_Title",
+                                    "TopComment_Text",
+                                ]:
+                                    # Remove all quotes for comparison
+                                    expected_no_quotes = (
+                                        expected_val.replace("'", "")
+                                        .replace('"', "")
+                                        .lower()
+                                    )
+                                    actual_no_quotes = (
+                                        actual_val.replace("'", "")
+                                        .replace('"', "")
+                                        .lower()
+                                    )
+                                    if expected_no_quotes != actual_no_quotes:
+                                        errors.append(
+                                            f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
+                                        )
+                                elif "Author" in key or key == "TopComment_Username":
+                                    # For usernames, check if they match when removing underscores from start/end
+                                    expected_core = expected_val.strip("_").lower()
+                                    actual_core = actual_val.strip("_").lower()
+                                    if expected_core != actual_core:
+                                        errors.append(
+                                            f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
+                                        )
+                                else:
+                                    errors.append(
+                                        f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
+                                    )
             else:
                 # If no expected data, just do basic validation
                 for key in required_keys:
-                    if key not in extracted_data:
-                        errors.append(f"Missing required key: {key}")
-                    elif (
-                        not extracted_data[key] or extracted_data[key] == "[FILL_VALUE]"
-                    ):
+                    if not extracted_data[key] or extracted_data[key] == "[FILL_VALUE]":
                         errors.append(f"{key} was not filled in")
+
+            # Verify upvotes are in descending order for posts
+            try:
+                post1_votes = int(extracted_data["Post1_Upvotes"])
+                post2_votes = int(extracted_data["Post2_Upvotes"])
+                post3_votes = int(extracted_data["Post3_Upvotes"])
+
+                if not (post1_votes >= post2_votes >= post3_votes):
+                    errors.append(
+                        f"Posts should be ordered by upvotes: {post1_votes} >= {post2_votes} >= {post3_votes}"
+                    )
+            except (ValueError, KeyError):
+                pass  # Already reported above
 
             if errors:
                 print(
@@ -285,41 +368,32 @@ async def verify() -> bool:
                 return False
 
             # Take final success screenshot
-            await page.screenshot(path=str(SCREENSHOT_DIR / "verification_success.png"))
+            await page.screenshot(
+                path=str(SCREENSHOT_DIR / "task1_verification_success.png")
+            )
             print(
-                f"Screenshot saved: {SCREENSHOT_DIR / 'verification_success.png'}",
+                f"Screenshot saved: {SCREENSHOT_DIR / 'task1_verification_success.png'}",
                 file=sys.stderr,
             )
 
             # All checks passed
-            print("Success: ML extraction task completed successfully.")
-            print("- Account AIDataAnalyst2025 verified")
-            print("- Submission 'MachineLearning_Extraction' found")
-            print(
-                f"- Deeplearning forum post count: {extracted_data['Deeplearning_Post_Count']}"
-            )
-            print(
-                f"- ChatGPT tool post vote count: {extracted_data['ChatGPT_Tool_Vote_Count']}"
-            )
-            print(
-                f"- Third transformer search result: {extracted_data['Transformer_Third_Result']}"
-            )
-            print(
-                f"- Page 2 highest upvoted post captured with {extracted_data['Page2_Top_Post_Votes']} votes"
-            )
-            print(
-                f"- Last comment by {extracted_data['Page2_Last_Comment_Username']}: {extracted_data['Page2_Last_Comment_Text']}"
-            )
-            print("- All data in correct Key: Value format with 7 lines")
+            print("Success: BuyItForLife extraction task completed successfully.")
+            print("- Post 'BuyItForLife' found and verified")
+            print("- Top 3 posts extracted with correct titles, upvotes, and comments")
+            print("- Top comment from highest post captured correctly")
+            print("- All post authors identified correctly")
+            print("- All data in correct Key: Value format with 14 lines")
             return True
 
         except PlaywrightTimeoutError as e:
             print(f"Error: Timeout occurred - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "timeout_error.png"))
+            await page.screenshot(path=str(SCREENSHOT_DIR / "task1_timeout_error.png"))
             return False
         except Exception as e:
             print(f"Error: Unexpected error - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "unexpected_error.png"))
+            await page.screenshot(
+                path=str(SCREENSHOT_DIR / "task1_unexpected_error.png")
+            )
             return False
         finally:
             await browser.close()

@@ -1,46 +1,51 @@
-I'm conducting an AI research analysis and need specific data from this forum platform. Please help me gather information about AI discussions and community engagement.
+Research durable kitchen appliances on the BuyItForLife forum by extracting information about the most popular posts and their community engagement.
 
 **Task Requirements:**
 
-1. Navigate to http://34.87.32.63:9999 and Create a new account with the exact 'AIDataAnalyst2025' and password 'SecurePass123!'
+1. Navigate to http://35.247.158.69:9999 and register a new account with username 'buyitforlife_researcher' and password 'BIFL2024Research!'
 
-2. After logging in, navigate to the deeplearning forum and count the exact number of posts visible on the first page
+2. After successful registration, navigate to the BuyItForLife forum
 
-3. Go to the MachineLearning forum and find the post titled '[P] I made a command-line tool that explains your errors using ChatGPT (link in comments)' - record its exact vote count
+3. Find the top 3 posts with the highest upvote counts (sorted by upvotes, descending) and extract:
+   - Exact post title
+   - Exact upvote count
+   - Exact number of comments
 
-4. Use the search bar to search for 'transformer' and record the exact title of the third search result
+4. For the post with the highest upvotes from step 3, click through to read the comments and find the comment with the most upvotes. Record:
+   - The exact comment text
+   - The username of the commenter
 
-5. In the MachineLearning forum, click on the 'Sort by: Hot' button and change it to 'New'. Navigate to page 2 of the results and find the post with the highest upvote count on that page:
-   - Record the exact post title
-   - Record the exact vote count
-   - Click through to the post and find the last comment
-   - Record the username of the last commenter
-   - Record the exact text of the last comment
+5. From the BuyItForLife forum, identify the usernames of the authors who posted the top 3 posts with the highest number of upvotes
 
-6. After collecting all the data, go to the MachineLearning forum and submit a new post with:
-   - Title: "MachineLearning_Extraction"
+6. After collecting all the data, submit a new post in the BuyItForLife forum with:
+   - Title: "BuyItForLife"
    - Body text must use EXACTLY these lines (keep the keys as-is, only replace the values after the colon):
 
 ```
-Deeplearning_Post_Count: [FILL_VALUE]
-ChatGPT_Tool_Vote_Count: [FILL_VALUE]
-Transformer_Third_Result: [FILL_VALUE]
-Page2_Top_Post_Title: [FILL_VALUE]
-Page2_Top_Post_Votes: [FILL_VALUE]
-Page2_Last_Comment_Username: [FILL_VALUE]
-Page2_Last_Comment_Text: [FILL_VALUE]
+Post1_Title: [FILL_VALUE]
+Post1_Upvotes: [FILL_VALUE]
+Post1_Comments: [FILL_VALUE]
+Post2_Title: [FILL_VALUE]
+Post2_Upvotes: [FILL_VALUE]
+Post2_Comments: [FILL_VALUE]
+Post3_Title: [FILL_VALUE]
+Post3_Upvotes: [FILL_VALUE]
+Post3_Comments: [FILL_VALUE]
+TopComment_Text: [FILL_VALUE]
+TopComment_Username: [FILL_VALUE]
+Post1_Author: [FILL_VALUE]
+Post2_Author: [FILL_VALUE]
+Post3_Author: [FILL_VALUE]
 ```
 
 **Success Criteria:**
-- Account successfully created with exact username 'AIDataAnalyst2025'
-- Exact count of posts on deeplearning forum first page recorded
-- Vote count of ChatGPT command-line tool post captured correctly
-- Exact title of third transformer search result recorded
-- Navigated to page 2 of MachineLearning forum sorted by 'New'
-- Found the post with highest upvotes on page 2
-- Captured exact title and vote count of highest upvoted post on page 2
-- Navigated to the post and found the last comment
-- Recorded last commenter's username and exact comment text
-- Successfully submitted a new post in MachineLearning forum with title "MachineLearning_Extraction"
-- Submission body contains exactly specified Key: Value format with 7 lines
-- All data values are accurately filled based on the analysis
+- Account successfully created with username 'buyitforlife_researcher'
+- Successfully navigated to the BuyItForLife forum
+- Found and extracted data from the top 3 posts by upvote count
+- Extracted the most upvoted comment from the highest-voted post
+- Recorded the commenter's username
+- Identified usernames of all top 3 post authors
+- Successfully submitted a new post in BuyItForLife forum with title "BuyItForLife"
+- Submission body contains exactly 14 lines in the specified Key: Value format
+- All data values are accurately filled based on the extracted information
+- All vote counts, titles, and usernames are exact matches from the website

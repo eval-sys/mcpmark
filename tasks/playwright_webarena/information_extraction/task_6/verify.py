@@ -21,35 +21,31 @@ def parse_key_value_format(text):
 
     # Define patterns for each field
     patterns = {
-        "Total_NBA_Posts": r"Total_NBA_Posts:\s*(\d+)",
-        "Top1_Title": r"Top1_Title:\s*(.+?)\s*Top1_Votes:",
-        "Top1_Votes": r"Top1_Votes:\s*(\d+)",
+        "Total_Year_Posts": r"Total_Year_Posts:\s*(\d+)",
+        "Top1_Title": r"Top1_Title:\s*(.+?)(?=\s*Top1_Upvotes:)",
+        "Top1_Upvotes": r"Top1_Upvotes:\s*(\d+)",
         "Top1_Comments": r"Top1_Comments:\s*(\d+)",
-        "Top1_Author": r"Top1_Author:\s*(.+?)\s*Top2_Title:",
-        "Top2_Title": r"Top2_Title:\s*(.+?)\s*Top2_Votes:",
-        "Top2_Votes": r"Top2_Votes:\s*(\d+)",
+        "Top2_Title": r"Top2_Title:\s*(.+?)(?=\s*Top2_Upvotes:)",
+        "Top2_Upvotes": r"Top2_Upvotes:\s*(\d+)",
         "Top2_Comments": r"Top2_Comments:\s*(\d+)",
-        "Top2_Author": r"Top2_Author:\s*(.+?)\s*Top3_Title:",
-        "Top3_Title": r"Top3_Title:\s*(.+?)\s*Top3_Votes:",
-        "Top3_Votes": r"Top3_Votes:\s*(\d+)",
+        "Top3_Title": r"Top3_Title:\s*(.+?)(?=\s*Top3_Upvotes:)",
+        "Top3_Upvotes": r"Top3_Upvotes:\s*(\d+)",
         "Top3_Comments": r"Top3_Comments:\s*(\d+)",
-        "Top3_Author": r"Top3_Author:\s*(.+?)\s*Top4_Title:",
-        "Top4_Title": r"Top4_Title:\s*(.+?)\s*Top4_Votes:",
-        "Top4_Votes": r"Top4_Votes:\s*(\d+)",
-        "Top4_Comments": r"Top4_Comments:\s*(\d+)",
-        "Top4_Author": r"Top4_Author:\s*(.+?)\s*Top5_Title:",
-        "Top5_Title": r"Top5_Title:\s*(.+?)\s*Top5_Votes:",
-        "Top5_Votes": r"Top5_Votes:\s*(\d+)",
-        "Top5_Comments": r"Top5_Comments:\s*(\d+)",
-        "Top5_Author": r"Top5_Author:\s*(.+?)\s*BCLetsRide69_Total_Posts:",
-        "BCLetsRide69_Total_Posts": r"BCLetsRide69_Total_Posts:\s*(\d+)",
+        "Rittenhouse_Upvotes": r"Rittenhouse_Upvotes:\s*(\d+)",
+        "Rittenhouse_Comments": r"Rittenhouse_Comments:\s*(\d+)",
+        "Total_Image_Posts_5Pages": r"Total_Image_Posts_5Pages:\s*(\d+)",
     }
 
     # Extract each field using regex
     for key, pattern in patterns.items():
-        match = re.search(pattern, text, re.DOTALL)
+        match = re.search(pattern, text, re.DOTALL | re.MULTILINE)
         if match:
-            data[key] = match.group(1).strip()
+            # For title fields, clean up newlines and extra spaces
+            value = match.group(1).strip()
+            if "Title" in key:
+                # Replace newlines with spaces and normalize whitespace
+                value = " ".join(value.split())
+            data[key] = value
 
     return data
 
@@ -64,6 +60,7 @@ def normalize_text(text):
     # Replace various quote styles with standard quotes
     text = text.replace(""", "'").replace(""", "'")
     text = text.replace('"', '"').replace('"', '"')
+    text = text.replace("&amp;", "&")
 
     # Normalize whitespace
     text = " ".join(text.split())
@@ -73,7 +70,7 @@ def normalize_text(text):
 
 async def verify() -> bool:
     """
-    Verifies that the NBA analysis task has been completed correctly.
+    Verifies that the wonderful movies analysis task has been completed correctly.
     """
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -85,8 +82,8 @@ async def verify() -> bool:
             print("Navigating to forum...", file=sys.stderr)
             await page.goto("http://35.247.158.69:9999/", wait_until="networkidle")
 
-            # Check if logged in as NBA_DataAnalyst_2024
-            user_button = page.locator('button:has-text("NBA_DataAnalyst_2024")')
+            # Check if logged in as movie_reviewer_2024
+            user_button = page.locator('button:has-text("movie_reviewer_2024")')
             if not await user_button.count():
                 # Try to login
                 print("Not logged in, attempting to login...", file=sys.stderr)
@@ -94,37 +91,37 @@ async def verify() -> bool:
                 await page.click('a:has-text("Log in")')
                 await page.wait_for_load_state("networkidle")
 
-                await page.fill('input[name="_username"]', "NBA_DataAnalyst_2024")
-                await page.fill('input[name="_password"]', "Research#2024!")
+                await page.fill('input[name="_username"]', "movie_reviewer_2024")
+                await page.fill('input[name="_password"]', "WonderfulMovies2024!")
 
                 await page.click('button:has-text("Log in")')
                 await page.wait_for_load_state("networkidle")
 
-                user_button = page.locator('button:has-text("NBA_DataAnalyst_2024")')
+                user_button = page.locator('button:has-text("movie_reviewer_2024")')
                 if not await user_button.count():
                     print(
-                        "Error: Login failed for NBA_DataAnalyst_2024", file=sys.stderr
+                        "Error: Login failed for movie_reviewer_2024", file=sys.stderr
                     )
                     await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
                     return False
 
-                print("Successfully logged in as NBA_DataAnalyst_2024", file=sys.stderr)
+                print("Successfully logged in as movie_reviewer_2024", file=sys.stderr)
             else:
-                print("Already logged in as NBA_DataAnalyst_2024", file=sys.stderr)
+                print("Already logged in as movie_reviewer_2024", file=sys.stderr)
 
-            # Navigate to sports forum
-            print("Navigating to sports forum...", file=sys.stderr)
+            # Navigate to movies forum
+            print("Navigating to movies forum...", file=sys.stderr)
             await page.goto(
-                "http://35.247.158.69:9999/f/sports", wait_until="networkidle"
+                "http://35.247.158.69:9999/f/movies", wait_until="networkidle"
             )
 
             # Look for the submission with our specific title
             print(
-                "Looking for submission 'Statistical Analysis: NBA Content Engagement on This Forum'...",
+                "Looking for submission 'Wonderful Movies Analysis: Community Favorites [2024]'...",
                 file=sys.stderr,
             )
             post_link = page.locator(
-                'a:has-text("Statistical Analysis: NBA Content Engagement on This Forum")'
+                'a:has-text("Wonderful Movies Analysis: Community Favorites [2024]")'
             )
 
             if not await post_link.count():
@@ -156,22 +153,22 @@ async def verify() -> bool:
                 ".post-body",
                 ".RichText",
                 '[class*="RichText"]',
-                'div:has(> p:has-text("Total_NBA_Posts"))',
-                'div:has-text("Total_NBA_Posts"):has-text("Most_Popular_NBA_Author")',
+                'div:has(> p:has-text("Total_Year_Posts"))',
+                'div:has-text("Total_Year_Posts"):has-text("Total_Image_Posts_5Pages")',
             ]
 
             for selector in selectors:
                 content_element = page.locator(selector)
                 if await content_element.count():
                     post_content = await content_element.first.inner_text()
-                    if "Total_NBA_Posts" in post_content:
+                    if "Total_Year_Posts" in post_content:
                         print(
                             f"Found submission content using selector: {selector}",
                             file=sys.stderr,
                         )
                         break
 
-            if not post_content or "Total_NBA_Posts" not in post_content:
+            if not post_content or "Total_Year_Posts" not in post_content:
                 print(
                     "Error: Could not find submission body with required format",
                     file=sys.stderr,
@@ -198,28 +195,19 @@ async def verify() -> bool:
 
             # Verify all required keys are present
             required_keys = [
-                "Total_NBA_Posts",
+                "Total_Year_Posts",
                 "Top1_Title",
-                "Top1_Votes",
+                "Top1_Upvotes",
                 "Top1_Comments",
-                "Top1_Author",
                 "Top2_Title",
-                "Top2_Votes",
+                "Top2_Upvotes",
                 "Top2_Comments",
-                "Top2_Author",
                 "Top3_Title",
-                "Top3_Votes",
+                "Top3_Upvotes",
                 "Top3_Comments",
-                "Top3_Author",
-                "Top4_Title",
-                "Top4_Votes",
-                "Top4_Comments",
-                "Top4_Author",
-                "Top5_Title",
-                "Top5_Votes",
-                "Top5_Comments",
-                "Top5_Author",
-                "BCLetsRide69_Total_Posts",
+                "Rittenhouse_Upvotes",
+                "Rittenhouse_Comments",
+                "Total_Image_Posts_5Pages",
             ]
 
             missing_keys = []
@@ -237,22 +225,18 @@ async def verify() -> bool:
             # Validate data format and content
             errors = []
 
-            # Check Total_NBA_Posts is a number and matches expected
+            # Check Total_Year_Posts is a number and matches expected
             try:
-                total_posts = int(extracted_data["Total_NBA_Posts"])
-                if "expected_data" in locals() and "Total_NBA_Posts" in expected_data:
-                    expected_total = int(expected_data["Total_NBA_Posts"])
+                total_posts = int(extracted_data["Total_Year_Posts"])
+                if "expected_data" in locals() and "Total_Year_Posts" in expected_data:
+                    expected_total = int(expected_data["Total_Year_Posts"])
                     if total_posts != expected_total:
                         errors.append(
-                            f"Total_NBA_Posts mismatch: got {total_posts}, expected {expected_total}"
+                            f"Total_Year_Posts mismatch: got {total_posts}, expected {expected_total}"
                         )
-                elif (
-                    total_posts < 5
-                ):  # Should be at least 5 since we're collecting top 5
-                    errors.append(f"Total_NBA_Posts seems too low: {total_posts}")
             except ValueError:
                 errors.append(
-                    f"Total_NBA_Posts must be a number, got: {extracted_data['Total_NBA_Posts']}"
+                    f"Total_Year_Posts must be a number, got: {extracted_data['Total_Year_Posts']}"
                 )
 
             # If we have expected data, compare against it
@@ -265,10 +249,10 @@ async def verify() -> bool:
 
                         # For numeric fields, compare as integers
                         if (
-                            "Votes" in key
+                            "Upvotes" in key
                             or "Comments" in key
-                            or key == "Total_NBA_Posts"
-                            or key == "BCLetsRide69_Total_Posts"
+                            or key == "Total_Year_Posts"
+                            or key == "Total_Image_Posts_5Pages"
                         ):
                             try:
                                 expected_int = int(expected_val)
@@ -315,17 +299,18 @@ async def verify() -> bool:
             )
 
             # All checks passed
-            print("Success: NBA analysis task completed successfully.")
-            print("- Account NBA_DataAnalyst_2024 verified")
+            print("Success: Wonderful movies analysis task completed successfully.")
+            print("- Account movie_reviewer_2024 verified")
             print(
-                "- Submission 'Statistical Analysis: NBA Content Engagement on This Forum' found"
+                "- Submission 'Wonderful Movies Analysis: Community Favorites [2024]' found"
+            )
+            print(f"- Total posts with years: {extracted_data['Total_Year_Posts']}")
+            print("- Top 3 posts by upvotes identified and documented")
+            print(
+                f"- Rittenhouse Square data: {extracted_data['Rittenhouse_Upvotes']} upvotes, {extracted_data['Rittenhouse_Comments']} comments"
             )
             print(
-                f"- Total NBA-related posts analyzed: {extracted_data['Total_NBA_Posts']}"
-            )
-            print("- Top 5 posts identified and documented")
-            print(
-                f"- BCLetsRide69's total posts: {extracted_data['BCLetsRide69_Total_Posts']}"
+                f"- Total image posts across 5 pages: {extracted_data['Total_Image_Posts_5Pages']}"
             )
             print("- All data in correct Key: Value format")
             return True
