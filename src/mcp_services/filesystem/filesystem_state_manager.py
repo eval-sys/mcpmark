@@ -8,6 +8,10 @@ It manages test directories, file creation/cleanup, and environment isolation.
 
 import os
 import shutil
+import urllib.request
+import zipfile
+import tempfile
+import ssl
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -162,19 +166,27 @@ class FilesystemStateManager(BaseStateManager):
 
         base_test_path = Path(base_test_root)
 
-        # Always use the desktop directory which contains the actual test data
-        # The tasks expect files that are located in the desktop test environment
-        self.test_root = base_test_path / task.category
-        logger.info(
-            f"Setting test root to: {self.test_root.resolve()}"
-        )
-
-        # Ensure the directory exists
+        # If task has a category, append it to the base path
+        if task.category:
+            self.test_root = base_test_path / task.category
+            # Store the current task category for URL selection
+            self._current_task_category = task.category
+            logger.info(f"Setting test root to category-specific directory: {self.test_root}")
+        else:
+            # Use the base test environments directory
+            self.test_root = base_test_path
+            # For base directory, use 'desktop' as default category
+            self._current_task_category = 'desktop'
+            logger.info(f"Setting test root to base directory: {self.test_root}")
+        
+        # Ensure the directory exists by downloading and extracting if needed
         if not self.test_root.exists():
-            logger.error(f"Test directory does not exist: {self.test_root}")
-            raise FileNotFoundError(
-                f"Test environment not found at {self.test_root}. Please ensure test data is properly set up."
-            )
+            logger.warning(f"Test directory does not exist: {self.test_root}")
+            if not self._download_and_extract_test_environment():
+                logger.error(f"Failed to download and extract test environment for: {self.test_root}")
+                raise RuntimeError(f"Test environment not available: {self.test_root}")
+            logger.info(f"Downloaded and extracted test environment: {self.test_root}")
+
 
     def clean_up(self, task: Optional[BaseTask] = None, **kwargs) -> bool:
         """
@@ -418,3 +430,87 @@ class FilesystemStateManager(BaseStateManager):
                     logger.error(f"Failed to clean up {resource_path}: {e}")
                     return False
         return True
+
+    def _download_and_extract_test_environment(self) -> bool:
+        """
+        Download and extract test environment from a predefined URL.
+        
+        Automatically selects the appropriate URL based on task category.
+        
+        Returns:
+            bool: True if download and extraction successful
+        """
+        try:
+            # Define URL mapping for different test environment categories
+            url_mapping = {
+                'desktop': 'https://storage.mcpmark.ai/filesystem/desktop.zip',
+                'file_context': 'https://storage.mcpmark.ai/filesystem/file_context.zip',
+                'file_property': 'https://storage.mcpmark.ai/filesystem/file_property.zip',
+                'folder_structure': 'https://storage.mcpmark.ai/filesystem/folder_structure.zip',
+                'papers': 'https://storage.mcpmark.ai/filesystem/papers.zip',
+                'student_database': 'https://storage.mcpmark.ai/filesystem/student_database.zip',
+                'threestudio': 'https://storage.mcpmark.ai/filesystem/threestudio.zip',
+                'votenet': 'https://storage.mcpmark.ai/filesystem/votenet.zip'
+            }
+            
+            # Get the category from the current task context
+            category = getattr(self, '_current_task_category', None)
+            if not category:
+                logger.error("No task category available for URL selection")
+                return False
+            
+            # Select the appropriate URL based on category
+            if category in url_mapping:
+                test_env_url = url_mapping[category]
+                logger.info(f"Selected URL for category '{category}': {test_env_url}")
+            else:
+                logger.error(f"No URL mapping found for category: {category}")
+                return False
+            
+            # Allow override via environment variable
+            test_env_url = os.getenv('TEST_ENVIRONMENT_URL', test_env_url)
+            
+            logger.info(f"Downloading test environment from: {test_env_url}")
+            
+            # Create a temporary directory for the download
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                zip_path = temp_path / "test_environment.zip"
+                
+                # Download the zip file with SSL context
+                logger.info("Downloading test environment zip file...")
+                
+                # Create SSL context that handles certificate issues
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                
+                # Use SSL context for download
+                with urllib.request.urlopen(test_env_url, context=ssl_context) as response:
+                    with open(zip_path, 'wb') as f:
+                        f.write(response.read())
+                
+                # Extract the zip file, filtering out macOS metadata
+                logger.info("Extracting test environment...")
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    # Filter out macOS metadata files
+                    for file_info in zip_ref.filelist:
+                        # Skip __MACOSX folder and its contents
+                        if '__MACOSX' in file_info.filename or file_info.filename.startswith('._'):
+                            continue
+                        
+                        # Extract only the actual files
+                        zip_ref.extract(file_info, self.test_root.parent)
+                
+                logger.info(f"Successfully extracted test environment to: {self.test_root.parent}")
+                
+                # Verify the extracted directory exists
+                if not self.test_root.exists():
+                    logger.error(f"Extracted directory not found at expected path: {self.test_root}")
+                    return False
+                
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to download and extract test environment: {e}")
+            return False

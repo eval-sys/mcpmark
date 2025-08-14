@@ -2,7 +2,7 @@
 
 ## 📋 Task Description
 
-You are given a directory containing multiple text files (file_01.txt through file_20.txt) and a reference file called `large_file.txt`. Your task is to find all files that contain a substring of 30 or more characters that also appears in `large_file.txt`. **You are not allowed to use python code.**
+Your task is to find all files that contain a substring of 30 or more characters that also appears in `large_file.txt`. **You are not allowed to use python code.**
 
 ## 🎯 Task Objectives
 

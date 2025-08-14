@@ -168,6 +168,8 @@ class GenericConfigSchema(ConfigSchema):
                 transform = int
             elif transform_str == "path":
                 transform = lambda x: Path(x) if x else None
+            elif transform_str == "list":
+                transform = lambda x: [t.strip() for t in x.split(",")] if x else []
 
             # Handle validator strings
             validator = None

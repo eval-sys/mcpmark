@@ -1,3 +1,0 @@
-This is a sample file for demonstration.
-It contains some basic text content.
-The file is located in the desktop directory for easy access.

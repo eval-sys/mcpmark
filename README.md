@@ -26,8 +26,11 @@ PLAYWRIGHT_BROWSER="chromium" # default to chromium, you can also choose firefox
 PLAYWRIGHT_HEADLESS="True"
 
 ## GitHub
-GITHUB_TOKEN="your-github-token-here"
-GITHUB_EVAL_ORG="your-eval-org-name"
+# GitHub token(s) for round-robin usage (comma-separated for multiple tokens)
+GITHUB_TOKENS="token1"
+# Example with multiple tokens:
+# GITHUB_TOKENS="token1,token2,token3,token4"
+GITHUB_EVAL_ORG="mcpmark-eval"
 
 ## Postgres
 POSTGRES_PASSWORD="your-postgres-password"
