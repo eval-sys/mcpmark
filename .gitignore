@@ -2,11 +2,11 @@ logs
 .claude
 CLAUDE.md
 *.txt
-!test_environments/**/*.txt
 .gemini
 results
 materials
 scripts
+!.github/scripts
 .nfs*
 .mcp_env
 .idea
