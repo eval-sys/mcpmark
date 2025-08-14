@@ -32,7 +32,7 @@ module.exports = async ({ github, context, dockerMetaJson, image, version, docke
     return [
       COMMENT_IDENTIFIER,
       '',
-      '> [!IMPORTANT]'
+      '> [!IMPORTANT]',
       '> This build is for testing and validation purposes.',
       '',
       '### 🐳 Docker Build Completed!',
@@ -52,7 +52,7 @@ module.exports = async ({ github, context, dockerMetaJson, image, version, docke
       'Execute evaluation tasks using the built image:',
       '',
       '```bash',
-      `DOCKER_IMAGE_VERSION=${tagVersion} ./run-task.sh --models gpt-5-mini`,
+      `DOCKER_IMAGE_VERSION=${tagVersion} ./run-task.sh --models gpt-5-mini --tasks file_context/uppercase`,
       '```',
     ]
       .filter(Boolean)
