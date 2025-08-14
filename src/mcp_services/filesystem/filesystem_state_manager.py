@@ -26,6 +26,18 @@ class FilesystemStateManager(BaseStateManager):
     and cleaning up after task completion.
     """
 
+    def _get_project_root(self) -> Path:
+        """Find project root by looking for marker files."""
+        current = Path(__file__).resolve()
+        
+        # Look for project root markers
+        for parent in current.parents:
+            if (parent / "pyproject.toml").exists() or (parent / "pipeline.py").exists():
+                return parent
+        
+        # Fallback to old method if markers not found
+        return Path(__file__).parent / "../../../"
+
     def __init__(self, test_root: Optional[Path] = None, cleanup_on_exit: bool = False):
         """
         Initialize filesystem state manager.
@@ -40,9 +52,9 @@ class FilesystemStateManager(BaseStateManager):
         if test_root:
             self.test_root = Path(test_root)
         else:
-            # Default to persistent test environment using relative path
-            script_dir = Path(__file__).parent
-            self.test_root = script_dir / "../../../test_environments/desktop"
+            # Default to persistent test environment
+            project_root = self._get_project_root()
+            self.test_root = (project_root / "test_environments/desktop").resolve()
 
         self.cleanup_on_exit = cleanup_on_exit
         self.current_task_dir: Optional[Path] = None
@@ -113,7 +125,6 @@ class FilesystemStateManager(BaseStateManager):
                     return False
 
             # Use the backup directory as the working directory instead of the original
-            print(f"self.test_root: {self.test_root}")
             self.current_task_dir = (
                 self.backup_dir
             )  # Use backup directory for operations
@@ -146,8 +157,8 @@ class FilesystemStateManager(BaseStateManager):
         base_test_root = os.getenv("FILESYSTEM_TEST_ROOT")
         if not base_test_root:
             # Fallback to default path
-            script_dir = Path(__file__).parent
-            base_test_root = str(script_dir / "../../../test_environments")
+            project_root = self._get_project_root()
+            base_test_root = str(project_root / "test_environments")
 
         base_test_path = Path(base_test_root)
 
@@ -155,7 +166,7 @@ class FilesystemStateManager(BaseStateManager):
         # The tasks expect files that are located in the desktop test environment
         self.test_root = base_test_path / task.category
         logger.info(
-            f"Setting test root to desktop directory (contains test data): {self.test_root}"
+            f"Setting test root to: {self.test_root.resolve()}"
         )
 
         # Ensure the directory exists
@@ -288,10 +299,8 @@ class FilesystemStateManager(BaseStateManager):
         """
         try:
             # Create backup directory with task-specific name
-            script_dir = Path(__file__).parent
-
-            backup_root = script_dir / "../../../.mcpmark_backups"
-            print("backup_root: ", backup_root)
+            project_root = self._get_project_root()
+            backup_root = (project_root / ".mcpmark_backups").resolve()
             backup_root.mkdir(exist_ok=True)
 
             task_id = f"{task.service}_{task.category}_{task.task_id}"
@@ -302,7 +311,6 @@ class FilesystemStateManager(BaseStateManager):
                 shutil.rmtree(self.backup_dir)
 
             # Create fresh backup by copying entire test environment
-            print("self.test_root: ", self.test_root)
             shutil.copytree(self.test_root, self.backup_dir)
 
             logger.info(f"✅ Created backup for task {task.name}: {self.backup_dir}")

@@ -86,8 +86,9 @@ if ! docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
     }
 fi
 
-# For postgres service, ensure PostgreSQL container is running
+# Service-specific configurations
 if [ "$SERVICE" = "postgres" ]; then
+    # For postgres service, ensure PostgreSQL container is running
     if ! docker ps --format '{{.Names}}' | grep -q "^${POSTGRES_CONTAINER}$"; then
         echo "Starting PostgreSQL container..."
         docker run -d \
@@ -110,7 +111,7 @@ if [ "$SERVICE" = "postgres" ]; then
         echo "PostgreSQL container already running"
     fi
 
-    # Run task with network connection to postgres and resource limits
+    # Run task with network connection to postgres
     docker run --rm \
         --memory="$DOCKER_MEMORY_LIMIT" \
         --cpus="$DOCKER_CPU_LIMIT" \
@@ -121,13 +122,21 @@ if [ "$SERVICE" = "postgres" ]; then
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
         -e POSTGRES_DATABASE=postgres \
         -v "$(pwd)/results:/app/results" \
+        $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
+        "$DOCKER_IMAGE" \
+        python3 -m pipeline --mcp "$SERVICE" "$@"
+elif [ "$SERVICE" = "filesystem" ]; then
+    # For filesystem service, mount test_environments
+    docker run --rm \
+        --memory="$DOCKER_MEMORY_LIMIT" \
+        --cpus="$DOCKER_CPU_LIMIT" \
+        -v "$(pwd)/results:/app/results" \
         -v "$(pwd)/test_environments:/app/test_environments" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
-        $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
         "$DOCKER_IMAGE" \
         python3 -m pipeline --mcp "$SERVICE" "$@"
 else
-    # For other services: run container with resource limits (no network needed)
+    # For other services (notion, github, playwright, etc.)
     docker run --rm \
         --memory="$DOCKER_MEMORY_LIMIT" \
         --cpus="$DOCKER_CPU_LIMIT" \
