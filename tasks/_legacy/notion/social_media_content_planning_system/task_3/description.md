@@ -1,1 +1,0 @@
-In my Social Media Content Planning System, please update the “7 Days, 7 Home Styling Ideas” content item so that its Platform list contains at least five platforms, and make sure Instagram is included among them.

@@ -1,1 +1,0 @@
-In my Social Media Content Planning System page, please go through all content entries where YouTube is listed as one of the platforms and the current Status is “Planning.” For those items, update their Content Type to “Video.”
