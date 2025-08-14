@@ -60,10 +60,12 @@ class GitHubStateManager(BaseStateManager):
                 "User-Agent": "MCPMark/1.0",
             }
         )
+        # Set default timeout for all requests
+        self.session.timeout = 10
 
         # Validate GitHub configuration during initialization
         try:
-            response = self.session.get("https://api.github.com/user")
+            response = self.session.get("https://api.github.com/user", timeout=10)
             if response.status_code != 200:
                 raise ValueError(
                     f"Invalid GitHub token: {response.status_code} {response.text}"
@@ -75,7 +77,7 @@ class GitHubStateManager(BaseStateManager):
             # Check if evaluation organisation exists (optional)
             if self.eval_org:
                 org_response = self.session.get(
-                    f"https://api.github.com/orgs/{self.eval_org}"
+                    f"https://api.github.com/orgs/{self.eval_org}", timeout=10
                 )
                 if org_response.status_code == 200:
                     logger.info(f"Using evaluation organisation: {self.eval_org}")
@@ -89,7 +91,14 @@ class GitHubStateManager(BaseStateManager):
             logger.info("GitHub state manager initialized successfully")
 
         except Exception as e:
-            raise RuntimeError(f"GitHub initialization failed: {e}")
+            if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+                raise RuntimeError(
+                    f"GitHub initialization failed: Cannot reach GitHub API due to network timeout. "
+                    f"Please check your network connection, firewall settings, or VPN. "
+                    f"Error: {e}"
+                )
+            else:
+                raise RuntimeError(f"GitHub initialization failed: {e}")
 
         # Initial state mapping - categories to initial state repositories
         self.initial_state_mapping = {

@@ -81,7 +81,8 @@ SERVICES = {
             # Evaluation organisation / user that hosts ephemeral test repositories
             "eval_org": {
                 "env_var": "GITHUB_EVAL_ORG",
-                "default": "mcpleague-eval",
+                # "default": "mcpleague-eval",
+                "default": "mcpleague-eval-eagle",
                 "required": False,
                 "description": "Evaluation organisation or user for creating temporary test repositories",
             },
