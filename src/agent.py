@@ -349,6 +349,9 @@ class MCPAgent:
 
                 # Process streaming events
                 event_count = 0
+                # Prefix each assistant output line with '| '
+                line_prefix = "| "
+                at_line_start = True
                 async for event in result.stream_events():
                     event_count += 1
                     logger.debug(f"Event {event_count}: {event}")
@@ -360,8 +363,13 @@ class MCPAgent:
                             if hasattr(event, "data") and isinstance(
                                 event.data, ResponseTextDeltaEvent
                             ):
-                                delta_text = event.data.delta
-                                print(delta_text, end="", flush=True)
+                                delta_text = event.data.delta or ""
+                                # Stream with line prefix, handling chunked newlines
+                                for chunk in delta_text.splitlines(True):  # keepends=True
+                                    if at_line_start:
+                                        print(line_prefix, end="", flush=True)
+                                    print(chunk, end="", flush=True)
+                                    at_line_start = chunk.endswith("\n")
 
                         elif event.type == "run_item_stream_event":
                             if (
@@ -373,8 +381,15 @@ class MCPAgent:
                                     "name",
                                     "Unknown",
                                 )
+
+                                arguments = getattr(getattr(event.item, "raw_item", None), 'arguments', None)
+
+                                if isinstance(arguments, str):
+                                    display_arguments = arguments[:140] + "..." if len(arguments) > 140 else arguments
+                                else:
+                                    display_arguments = arguments
                                 logger.info(
-                                    f"\n-- Calling {self.mcp_service.title()} Tool: {tool_name}..."
+                                    f"| \033[1m{tool_name}\033[0m \033[2;37m{display_arguments}\033[0m"
                                 )
 
                 # Extract token usage from raw responses
@@ -395,15 +410,26 @@ class MCPAgent:
                         "total_tokens": total_tokens,
                     }
 
-                    logger.info(
-                        f"\nToken usage - Input: {total_input_tokens}, "
-                        f"Output: {total_output_tokens}, Total: {total_tokens}"
-                    )
-
                 # Extract turn count
                 turn_count = getattr(result, "current_turn", None)
-                if turn_count is not None:
-                    logger.info(f"Turn count: {turn_count}")
+
+                # Pretty usage block (prefixed lines)
+                if token_usage:
+                    total_input_tokens = token_usage.get("input_tokens", 0)
+                    total_output_tokens = token_usage.get("output_tokens", 0)
+                    total_tokens = token_usage.get("total_tokens", 0)
+
+                    lines = [
+                        "\n| ────────────────────────────────────────────────",
+                        "| \033[1mToken usage\033[0m",
+                        "|",
+                        f"| Total: {total_tokens:,} | Input: {total_input_tokens:,} | Output: {total_output_tokens:,}",
+                    ]
+                    if turn_count is not None:
+                        lines.append("| ────────────────────────────────────────────────")
+                        lines.append(f"| \033[1mTurns\033[0m: {turn_count}")
+                        lines.append("| ────────────────────────────────────────────────")
+                    logger.info("\n".join(lines))
 
                 # Extract conversation output
                 conversation_output = result.to_input_list()

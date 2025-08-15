@@ -1,7 +1,6 @@
 # MCPMark
 
-MCPMark is a comprehensive evaluation suite for testing AI models’ ability to operate a Notion workspace through the **Model Context Protocol (MCP)**.
-It ships with **20 real-world tasks** (e.g., habit tracker, online resume builder) that can be run against **your own MCP server and your own Notion pages**.
+MCPMark is a comprehensive evaluation suite for testing AI models’ agentic ability.
 
 
 ## 1 · Environment Setup

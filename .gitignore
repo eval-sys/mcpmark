@@ -1,7 +1,6 @@
 logs
 .claude
 CLAUDE.md
-*.txt
 .gemini
 results
 materials
