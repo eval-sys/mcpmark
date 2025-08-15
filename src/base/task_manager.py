@@ -235,6 +235,7 @@ class BaseTaskManager(ABC):
 
             # Process results
             success = verify_result.returncode == 0
+            print(verify_result.stdout)
             error_message = (
                 verify_result.stderr if not success and verify_result.stderr else None
             )

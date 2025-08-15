@@ -331,7 +331,6 @@ class MCPEvaluator:
             meta_path = task_output_dir / "meta.json"
             model_config = {
                 "mcp_service": self.mcp_service,
-                "base_url": self.base_url,
                 "model_name": self.actual_model_name,
                 "timeout": self.timeout,
             }
@@ -377,7 +376,6 @@ class MCPEvaluator:
             model_name=self.model,
             model_config={
                 "mcp_service": self.mcp_service,
-                "base_url": self.base_url,
                 "model_name": self.actual_model_name,
                 "timeout": self.timeout,
             },
