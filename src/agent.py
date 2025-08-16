@@ -146,6 +146,14 @@ class MCPAgent:
         """Create and return an MCP server instance for the current service using self.service_config."""
 
         cfg = self.service_config  # shorthand
+        
+        # Services that use npx and need startup delay
+        NPX_BASED_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena"]
+        
+        # Add startup delay for npx-based services to ensure proper initialization
+        if self.mcp_service in NPX_BASED_SERVICES:
+            logger.debug(f"Adding startup delay for npx-based service: {self.mcp_service}")
+            await asyncio.sleep(2)
 
         if self.mcp_service == "notion":
             notion_key = cfg.get("notion_key")
@@ -500,6 +508,7 @@ class MCPAgent:
             - execution_time: execution time in seconds
             - error: error message if failed
         """
+        
         for attempt in range(1, self.max_retries + 1):
             # Merge default config with any overrides supplied at call time
 
