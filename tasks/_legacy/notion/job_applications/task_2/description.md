@@ -1,1 +1,0 @@
-Create a new database called `Interview Schedule` as a child of the Job Applications page. The database should have properties: `Company` (title), `Position` (text), `Date` (date), `Time` (text), and `Status` (text). Then add three sample interview entries with different companies from your existing Applications database.

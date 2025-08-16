@@ -1,3 +1,0 @@
-This is an example file for demonstration purposes.
-It shows how text files can be structured and organized.
-The content is generic and suitable for various use cases.

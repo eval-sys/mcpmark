@@ -1,7 +1,6 @@
 # MCPMark
 
-MCPMark is a comprehensive evaluation suite for testing AI models’ ability to operate a Notion workspace through the **Model Context Protocol (MCP)**.
-It ships with **20 real-world tasks** (e.g., habit tracker, online resume builder) that can be run against **your own MCP server and your own Notion pages**.
+MCPMark is a comprehensive evaluation suite for testing AI models’ agentic ability.
 
 
 ## 1 · Environment Setup
@@ -26,8 +25,11 @@ PLAYWRIGHT_BROWSER="chromium" # default to chromium, you can also choose firefox
 PLAYWRIGHT_HEADLESS="True"
 
 ## GitHub
-GITHUB_TOKEN="your-github-token-here"
-GITHUB_EVAL_ORG="your-eval-org-name"
+# GitHub token(s) for round-robin usage (comma-separated for multiple tokens)
+GITHUB_TOKENS="token1"
+# Example with multiple tokens:
+# GITHUB_TOKENS="token1,token2,token3,token4"
+GITHUB_EVAL_ORG="mcpmark-eval"
 
 ## Postgres
 POSTGRES_PASSWORD="your-postgres-password"

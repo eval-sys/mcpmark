@@ -7,12 +7,13 @@ Manages test repositories, branches, and cleanup after evaluation.
 """
 
 import requests
-from typing import Optional
+from typing import Optional, List, Union
 from pathlib import Path
 
 from src.base.state_manager import BaseStateManager, InitialStateInfo
 from src.base.task_manager import BaseTask
 from src.logger import get_logger
+from src.mcp_services.github.token_pool import GitHubTokenPool
 
 logger = get_logger(__name__)
 
@@ -24,7 +25,7 @@ class GitHubStateManager(BaseStateManager):
 
     def __init__(
         self,
-        github_token: str,
+        github_token: Union[str, List[str]],
         # Name of the evaluation organisation / user where temporary test repositories are created
         eval_org: str = "mcpleague-eval",
         # Local directory that stores *exported* repository templates (produced by repo_exporter.py)
@@ -34,7 +35,7 @@ class GitHubStateManager(BaseStateManager):
         Initialize GitHub state manager.
 
         Args:
-            github_token: GitHub Personal Access Token used for *all* API calls.
+            github_token: GitHub Personal Access Token(s). Can be a single token string or a list of tokens for round-robin usage.
             eval_org: Organisation / user used to host **ephemeral evaluation repositories**.
         """
         super().__init__(service_name="github")
@@ -42,7 +43,15 @@ class GitHubStateManager(BaseStateManager):
         # Track repos created via template import so we can delete them afterwards
         self._repos_to_cleanup: list[tuple[str, str]] = []  # (owner, repo_name)
 
-        self.github_token = github_token
+        # Initialize token pool
+        if isinstance(github_token, str):
+            # Single token - create pool with one token
+            self.token_pool = GitHubTokenPool([github_token])
+            self.github_token = github_token  # Keep for backward compatibility
+        else:
+            # Multiple tokens - use token pool
+            self.token_pool = GitHubTokenPool(github_token)
+            self.github_token = self.token_pool.get_current_token()  # For backward compatibility
 
         # Store evaluation context (consistent naming)
         self.eval_org = eval_org  # evaluation organisation / user
@@ -52,9 +61,9 @@ class GitHubStateManager(BaseStateManager):
 
         # Set up HTTP session for GitHub API
         self.session = requests.Session()
+        # Note: We'll update the Authorization header before each request
         self.session.headers.update(
             {
-                "Authorization": f"Bearer {github_token}",
                 "Accept": "application/vnd.github.v3+json",
                 "X-GitHub-Api-Version": "2022-11-28",
                 "User-Agent": "MCPMark/1.0",
@@ -63,6 +72,9 @@ class GitHubStateManager(BaseStateManager):
 
         # Validate GitHub configuration during initialization
         try:
+            # Set initial token for validation
+            self._update_session_token()
+            
             response = self.session.get("https://api.github.com/user")
             if response.status_code != 200:
                 raise ValueError(
@@ -71,6 +83,7 @@ class GitHubStateManager(BaseStateManager):
 
             user_info = response.json()
             logger.info(f"GitHub authenticated as: {user_info['login']}")
+            logger.info(f"Using token pool with {self.token_pool.pool_size} token(s)")
 
             # Check if evaluation organisation exists (optional)
             if self.eval_org:
@@ -489,6 +502,28 @@ class GitHubStateManager(BaseStateManager):
         return None
 
     # ---------------------------------------------------------------------
+    # Token management helpers
+    # ---------------------------------------------------------------------
+    def _update_session_token(self):
+        """Update the session Authorization header with the current token."""
+        current_token = self.token_pool.get_current_token()
+        self.session.headers.update({
+            "Authorization": f"Bearer {current_token}"
+        })
+        # Update backward compatibility attribute
+        self.github_token = current_token
+    
+    def _rotate_token(self):
+        """Rotate to the next token in the pool and update session."""
+        next_token = self.token_pool.get_next_token()
+        self.session.headers.update({
+            "Authorization": f"Bearer {next_token}"
+        })
+        # Update backward compatibility attribute
+        self.github_token = next_token
+        logger.debug(f"Rotated to next token in pool")
+
+    # ---------------------------------------------------------------------
     # Generic request helper with rate-limit (403) retry handling
     # ---------------------------------------------------------------------
     def _request_with_retry(
@@ -500,36 +535,54 @@ class GitHubStateManager(BaseStateManager):
         sleep_seconds: int = 120,
         **kwargs,
     ):
-        """Send a GitHub API request with basic rate-limit handling.
+        """Send a GitHub API request with basic rate-limit handling and token rotation.
 
-        If a request receives HTTP 403 (rate limit) we will sleep for
-        ``sleep_seconds`` seconds and retry – up to ``max_retries`` times.
-        After the retries are exhausted the original response is escalated
-        as ``RuntimeError`` so that the caller can handle/abort.
+        If a request receives HTTP 403 (rate limit):
+        1. First try rotating to the next token in the pool
+        2. If still rate limited, sleep and retry
+        3. After max_retries are exhausted, raise RuntimeError
         """
         import time  # local import to avoid adding global dependency
 
         attempt = 0
+        tokens_tried = 0
+        
         while True:
+            # Ensure we have the current token set
+            self._update_session_token()
+            
             resp = self.session.request(method, url, **kwargs)
             # Successful or non-rate-limited response – return immediately
             if resp.status_code != 403:
                 return resp
 
             # 403 – very likely rate-limited
+            # First, try rotating tokens if we have multiple
+            if self.token_pool.pool_size > 1 and tokens_tried < self.token_pool.pool_size:
+                logger.warning(
+                    "GitHub API rate limit encountered. Rotating to next token (tried %d/%d tokens)",
+                    tokens_tried + 1,
+                    self.token_pool.pool_size
+                )
+                self._rotate_token()
+                tokens_tried += 1
+                continue
+            
+            # All tokens exhausted or single token, resort to sleep/retry
             if attempt >= max_retries:
                 raise RuntimeError(
-                    f"GitHub API rate limited after {attempt + 1} attempts: {resp.status_code} {resp.text}"
+                    f"GitHub API rate limited after {attempt + 1} attempts with {self.token_pool.pool_size} token(s): {resp.status_code} {resp.text}"
                 )
 
             logger.warning(
-                "GitHub API rate limit encountered (attempt %d/%d). Sleeping %d seconds before retrying …",
+                "All tokens rate limited (attempt %d/%d). Sleeping %d seconds before retrying …",
                 attempt + 1,
                 max_retries + 1,
                 sleep_seconds,
             )
             time.sleep(sleep_seconds)
             attempt += 1
+            tokens_tried = 0  # Reset token counter for next attempt
 
     # =========================================================================
     # Initial State Selection and Repository Creation
@@ -560,17 +613,46 @@ class GitHubStateManager(BaseStateManager):
     def get_service_config_for_agent(self) -> dict:
         """
         Get service-specific configuration for agent execution.
+        
+        Rotates to the next token in the pool before returning config
+        to distribute load across tokens.
 
         Returns:
             Dictionary containing configuration needed by the agent/MCP server
         """
         service_config = {}
 
+        # Rotate to next token for this agent execution
+        if self.token_pool.pool_size > 1:
+            self._rotate_token()
+            logger.info(f"Rotating token for new agent execution")
+        
         # Add GitHub token if available
         if self.github_token:
             service_config["github_token"] = self.github_token
 
         return service_config
+    
+    def set_verification_environment(self, messages_path: str = None) -> None:
+        """
+        Set GitHub-specific environment variables for verification scripts.
+        
+        This ensures verification scripts use the same token as the current
+        agent execution, maintaining consistency across the evaluation flow.
+        
+        Args:
+            messages_path: Optional path to messages.json file for verification
+        """
+        import os
+        
+        # Set common MCP_MESSAGES if provided
+        if messages_path:
+            os.environ["MCP_MESSAGES"] = str(messages_path)
+        
+        # Set GitHub-specific token
+        current_token = self.token_pool.get_current_token()
+        os.environ["MCP_GITHUB_TOKEN"] = current_token
+        logger.info("Set MCP_GITHUB_TOKEN for verification scripts")
 
     def _enable_github_actions(self, owner: str, repo_name: str):
         """Enable GitHub Actions for the repository using REST API."""

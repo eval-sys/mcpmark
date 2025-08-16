@@ -1,1 +1,0 @@
-Create a two-column table block in the Job Applications page with header row "Company" and "Date". For each entry in the Applications database where Stage is "Interview", add a row with the company name and application date (YYYY-MM-DD).
