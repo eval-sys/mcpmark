@@ -8,10 +8,11 @@ load_dotenv(".mcp_env")
 
 
 def _get_github_api(
-    endpoint: str, headers: Dict[str, str], org: str
+    endpoint: str, headers: Dict[str, str]
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/{org}/EasyR1/{endpoint}"
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    url = f"https://api.github.com/repos/{github_org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -26,9 +27,9 @@ def _get_github_api(
         return False, None
 
 
-def _check_gitflow_branches(headers: Dict[str, str], org: str) -> bool:
+def _check_gitflow_branches(headers: Dict[str, str]) -> bool:
     """Check if GitFlow branches are properly created from correct base branches."""
-    success, branches_data = _get_github_api("branches", headers, org)
+    success, branches_data = _get_github_api("branches", headers)
     if not success or not branches_data:
         print("Error: Could not fetch branches", file=sys.stderr)
         return False
@@ -48,10 +49,10 @@ def _check_gitflow_branches(headers: Dict[str, str], org: str) -> bool:
     return True
 
 
-def _check_protocol_fixes_file(headers: Dict[str, str], org: str) -> bool:
+def _check_protocol_fixes_file(headers: Dict[str, str]) -> bool:
     """Check if PROTOCOL_FIXES.md file exists in feature branch with correct content."""
     success, file_data = _get_github_api(
-        "contents/PROTOCOL_FIXES.md?ref=feature/protocol-serialization-fix", headers, org
+        "contents/PROTOCOL_FIXES.md?ref=feature/protocol-serialization-fix", headers
     )
     if not success or not file_data:
         print("Error: PROTOCOL_FIXES.md not found in feature branch", file=sys.stderr)
@@ -82,10 +83,10 @@ def _check_protocol_fixes_file(headers: Dict[str, str], org: str) -> bool:
     return True
 
 
-def _check_integration_workflow(headers: Dict[str, str], org: str) -> Optional[Dict]:
+def _check_integration_workflow(headers: Dict[str, str]) -> Optional[Dict]:
     """Verify the feature → develop integration pull request exists."""
     # Check both open and closed PRs since the workflow may have completed
-    success, prs = _get_github_api("pulls?state=all", headers, org)
+    success, prs = _get_github_api("pulls?state=all", headers)
     if not success or not prs:
         print("Error: Could not fetch pull requests", file=sys.stderr)
         return None
@@ -104,11 +105,11 @@ def _check_integration_workflow(headers: Dict[str, str], org: str) -> Optional[D
     return None
 
 
-def _check_release_branch_updated(headers: Dict[str, str], org: str) -> bool:
+def _check_release_branch_updated(headers: Dict[str, str]) -> bool:
     """Check if release branch contains the develop branch changes."""
     # Check if PROTOCOL_FIXES.md exists in release branch
     success, file_data = _get_github_api(
-        "contents/PROTOCOL_FIXES.md?ref=release/v1.0.0", headers, org
+        "contents/PROTOCOL_FIXES.md?ref=release/v1.0.0", headers
     )
     if not success or not file_data:
         print(
@@ -120,38 +121,9 @@ def _check_release_branch_updated(headers: Dict[str, str], org: str) -> bool:
     return True
 
 
-def _check_ci_workflow_updated(headers: Dict[str, str], org: str) -> bool:
-    """Check if CI workflow includes develop and release branches."""
-    success, file_data = _get_github_api(
-        "contents/.github/workflows/tests.yml?ref=release/v1.0.0", headers, org
-    )
-    if not success or not file_data:
-        print("Error: Could not fetch CI workflow file", file=sys.stderr)
-        return False
-
-    # Decode base64 content
-    import base64
-
-    content = base64.b64decode(file_data.get("content", "")).decode("utf-8")
-
-    # Check that both branches are in the workflow triggers
-    if "develop" not in content:
-        print("Error: CI workflow missing 'develop' branch trigger", file=sys.stderr)
-        return False
-
-    if "release/v1.0.0" not in content:
-        print(
-            "Error: CI workflow missing 'release/v1.0.0' branch trigger",
-            file=sys.stderr,
-        )
-        return False
-
-    return True
-
-
-def _check_process_documentation(headers: Dict[str, str], org: str) -> Optional[Dict]:
+def _check_process_documentation(headers: Dict[str, str]) -> Optional[Dict]:
     """Check if process is properly documented in an issue."""
-    success, issues = _get_github_api("issues", headers, org)
+    success, issues = _get_github_api("issues", headers)
     if not success or not issues:
         print("Error: Could not fetch issues for documentation check", file=sys.stderr)
         return None
@@ -207,16 +179,10 @@ def verify() -> bool:
     Verify the complete GitFlow implementation following the integrated workflow
     described in description.md.
     """
-    # Get GitHub token and org
+    # Get GitHub token
     github_token = os.environ.get("MCP_GITHUB_TOKEN")
-    github_org = os.environ.get("GITHUB_EVAL_ORG")
-    
     if not github_token:
         print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
-        return False
-    
-    if not github_org:
-        print("Error: GITHUB_EVAL_ORG environment variable not set", file=sys.stderr)
         return False
 
     headers = {
@@ -228,31 +194,28 @@ def verify() -> bool:
 
     # 1. Verify GitFlow structure initialization
     print("1. Checking GitFlow branch structure...")
-    if not _check_gitflow_branches(headers, github_org):
+    if not _check_gitflow_branches(headers):
         return False
 
     # 2. Verify critical bug fix implementation via new file
     print("2. Checking protocol serialization fix documentation...")
-    if not _check_protocol_fixes_file(headers, github_org):
+    if not _check_protocol_fixes_file(headers):
         return False
 
     # 3. Verify integration workflow (feature → develop PR)
     print("3. Checking feature integration workflow...")
-    integration_pr = _check_integration_workflow(headers, github_org)
+    integration_pr = _check_integration_workflow(headers)
     if not integration_pr:
         return False
 
     # 4. Verify release branch updated and CI configured
     print("4. Checking release branch sync and CI configuration...")
-    if not _check_release_branch_updated(headers, github_org):
-        return False
-
-    if not _check_ci_workflow_updated(headers, github_org):
+    if not _check_release_branch_updated(headers):
         return False
 
     # 5. Verify process documentation
     print("5. Checking process documentation...")
-    doc_issue = _check_process_documentation(headers, github_org)
+    doc_issue = _check_process_documentation(headers)
     if not doc_issue:
         return False
 

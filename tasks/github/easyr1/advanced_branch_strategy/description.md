@@ -20,7 +20,7 @@ Create a `feature/protocol-serialization-fix` branch from `develop`. In this bra
 Create a pull request from `feature/protocol-serialization-fix` to `develop` to integrate the fix documentation. This demonstrates the feature → develop integration pattern.
 
 **Step 4: Update Release Branch and CI/CD**
-Merge the develop branch changes into `release/v1.0.0` branch to include the critical fix in the release. Then update the `.github/workflows/tests.yml` file to run CI on both `develop` and `release/v1.0.0` branches by adding them to the existing push and pull_request triggers.
+Merge the develop branch changes into `release/v1.0.0` branch to include the critical fix in the release.
 
 **Step 5: Document the New Process**
 Create an issue titled `Implement Advanced Branch Protection Strategy` with exactly these 3 checkboxes in the body:
@@ -29,5 +29,3 @@ Create an issue titled `Implement Advanced Branch Protection Strategy` with exac
 - [ ] Feature integration uses PR workflow
 
 Add the label `process-implementation` to this issue to track the process implementation.
-
-This workflow demonstrates a complete GitFlow cycle: feature development → integration → release preparation → production deployment → process documentation.
