@@ -36,10 +36,6 @@ This guide walks you through preparing your Notion environment for MCPMark and a
 playwright install
 # Then, run the Notion login helper with your preferred browser
 python -m src.mcp_services.notion.notion_login_helper --browser {firefox|chromium}
-
-# If login is successful, a cookie file `notion_state.json` will be generated in the project root
-# Verify the login was successful
-python -m tests.test_login
 ```
 
 The verification script will tell you which browser is working properly. The pipeline defaults to using **chromium**. Our pipeline has been **fully tested on macOS and Linux**.

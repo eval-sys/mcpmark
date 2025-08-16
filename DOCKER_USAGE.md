@@ -2,7 +2,7 @@
 
 ## Overview
 
-The MCP Arena Docker setup provides a simple way to run evaluation tasks in isolated containers. PostgreSQL is automatically handled when needed.
+The MCPMark Docker setup provides a simple way to run evaluation tasks in isolated containers. PostgreSQL is automatically handled when needed.
 
 ## Quick Start
 
@@ -83,7 +83,7 @@ docker run --rm \
   -v $(pwd)/results:/app/results \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
   -v $(pwd)/notion_state.json:/app/notion_state.json:ro \
-  mcp-arena:latest \
+  evalsysorg/mcpmark:latest \
   python3 -m pipeline --mcp notion --models o3 --exp-name test --tasks all
 ```
 
@@ -106,7 +106,7 @@ docker run --rm \
   -e POSTGRES_HOST=mcp-postgres \
   -v $(pwd)/results:/app/results \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
-  mcp-arena:latest \
+  evalsysorg/mcpmark:latest \
   python3 -m pipeline --mcp postgres --models o3 --exp-name pg-test --tasks all
 
 # Stop and remove postgres when done

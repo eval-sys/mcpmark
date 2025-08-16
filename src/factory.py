@@ -105,6 +105,13 @@ class GenericServiceFactory:
         # Handle both dict and config schema objects
         config_dict = config.get_all() if hasattr(config, "get_all") else config
         kwargs = apply_config_mapping(config_dict, mapping)
+        
+        # Special handling for GitHub login helper - it needs a single token
+        if self.service_name == "github" and "token" in kwargs:
+            tokens_list = kwargs["token"]
+            if isinstance(tokens_list, list) and tokens_list:
+                kwargs["token"] = tokens_list[0]  # Use first token for login helper
+                
         return self.components.login_helper_class(**kwargs)
 
 
@@ -154,6 +161,12 @@ class MCPServiceFactory:
         if not kwargs:
             mapping = components.config_mapping.get("login_helper", {})
             kwargs = apply_config_mapping(config, mapping)
+            
+            # Special handling for GitHub login helper - it needs a single token
+            if service_name == "github" and "token" in kwargs:
+                tokens_list = kwargs["token"]
+                if isinstance(tokens_list, list) and tokens_list:
+                    kwargs["token"] = tokens_list[0]  # Use first token for login helper
 
         return components.login_helper_class(**kwargs)
 
