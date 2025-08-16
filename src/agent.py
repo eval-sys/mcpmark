@@ -352,6 +352,7 @@ class MCPAgent:
                 # Prefix each assistant output line with '| '
                 line_prefix = "| "
                 at_line_start = True
+                last_event_type = None  # Track the previous event type
                 async for event in result.stream_events():
                     event_count += 1
                     logger.debug(f"Event {event_count}: {event}")
@@ -370,12 +371,20 @@ class MCPAgent:
                                         print(line_prefix, end="", flush=True)
                                     print(chunk, end="", flush=True)
                                     at_line_start = chunk.endswith("\n")
+                                    
+                            last_event_type = "text_output"
 
                         elif event.type == "run_item_stream_event":
                             if (
                                 hasattr(event, "item")
                                 and getattr(event.item, "type", "") == "tool_call_item"
                             ):
+                                if last_event_type == "text_output":
+                                    # Add newline if text wasn't already on a new line
+                                    if not at_line_start:
+                                        print("\n", end="", flush=True)
+                                        at_line_start = True
+                                    
                                 tool_name = getattr(
                                     getattr(event.item, "raw_item", None),
                                     "name",
@@ -391,6 +400,8 @@ class MCPAgent:
                                 logger.info(
                                     f"| \033[1m{tool_name}\033[0m \033[2;37m{display_arguments}\033[0m"
                                 )
+                                
+                                last_event_type = "tool_call"
 
                 # Extract token usage from raw responses
                 token_usage = {}
