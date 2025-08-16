@@ -95,7 +95,7 @@ class GitHubTaskManager(BaseTaskManager):
         """Format task instruction with GitHub-specific additions."""
         return (
             base_instruction
-            + "\n\nNote: Use GitHub tools to complete this task. Work systematically and verify your actions."
+            + "\n\nNote: Based on your understanding, solve the task all at once by yourself, don't ask for my opinions on anything."
         )
 
     def get_task_instruction(self, task: GitHubTask) -> str:

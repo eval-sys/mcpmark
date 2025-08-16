@@ -27,7 +27,7 @@ class GitHubStateManager(BaseStateManager):
         self,
         github_token: Union[str, List[str]],
         # Name of the evaluation organisation / user where temporary test repositories are created
-        eval_org: str = "mcpleague-eval",
+        eval_org: str = "mcpmark-eval",
         # Local directory that stores *exported* repository templates (produced by repo_exporter.py)
         templates_root: str = "./github_state",
     ):
@@ -106,7 +106,9 @@ class GitHubStateManager(BaseStateManager):
 
         # Initial state mapping - categories to initial state repositories
         self.initial_state_mapping = {
-            "mixeval": "JinjieNi-MixEval",
+            "build_your_own_x": "codecrafters-io-build-your-own-x",
+            "missing-semester": "missing-semester-missing-semester",
+            "mcpmark-cicd": "zjwu0522-mcpmark-cicd",
             "harmony": "openai-harmony",
             "claude-code": "anthropics-claude-code",
             "easyr1": "hiyouga-EasyR1",
@@ -412,7 +414,10 @@ class GitHubStateManager(BaseStateManager):
             logger.info(f"Importing repository template from {template_dir} …")
             owner = self.eval_org if self.eval_org else self._get_authenticated_user()
 
-            repo_url = self._import_template_repo(template_dir, owner, True)
+            if "mcpmark-cicd" in template_name:
+                repo_url = self._import_template_repo(template_dir, owner, False)
+            else:
+                repo_url = self._import_template_repo(template_dir, owner, True)
 
             # Record for cleanup later
             repo_name = repo_url.rstrip("/").split("/")[-1]
@@ -621,11 +626,6 @@ class GitHubStateManager(BaseStateManager):
             Dictionary containing configuration needed by the agent/MCP server
         """
         service_config = {}
-
-        # Rotate to next token for this agent execution
-        if self.token_pool.pool_size > 1:
-            self._rotate_token()
-            logger.info(f"Rotating token for new agent execution")
         
         # Add GitHub token if available
         if self.github_token:
