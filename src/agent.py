@@ -119,7 +119,11 @@ class MCPAgent:
 
     def _create_model_provider(self) -> ModelProvider:
         """Create and return a model provider for the specified model."""
-        client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
+        client = AsyncOpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            default_headers={"App-Code": "LobeHub"}
+        )
         agent_model_name = self.model_name  # Capture the model name from the agent
 
         class CustomModelProvider(ModelProvider):

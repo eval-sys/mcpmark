@@ -232,5 +232,5 @@ __marimo__/
 .postgres
 
 # MCPMark backup directories
-.mcpbench_backups/
+.mcpmark_backups/*
 test_environments/
