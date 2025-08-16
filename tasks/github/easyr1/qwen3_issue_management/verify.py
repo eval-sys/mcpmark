@@ -8,10 +8,10 @@ load_dotenv(".mcp_env")
 
 
 def _get_github_api(
-    endpoint: str, headers: Dict[str, str]
+    endpoint: str, headers: Dict[str, str], org: str
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
+    url = f"https://api.github.com/repos/{org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -27,7 +27,7 @@ def _get_github_api(
 
 
 def _search_github_issues(
-    query: str, headers: Dict[str, str]
+    query: str, headers: Dict[str, str], org: str
 ) -> Tuple[bool, Optional[List]]:
     """Search GitHub issues using the search API."""
     url = f"https://api.github.com/search/issues?q={query}&per_page=100"
@@ -44,11 +44,11 @@ def _search_github_issues(
         return False, None
 
 
-def _check_qwen3_issues_reopened(headers: Dict[str, str]) -> Tuple[bool, List]:
+def _check_qwen3_issues_reopened(headers: Dict[str, str], org: str) -> Tuple[bool, List]:
     """Check if all Qwen3 issues have been reopened and tagged."""
     # Search for all issues mentioning qwen3 (both open and closed)
     success, all_qwen3_issues = _search_github_issues(
-        "repo:mcpleague-eval-xiangyan/EasyR1 qwen3", headers
+        f"repo:{org}/EasyR1 qwen3", headers, org
     )
 
     if not success or not all_qwen3_issues:
@@ -96,10 +96,10 @@ def _check_qwen3_issues_reopened(headers: Dict[str, str]) -> Tuple[bool, List]:
 
 
 def _check_summary_issue(
-    headers: Dict[str, str], reopened_issues: List
+    headers: Dict[str, str], reopened_issues: List, org: str
 ) -> Optional[Dict]:
     """Check if the summary issue exists with proper content."""
-    success, issues = _get_github_api("issues?state=all", headers)
+    success, issues = _get_github_api("issues?state=all", headers, org)
     if not success or not issues:
         print("Error: Could not fetch issues for summary check", file=sys.stderr)
         return None
@@ -172,6 +172,12 @@ def verify() -> bool:
         print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
 
+    # Get GitHub organization
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    if not github_org:
+        print("Error: GITHUB_EVAL_ORG environment variable not set", file=sys.stderr)
+        return False
+
     headers = {
         "Authorization": f"token {github_token}",
         "Accept": "application/vnd.github.v3+json",
@@ -181,7 +187,7 @@ def verify() -> bool:
 
     # 1. Check if all Qwen3 issues have been reopened and tagged
     print("1. Checking if Qwen3 issues are reopened and tagged...")
-    all_reopened, reopened_issues = _check_qwen3_issues_reopened(headers)
+    all_reopened, reopened_issues = _check_qwen3_issues_reopened(headers, github_org)
 
     if not all_reopened:
         return False
@@ -192,7 +198,7 @@ def verify() -> bool:
 
     # 2. Check if summary issue exists
     print("2. Checking summary issue...")
-    summary_issue = _check_summary_issue(headers, reopened_issues)
+    summary_issue = _check_summary_issue(headers, reopened_issues, github_org)
     if not summary_issue:
         return False
 

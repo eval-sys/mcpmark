@@ -8,10 +8,10 @@ load_dotenv(".mcp_env")
 
 
 def _get_github_api(
-    endpoint: str, headers: Dict[str, str]
+    endpoint: str, headers: Dict[str, str], org: str
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
+    url = f"https://api.github.com/repos/{org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -26,9 +26,9 @@ def _get_github_api(
         return False, None
 
 
-def _find_main_tracking_issue(headers: Dict[str, str]) -> Optional[Dict]:
+def _find_main_tracking_issue(headers: Dict[str, str], org: str) -> Optional[Dict]:
     """Find the main tracking issue with exact title and required labels."""
-    success, issues = _get_github_api("issues?state=open&per_page=50", headers)
+    success, issues = _get_github_api("issues?state=open&per_page=50", headers, org)
     if not success or not issues:
         return None
 
@@ -43,10 +43,10 @@ def _find_main_tracking_issue(headers: Dict[str, str]) -> Optional[Dict]:
     return None
 
 
-def _check_branches_exist(branch_names: List[str], headers: Dict[str, str]) -> bool:
+def _check_branches_exist(branch_names: List[str], headers: Dict[str, str], org: str) -> bool:
     """Check if all required branches exist."""
     for branch_name in branch_names:
-        success, _ = _get_github_api(f"branches/{branch_name}", headers)
+        success, _ = _get_github_api(f"branches/{branch_name}", headers, org)
         if not success:
             print(f"Error: Branch '{branch_name}' not found", file=sys.stderr)
             return False
@@ -54,15 +54,15 @@ def _check_branches_exist(branch_names: List[str], headers: Dict[str, str]) -> b
 
 
 def _check_sub_issues(
-    main_issue_number: int, expected_titles: List[str], headers: Dict[str, str]
+    main_issue_number: int, expected_titles: List[str], headers: Dict[str, str], org: str
 ) -> bool:
     """Check if sub-issues are created and linked to main issue."""
     success, sub_issues = _get_github_api(
-        f"issues/{main_issue_number}/sub_issues", headers
+        f"issues/{main_issue_number}/sub_issues", headers, org
     )
     if not success:
         # If sub_issues endpoint doesn't exist, check for issues mentioning the main issue
-        success, all_issues = _get_github_api("issues?state=open&per_page=100", headers)
+        success, all_issues = _get_github_api("issues?state=open&per_page=100", headers, org)
         if not success:
             return False
 
@@ -96,9 +96,9 @@ def _check_sub_issues(
     return True
 
 
-def _check_issue_comments(issue_number: int, headers: Dict[str, str]) -> bool:
+def _check_issue_comments(issue_number: int, headers: Dict[str, str], org: str) -> bool:
     """Check if main issue has at least 2 comments with file references."""
-    success, comments = _get_github_api(f"issues/{issue_number}/comments", headers)
+    success, comments = _get_github_api(f"issues/{issue_number}/comments", headers, org)
     if not success or not comments:
         print(f"Error: No comments found on issue #{issue_number}", file=sys.stderr)
         return False
@@ -126,9 +126,9 @@ def _check_issue_comments(issue_number: int, headers: Dict[str, str]) -> bool:
     return True
 
 
-def _find_analysis_pr(headers: Dict[str, str]) -> Optional[Dict]:
+def _find_analysis_pr(headers: Dict[str, str], org: str) -> Optional[Dict]:
     """Find the analysis PR with exact title from specific branch."""
-    success, prs = _get_github_api("pulls?state=open&per_page=50", headers)
+    success, prs = _get_github_api("pulls?state=open&per_page=50", headers, org)
     if not success or not prs:
         return None
 
@@ -150,10 +150,16 @@ def verify() -> bool:
     Programmatically verify that the performance regression investigation workflow meets the
     requirements described in description.md.
     """
-    # Get GitHub token
+    # Get GitHub token and org
     github_token = os.environ.get("MCP_GITHUB_TOKEN")
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    
     if not github_token:
         print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
+        return False
+    
+    if not github_org:
+        print("Error: GITHUB_EVAL_ORG environment variable not set", file=sys.stderr)
         return False
 
     headers = {
@@ -166,7 +172,7 @@ def verify() -> bool:
 
     # 1. Check main tracking issue exists with exact title and labels
     print("1. Checking main tracking issue with required title and labels...")
-    main_issue = _find_main_tracking_issue(headers)
+    main_issue = _find_main_tracking_issue(headers, github_org)
     if not main_issue:
         print(
             "Error: Main tracking issue not found with exact title 'Performance Regression Analysis: Data Protocol Changes' and labels 'bug', 'performance', 'investigation'",
@@ -184,7 +190,7 @@ def verify() -> bool:
         "investigate-batch-processing",
         "investigate-memory-usage",
     ]
-    if not _check_branches_exist(required_branches, headers):
+    if not _check_branches_exist(required_branches, headers, github_org):
         return False
 
     # 3. Check sub-issues are created and linked
@@ -194,17 +200,17 @@ def verify() -> bool:
         "Test Performance Impact: upgrade vllm to 0.10",
         "Test Performance Impact: non blocking false by default",
     ]
-    if not _check_sub_issues(main_issue_number, expected_sub_titles, headers):
+    if not _check_sub_issues(main_issue_number, expected_sub_titles, headers, github_org):
         return False
 
     # 4. Check issue comments document file changes
     print("4. Checking issue comments document file changes...")
-    if not _check_issue_comments(main_issue_number, headers):
+    if not _check_issue_comments(main_issue_number, headers, github_org):
         return False
 
     # 5. Check analysis PR exists with exact title from correct branch
     print("5. Checking analysis PR exists with exact title and branch...")
-    analysis_pr = _find_analysis_pr(headers)
+    analysis_pr = _find_analysis_pr(headers, github_org)
     if not analysis_pr:
         print(
             "Error: Analysis PR not found with title 'Performance Analysis: Protocol Changes Investigation' from branch 'investigate-protocol-changes'",

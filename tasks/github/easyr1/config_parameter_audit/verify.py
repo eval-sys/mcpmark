@@ -10,10 +10,10 @@ load_dotenv(".mcp_env")
 
 
 def _get_github_api(
-    endpoint: str, headers: Dict[str, str]
+    endpoint: str, headers: Dict[str, str], org: str
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
+    url = f"https://api.github.com/repos/{org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -28,9 +28,9 @@ def _get_github_api(
         return False, None
 
 
-def _get_analysis_results(headers: Dict[str, str]) -> Optional[Dict]:
+def _get_analysis_results(headers: Dict[str, str], org: str) -> Optional[Dict]:
     """Get ANALYSIS_RESULTS.json file content."""
-    success, file_data = _get_github_api("contents/ANALYSIS_RESULTS.json", headers)
+    success, file_data = _get_github_api("contents/ANALYSIS_RESULTS.json", headers, org)
     if not success:
         return None
 
@@ -48,7 +48,7 @@ def _get_analysis_results(headers: Dict[str, str]) -> Optional[Dict]:
     return None
 
 
-def _verify_commit_data(results: Dict, headers: Dict[str, str]) -> bool:
+def _verify_commit_data(results: Dict, headers: Dict[str, str], org: str) -> bool:
     """Verify the commit data is accurate."""
     commit_sha = results.get("target_commit_sha")
 
@@ -58,7 +58,7 @@ def _verify_commit_data(results: Dict, headers: Dict[str, str]) -> bool:
         return False
 
     # Get commit details
-    success, commit_data = _get_github_api(f"commits/{commit_sha}", headers)
+    success, commit_data = _get_github_api(f"commits/{commit_sha}", headers, org)
     if not success:
         print(f"Error: Commit {commit_sha} not found in repository", file=sys.stderr)
         return False
@@ -128,7 +128,7 @@ def _verify_parameter_changes(results: Dict, headers: Dict[str, str]) -> bool:
     return True
 
 
-def _get_all_issues_with_keywords(headers: Dict[str, str]) -> set:
+def _get_all_issues_with_keywords(headers: Dict[str, str], org: str) -> set:
     """Find all issues in repository that contain the required keywords."""
     required_keywords = ["oom", "memory", "batch", "显存"]
     keyword_issues = set()
@@ -137,7 +137,7 @@ def _get_all_issues_with_keywords(headers: Dict[str, str]) -> set:
     page = 1
     while True:
         success, issues = _get_github_api(
-            f"issues?state=all&per_page=100&page={page}", headers
+            f"issues?state=all&per_page=100&page={page}", headers, org
         )
         if not success or not issues:
             break
@@ -162,7 +162,7 @@ def _get_all_issues_with_keywords(headers: Dict[str, str]) -> set:
     return keyword_issues
 
 
-def _verify_issue_references(results: Dict, headers: Dict[str, str]) -> bool:
+def _verify_issue_references(results: Dict, headers: Dict[str, str], org: str) -> bool:
     """Verify the issue references contain the required keywords."""
     issue_number_list = results.get("related_issue_number_list")
 
@@ -177,7 +177,7 @@ def _verify_issue_references(results: Dict, headers: Dict[str, str]) -> bool:
     required_keywords = ["oom", "memory", "batch", "显存"]
 
     # First, dynamically find all issues that contain the required keywords
-    expected_issues = _get_all_issues_with_keywords(headers)
+    expected_issues = _get_all_issues_with_keywords(headers, org)
     print(expected_issues)
     provided_issues = set(issue_number_list)
 
@@ -190,7 +190,7 @@ def _verify_issue_references(results: Dict, headers: Dict[str, str]) -> bool:
             return False
 
         # Get issue details
-        success, issue_data = _get_github_api(f"issues/{issue_number}", headers)
+        success, issue_data = _get_github_api(f"issues/{issue_number}", headers, org)
         if not success:
             print(
                 f"Error: Issue #{issue_number} not found in repository", file=sys.stderr
@@ -247,6 +247,12 @@ def verify() -> bool:
         print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
 
+    # Get GitHub organization
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    if not github_org:
+        print("Error: GITHUB_EVAL_ORG environment variable not set", file=sys.stderr)
+        return False
+
     headers = {
         "Authorization": f"token {github_token}",
         "Accept": "application/vnd.github.v3+json",
@@ -256,7 +262,7 @@ def verify() -> bool:
 
     # 1. Check ANALYSIS_RESULTS.json exists and is valid JSON
     print("1. Checking ANALYSIS_RESULTS.json exists and is valid...")
-    results = _get_analysis_results(headers)
+    results = _get_analysis_results(headers, github_org)
     if not results:
         print("Error: ANALYSIS_RESULTS.json not found or invalid JSON", file=sys.stderr)
         return False
@@ -265,7 +271,7 @@ def verify() -> bool:
 
     # 2. Verify commit data accuracy
     print("2. Verifying commit data accuracy...")
-    if not _verify_commit_data(results, headers):
+    if not _verify_commit_data(results, headers, github_org):
         return False
 
     print("✓ Commit SHA, author, and date verified")
@@ -279,7 +285,7 @@ def verify() -> bool:
 
     # 4. Verify issue references
     print("4. Verifying issue references...")
-    if not _verify_issue_references(results, headers):
+    if not _verify_issue_references(results, headers, github_org):
         return False
 
     print("\n✓ Task completed successfully!")
