@@ -122,7 +122,7 @@ class MCPAgent:
         client = AsyncOpenAI(
             base_url=self.base_url,
             api_key=self.api_key,
-            default_headers={"App-Code": "LobeHub"}
+            default_headers={ "App-Code": "LobeHub", 'HTTP-Referer': 'https://lobehub.com', 'X-Title': 'LobeHub' }
         )
         agent_model_name = self.model_name  # Capture the model name from the agent
 
@@ -165,7 +165,7 @@ class MCPAgent:
                     "env": {
                         "OPENAPI_MCP_HEADERS": (
                             '{"Authorization": "Bearer ' + notion_key + '", '
-                            '"Notion-Version": "2022-06-28"}'
+                                                                        '"Notion-Version": "2022-06-28"}'
                         )
                     },
                 },
