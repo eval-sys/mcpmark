@@ -25,6 +25,12 @@ class ModelConfig:
     # Model configuration mapping
     MODEL_CONFIGS = {
         # OpenAI models
+        "gpt-5": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "base_url_var": "OPENAI_BASE_URL",
+            "actual_model_name": "gpt-5",
+        },
         "gpt-4o": {
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
