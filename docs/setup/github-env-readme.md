@@ -42,7 +42,6 @@ This guide walks you through preparing your GitHub environment for MCPMark and a
 
 ## 1 · Prepare Your Evaluation Organization
 
-<<<<<<< fix/documentation
 ### Step 1: Create a GitHub Organization
 - **Motivation**: Isolating benchmark repositories from personal codebase.
 - **Action**: In GitHub, click your avatar → **Your organizations** → **New organization**
@@ -139,7 +138,6 @@ GITHUB_EVAL_ORG="your-eval-org-name"
    GITHUB_TOKENS="your-single-token-here"
    GITHUB_EVAL_ORG="your-eval-org-name"
    ```
->>>>>>> main
 
    **Important Notes:**
    - Replace `token1,token2,token3,token4` with your actual tokens (comma-separated, no spaces)
@@ -154,11 +152,9 @@ GITHUB_EVAL_ORG="your-eval-org-name"
 
 We have pre-exported several popular open-source repositories along with curated Issues and PRs.
 
-<<<<<<< fix/documentation
 ### Quick Setup
 1. **Download**: Find the code archive from [Google Drive](https://drive.google.com/your-link-here)
 2. **Extract**: Exact the zip file and place the `./github_state/` directory in your project root
-
 
 **Command**:
 ```bash
@@ -172,7 +168,6 @@ unzip mcpleague_github_state.zip -d ./github_state
    mkdir -p github_state
    unzip github_state.zip -d ./github_state
    ```
->>>>>>> main
 
 ---
 
@@ -192,7 +187,6 @@ If you want to benchmark additional repositories:
 
 ---
 
-<<<<<<< fix/documentation
 ## 4 · Mitigating GitHub Rate Limits with Token Pooling
 
 ### 📊 **Understanding Rate Limits**
