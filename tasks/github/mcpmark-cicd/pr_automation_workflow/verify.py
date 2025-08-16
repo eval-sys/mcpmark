@@ -411,6 +411,227 @@ def _verify_pr_comments(
     return len(errors) == 0, errors
 
 
+def _create_test_pr(
+    title: str, branch: str, content: str, file_path: str,
+    headers: Dict[str, str], owner: str, repo: str
+) -> Optional[int]:
+    """Create a test PR with specific content designed to fail a check."""
+    print(f"   Creating test PR: {title}")
+    
+    # Create branch
+    success, main_ref = _get_github_api("git/ref/heads/main", headers, owner, repo)
+    if not success:
+        print(f"   ❌ Failed to get main branch reference")
+        return None
+    
+    main_sha = main_ref["object"]["sha"]
+    
+    branch_data = {
+        "ref": f"refs/heads/{branch}",
+        "sha": main_sha
+    }
+    
+    success, _ = _post_github_api("git/refs", headers, owner, repo, branch_data)
+    if not success:
+        # Branch might already exist, try to delete and recreate
+        print(f"   Branch {branch} already exists, trying to delete and recreate...")
+        import requests
+        
+        # Force delete existing branch
+        delete_url = f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}"
+        delete_response = requests.delete(delete_url, headers=headers)
+        
+        if delete_response.status_code == 204:
+            print(f"   Successfully deleted existing branch {branch}")
+            # Wait a moment for deletion to complete
+            import time
+            time.sleep(2)
+            
+            # Try creating again
+            success, _ = _post_github_api("git/refs", headers, owner, repo, branch_data)
+            if not success:
+                print(f"   ❌ Failed to create branch {branch} after cleanup")
+                return None
+            else:
+                print(f"   ✅ Successfully created branch {branch} after cleanup")
+        else:
+            print(f"   ❌ Failed to delete existing branch {branch}: {delete_response.status_code}")
+            return None
+    
+    # Create or update file
+    file_content = base64.b64encode(content.encode()).decode()
+    
+    file_data = {
+        "message": f"Test commit for {title}",
+        "content": file_content,
+        "branch": branch
+    }
+    
+    # Check if file exists in main branch first
+    success, file_info = _get_github_api(f"contents/{file_path}?ref=main", headers, owner, repo)
+    if success and file_info:
+        # File exists, need SHA for update
+        file_data["sha"] = file_info["sha"]
+        print(f"   File {file_path} exists, updating with SHA")
+    else:
+        print(f"   Creating new file {file_path}")
+    
+    # Use PUT method for file creation/update
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+    try:
+        import requests
+        response = requests.put(url, headers=headers, json=file_data)
+        if response.status_code in [200, 201]:
+            print(f"   ✅ Successfully created/updated file {file_path}")
+        else:
+            print(f"   ❌ Failed to create/update file {file_path}: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"   ❌ Exception creating file {file_path}: {e}")
+        return None
+    
+    # Create PR
+    pr_data = {
+        "title": title,
+        "head": branch,
+        "base": "main",
+        "body": f"Test PR to validate that {title.split(':')[1].strip()} check fails correctly."
+    }
+    
+    success, pr_response = _post_github_api("pulls", headers, owner, repo, pr_data)
+    if not success:
+        print(f"   ❌ Failed to create PR")
+        return None
+    
+    pr_number = pr_response["number"]
+    print(f"   ✅ Created test PR #{pr_number}")
+    return pr_number
+
+
+def _close_pr(pr_number: int, headers: Dict[str, str], owner: str, repo: str) -> bool:
+    """Close a PR."""
+    success, _ = _patch_github_api(
+        f"pulls/{pr_number}", headers, owner, repo, {"state": "closed"}
+    )
+    return success
+
+
+def _run_unit_tests(
+    headers: Dict[str, str], owner: str, repo: str
+) -> Tuple[bool, List[str]]:
+    """Create test PRs to verify workflow correctly fails on bad code."""
+    print("\n🧪 Running unit tests with failing PRs...")
+    errors = []
+    created_prs = []
+
+    test_cases = [
+        {
+            "title": "Test: Code Quality Failure",
+            "branch": "test-code-quality-fail",
+            "file_path": "src/lint-fail-test.js",
+            "content": "// This file contains intentional ESLint violations\nvar unused_variable = 'this will trigger unused-vars rule'\nconsole.log('missing semicolon - will trigger semi rule')\nconst   badly_spaced   =   'too many spaces'\nif(true){console.log('missing spaces around braces')}\nfunction unusedFunction() { return 'unused'; }\neeval('alert(\"dangerous eval\")');\nwith (Math) { var x = cos(3 * PI) + sin(LN10) }\nvar a = 1; var a = 2; // redeclared variable",
+            "expected_failure": "code-quality"
+        },
+        {
+            "title": "Test: Testing Suite Failure", 
+            "branch": "test-testing-fail",
+            "file_path": "tests/fail-test.test.js",
+            "content": "const request = require('supertest');\n\ndescribe('Intentional Test Failures', () => {\n  test('This test should always fail', () => {\n    expect(2 + 2).toBe(5); // Intentionally wrong\n  });\n  \n  test('Another failing test', () => {\n    expect(true).toBe(false); // Intentionally wrong\n  });\n  \n  test('Math failure', () => {\n    expect(Math.max(1, 2, 3)).toBe(1); // Intentionally wrong\n  });\n});",
+            "expected_failure": "testing-suite"
+        },
+        {
+            "title": "Test: Security Scan Failure",
+            "branch": "test-security-fail", 
+            "file_path": "src/security-fail-test.js",
+            "content": "// This file contains patterns that should trigger secret detection\nconst hardcodedPassword = 'admin123password';\nconst fakeApiKey = 'sk_test_' + 'fake123key456here789';\nconst awsLikeKey = 'AKIA' + 'FAKEKEY7EXAMPLE';\nconst dbPassword = 'password' + '=' + 'supersecret123';\nconst tokenPattern = 'token' + '=' + 'ghp_1234567890abcdef';\n\n// These patterns should trigger secret detection\nconsole.log('Password:', hardcodedPassword);\nconsole.log('API Key:', fakeApiKey);\nconsole.log('AWS Key:', awsLikeKey);\nconsole.log('DB Password:', dbPassword);\nconsole.log('Token:', tokenPattern);\n\nmodule.exports = {\n  password: hardcodedPassword,\n  apiKey: fakeApiKey\n};",
+            "expected_failure": "security-scan"
+        },
+        {
+            "title": "Test: Build Validation Failure",
+            "branch": "test-build-fail",
+            "file_path": "src/build-fail-test.js", 
+            "content": "// This file will cause build/startup failures\nconst express = require('express');\nconst nonExistentModule = require('this-module-does-not-exist-anywhere');\nconst anotherMissing = require('@fake/missing-package');\n\n// This will cause runtime errors during startup\nconst app = express();\n\n// Define a route that will cause issues\napp.get('/test', (req, res) => {\n  // Try to use non-existent modules\n  nonExistentModule.doSomething();\n  anotherMissing.initialize();\n  res.send('This should never work');\n});\n\n// Override the listen method to always fail\nconst originalListen = app.listen;\napp.listen = function(port, callback) {\n  console.log('Attempting to start server...');\n  // This will crash during build validation\n  throw new Error('Intentional build failure for testing');\n};\n\nmodule.exports = app;",
+            "expected_failure": "build-validation"
+        }
+    ]
+
+    for test_case in test_cases:
+        pr_number = _create_test_pr(
+            test_case["title"],
+            test_case["branch"], 
+            test_case["content"],
+            test_case["file_path"],
+            headers, owner, repo
+        )
+        
+        if pr_number:
+            created_prs.append(pr_number)
+        else:
+            errors.append(f"Failed to create test PR: {test_case['title']}")
+
+    if created_prs:
+        print(f"   Created {len(created_prs)} test PRs, waiting for workflows...")
+        
+        # Wait a bit for workflows to start
+        time.sleep(5)
+        
+        # Wait for workflows to complete
+        _wait_for_workflow_completion(headers, owner, repo, "pr-automation.yml", max_wait=300)
+        
+        # Verify each test PR failed appropriately
+        for i, pr_number in enumerate(created_prs):
+            test_case = test_cases[i]
+            print(f"   Checking test PR #{pr_number} ({test_case['expected_failure']} failure)...")
+            
+            # Get workflow runs for this PR
+            success, runs_response = _get_github_api(
+                f"actions/runs?event=pull_request&per_page=20", headers, owner, repo
+            )
+            
+            if success:
+                pr_runs = []
+                for run in runs_response.get("workflow_runs", []):
+                    # Check pull_requests field
+                    for pr in run.get("pull_requests", []):
+                        if pr.get("number") == pr_number:
+                            pr_runs.append(run)
+                            break
+                    
+                # If no runs found via pull_requests, try matching by branch
+                if not pr_runs:
+                    branch_name = test_case["branch"]
+                    for run in runs_response.get("workflow_runs", []):
+                        if run.get("head_branch") == branch_name:
+                            pr_runs.append(run)
+                
+                if pr_runs:
+                    latest_run = pr_runs[0]
+                    if latest_run["conclusion"] != "failure":
+                        errors.append(f"Test PR #{pr_number} should have failed but got: {latest_run['conclusion']}")
+                    else:
+                        print(f"   ✅ Test PR #{pr_number} correctly failed")
+                else:
+                    errors.append(f"No workflow runs found for test PR #{pr_number}")
+
+        # Clean up test PRs and branches
+        print("   Cleaning up test PRs and branches...")
+        for i, pr_number in enumerate(created_prs):
+            if _close_pr(pr_number, headers, owner, repo):
+                print(f"   ✅ Closed test PR #{pr_number}")
+            else:
+                print(f"   ⚠️ Failed to close test PR #{pr_number}")
+            
+            # Delete test branch
+            branch_name = test_cases[i]["branch"]
+            import requests
+            url = f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch_name}"
+            response = requests.delete(url, headers=headers)
+            if response.status_code == 204:
+                print(f"   ✅ Deleted test branch {branch_name}")
+            else:
+                print(f"   ⚠️ Failed to delete test branch {branch_name}")
+
+    return len(errors) == 0, errors
 
 
 def verify() -> bool:
@@ -483,6 +704,15 @@ def verify() -> bool:
         else:
             print("✅ PR Comments Verification Passed")
 
+    # 5. Run unit tests with failing PRs
+    tests_ok, tests_errors = _run_unit_tests(headers, owner, repo)
+    if not tests_ok:
+        all_passed = False
+        print("❌ Unit Tests Failed:")
+        for error in tests_errors:
+            print(f"   - {error}")
+    else:
+        print("✅ Unit Tests Passed")
 
     print("\n" + "=" * 60)
     if all_passed:
@@ -492,7 +722,7 @@ def verify() -> bool:
         print("   ✅ Main PR was merged from pr-automation-workflow to main")  
         print("   ✅ Workflow runs show all 4 jobs executed in parallel and succeeded")
         print("   ✅ PR comments contain required automation reports")
-        print("   ✅ Core PR automation workflow is fully functional")
+        print("   ✅ Unit tests confirmed workflow correctly fails on problematic code")
         print("\n🤖 The GitHub Actions PR automation workflow is working correctly!")
     else:
         print("❌ PR Automation Workflow verification FAILED!")
