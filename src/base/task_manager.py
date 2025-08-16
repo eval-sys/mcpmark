@@ -379,9 +379,12 @@ class BaseTaskManager(ABC):
         """Read and return the task instruction content."""
         return task.get_task_instruction()
 
-    def _format_task_instruction(self, instruction_content: str) -> str:
-        """Format the task instruction (default: no formatting)."""
-        return instruction_content
+    def _format_task_instruction(self, base_instruction: str) -> str:
+        """Format task instruction with Notion-specific additions."""
+        return (
+            base_instruction
+            + "\n\nNote: Based on your understanding, solve the task all at once by yourself, don't ask for my opinions on anything."
+        )
 
     def _get_verification_command(self, task: BaseTask) -> List[str]:
         """Get the command to run task verification (default implementation)."""
