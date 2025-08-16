@@ -2,26 +2,31 @@ Perform a comprehensive marketing and customer analysis workflow in the Magento 
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.185.85:7780/admin/. if need to login, login with username 'admin' and password 'admin1234'
+1. First, we need to access the system to begin our comprehensive analysis:
+   Navigate to http://34.143.228.182:7780/admin/. if need to login, login with username 'admin' and password 'admin1234'
 
-2. Go to Reports > Marketing > Search Terms and analyze the search data:
+2. Let's start by analyzing customer search behavior to understand what customers are looking for:
+   Go to Search Terms in Reports and analyze the search data:
    - Identify the TOP 2 search terms with the highest number of hits (record exact terms and hit counts)
    - Find a search term that has 0 results but still has search hits (record exact term and hit count)
    - Count the total number of search terms displayed in the report
 
-3. Navigate to Marketing > Promotions > Cart Price Rules and identify:
+3. Next, we'll examine our promotional strategies to understand current marketing efforts:
+   Navigate to Cart Price Rules and identify:
    - Find ALL rules that contain a coupon code
    - Record the exact coupon codes and the complete rule names for each
    - Count how many active rules exist in total
 
-4. Go to Marketing > Communications > Newsletter Subscribers:
+4. Now let's analyze our email marketing reach and subscriber engagement:
+   Go to Newsletter Subscribers:
    - Apply filter to show only 'Subscribed' status
    - Count the total number of subscribed users showing after filter
    - Verify whether these TWO emails appear in the subscribed list:
      * john.smith.xyz@gmail.com
      * admin@magento.com
 
-5. Create TWO new customers in Customers > All Customers with the following details:
+5. To support our analysis, we need to create test customer profiles for different segments:
+   Create TWO new customers with the following details:
    
    Customer 1:
    - First Name: Marketing1
@@ -37,7 +42,8 @@ Perform a comprehensive marketing and customer analysis workflow in the Magento 
    - Associate to Website: Main Website
    - Group: Wholesale
 
-6. Go to Dashboard and identify:
+6. Finally, let's review overall business performance metrics from the main dashboard:
+   Go to Dashboard and identify:
    - The top bestselling and most expensive product name and quantity sold
    - The total revenue displayed on the dashboard
 

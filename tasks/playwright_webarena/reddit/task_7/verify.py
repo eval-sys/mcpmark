@@ -37,7 +37,7 @@ async def verify() -> bool:
         try:
             # 1. Check if account can login
             print("Step 1: Verifying account login...", file=sys.stderr)
-            await page.goto('http://34.143.185.85:9999/', wait_until='networkidle')
+            await page.goto('http://34.143.228.182:9999/', wait_until='networkidle')
             
             # Check if already logged in
             user_button = page.locator('button:has-text("EuroTravelPlanner")')
@@ -79,7 +79,7 @@ async def verify() -> bool:
             
             # 2. Check if forum exists at /f/BudgetEuropeTravel
             print("\nStep 2: Checking forum existence...", file=sys.stderr)
-            await page.goto('http://34.143.185.85:9999/f/BudgetEuropeTravel', wait_until='networkidle')
+            await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel', wait_until='networkidle')
             
             # Check if we get 404 or the forum exists
             page_title = await page.title()
@@ -92,7 +92,7 @@ async def verify() -> bool:
             
             # 3. Verify forum details at edit page
             print("\nStep 3: Verifying forum details at edit page...", file=sys.stderr)
-            await page.goto('http://34.143.185.85:9999/f/BudgetEuropeTravel/edit', wait_until='networkidle')
+            await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel/edit', wait_until='networkidle')
             
             # Check if we can access edit page (should be moderator)
             if "404" in await page.title() or "not found" in (await page.title()).lower():
@@ -127,11 +127,11 @@ async def verify() -> bool:
             
             # 4. Verify wiki page exists at /w/europe-travel-budget-guide
             print("\nStep 4: Checking wiki page...", file=sys.stderr)
-            await page.goto('http://34.143.185.85:9999/w/europe-travel-budget-guide', wait_until='networkidle')
+            await page.goto('http://34.143.228.182:9999/w/europe-travel-budget-guide', wait_until='networkidle')
             
             if "404" in await page.title() or "not found" in (await page.title()).lower():
                 # Try alternative URL
-                await page.goto('http://34.143.185.85:9999/wiki/europe-travel-budget-guide', wait_until='networkidle')
+                await page.goto('http://34.143.228.182:9999/wiki/europe-travel-budget-guide', wait_until='networkidle')
                 if "404" in await page.title() or "not found" in (await page.title()).lower():
                     print("Error: Wiki page does not exist", file=sys.stderr)
                     await page.screenshot(path=str(SCREENSHOT_DIR / "wiki_not_found.png"))
@@ -153,7 +153,7 @@ async def verify() -> bool:
             
             # 5. Check for the post in the forum
             print("\nStep 5: Checking for post in forum...", file=sys.stderr)
-            await page.goto('http://34.143.185.85:9999/f/BudgetEuropeTravel', wait_until='networkidle')
+            await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel', wait_until='networkidle')
             
             post_title = "My 14-day Europe trip for under 1000 - Complete itinerary"
             post_link = page.locator(f'a:has-text("{post_title}")')
@@ -179,7 +179,7 @@ async def verify() -> bool:
             print("\nStep 6: Checking travel insurance search and upvote...", file=sys.stderr)
             
             # Perform the search
-            await page.goto('http://34.143.185.85:9999/', wait_until='networkidle')
+            await page.goto('http://34.143.228.182:9999/', wait_until='networkidle')
             search_box = page.locator('input[type="search"], input[placeholder*="Search"]')
             if await search_box.count():
                 await search_box.fill("travel insurance Europe")
@@ -216,7 +216,7 @@ async def verify() -> bool:
             
             # 7. Verify user settings at /user/EuroTravelPlanner/preferences
             print("\nStep 7: Checking user settings...", file=sys.stderr)
-            await page.goto('http://34.143.185.85:9999/user/EuroTravelPlanner/preferences', wait_until='networkidle')
+            await page.goto('http://34.143.228.182:9999/user/EuroTravelPlanner/preferences', wait_until='networkidle')
             
             # Check timezone setting - look for the select element with Europe/Amsterdam selected
             timezone_select = page.locator('select[name*="timezone"], select:has(option:has-text("Amsterdam"))')

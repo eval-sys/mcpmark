@@ -2,29 +2,29 @@ Our company is planning to expand sales operations to New York state and needs a
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.185.85:7780/admin/ and log in with username 'admin' and password 'admin1234'
+1. Navigate to http://34.143.228.182:7780/admin/ and log in with username 'admin' and password 'admin1234'
 
 2. First, analyze our current sales performance on the dashboard:
    - Check the 'Lifetime Sales' amount displayed
-   - In the Bestsellers table, identify which product ranks #2 and record its exact name, price, and quantity sold
+   - In the Bestsellers table, identify which product has lowest price and record its exact name, price, and quantity sold
    - Find if this same product appears in the 'Last Orders' table, and if so, note which customer(s) ordered it, if no, note 'No'
 
-3. Since we're expanding to New York, navigate to Tax Zones and Rates:
+3. Since we're expanding to New York, we need check tax:
    - Find and record the exact tax rate for New York state
    - Compare it with California's tax rate - record which state has a higher rate
    - Count how many different US states currently have tax configurations
 
-4. To understand our order processing for the NY market, go to Stores > Settings > Order Status:
-   - Filter to show only statuses that are 'Visible On Storefront = Yes'
+4. You need to understand our order status of stores processing for the NY market:
+   - Filter orders to show only statuses that are 'Visible On Storefront = Yes'
    - Among these visible statuses, identify if exists one has the status code 'processing' (Yes or No),
    - Check if this 'processing' status is set as a 'Default Status' (Yes or No)
 
 
-5. Since New York orders might need special handling, go to Stores > Settings > All Stores:
+5. Since New York orders might need special handling, check all stores:
    - Note the number of website configured
    - Record the store code for the first Main Website Store
 
-6. For inventory planning, navigate to Stores > Inventory > Sources:
+6. For inventory planning, check the sources of it:
    - Check if the Default Source is currently 'Enabled' or shows as 'Disabled' for Pickup Location
    - Click the 'Edit' link for the Default Source and check if there's a 'State/Province' field (Yes or No)
 
@@ -37,7 +37,7 @@ Our company is planning to expand sales operations to New York state and needs a
 ```
 <answer>
 Lifetime_Sales_Amount|amount
-Second_Bestseller_Name|name
+Cheap_Bestseller_Name|name
 Second_Bestseller_Price|price
 Second_Bestseller_Quantity|quantity
 Product_In_Last_Orders|yes_or_no
@@ -60,7 +60,7 @@ Tax_Shipping_Zero|yes_or_no
 ```
 <answer>
 Lifetime_Sales_Amount|$XX.XX
-Second_Bestseller_Name|Product Name Here
+Cheap_Bestseller_Name|Product Name Here
 Second_Bestseller_Price|$XX.XX
 Second_Bestseller_Quantity|XX
 Product_In_Last_Orders|Yes/No

@@ -45,27 +45,59 @@ def parse_answer_format(text):
     Returns a dictionary with the parsed values.
     """
     if not text:
+        print("Error: No text provided to parse", file=sys.stderr)
         return None
 
     # Look for <answer>...</answer> pattern
     match = re.search(r"<answer>(.*?)</answer>", text, re.IGNORECASE | re.DOTALL)
     if not match:
+        print("Error: No <answer>...</answer> tags found in response", file=sys.stderr)
         return None
 
     answer_content = match.group(1).strip()
+    if not answer_content:
+        print("Error: Empty answer content", file=sys.stderr)
+        return None
 
     # Parse each line
     result = {}
-    lines = answer_content.split("\n")
+    lines = [line.strip() for line in answer_content.split("\n") if line.strip()]
 
-    if len(lines) != 11:
-        print(f"Error: Expected 11 lines in answer, got {len(lines)}", file=sys.stderr)
+    if len(lines) != 10:
+        print(f"Error: Expected 10 lines in answer, got {len(lines)}", file=sys.stderr)
+        print(f"Lines found: {lines}", file=sys.stderr)
         return None
 
+    # Expected keys for validation
+    expected_keys = [
+        "YogaProducts", "WH11Price", "ZeroQuantityProducts", "LowestProduct",
+        "QuestLumaflexQuantity", "DashboardRevenue", "SarahMillerEmail",
+        "TotalCustomers", "PendingOrders", "GraceNguyenOrderID"
+    ]
+
     for line in lines:
-        if "|" in line:
-            key, value = line.split("|", 1)
-            result[key.strip()] = value.strip()
+        if "|" not in line:
+            print(f"Error: Line missing '|' separator: {line}", file=sys.stderr)
+            return None
+        
+        parts = line.split("|", 1)
+        if len(parts) != 2:
+            print(f"Error: Invalid line format: {line}", file=sys.stderr)
+            return None
+            
+        key, value = parts[0].strip(), parts[1].strip()
+        
+        if not key or not value:
+            print(f"Error: Empty key or value in line: {line}", file=sys.stderr)
+            return None
+            
+        result[key] = value
+
+    # Validate all expected keys are present
+    missing_keys = set(expected_keys) - set(result.keys())
+    if missing_keys:
+        print(f"Error: Missing required keys: {missing_keys}", file=sys.stderr)
+        return None
 
     return result
 
@@ -105,8 +137,8 @@ def compare_answers(model_answer, expected_answer):
         model_value = model_answer.get(key, "")
 
         # Special handling for different types of values
-        if key == "Position3Product":
-            # Check if product name and quantity match
+        if key == "LowestProduct":
+            # Check if product name and quantity match (format: "Product Name:quantity")
             if ":" in expected_value and ":" in model_value:
                 expected_name, expected_qty = expected_value.rsplit(":", 1)
                 model_name, model_qty = model_value.rsplit(":", 1)
@@ -120,7 +152,7 @@ def compare_answers(model_answer, expected_answer):
                         f"{key}: expected '{expected_value}', got '{model_value}'"
                     )
 
-        elif key in ["WH11Price", "DashboardRevenue", "SarahMillerOrderTotal"]:
+        elif key in ["WH11Price", "DashboardRevenue"]:
             # For price/amount fields, normalize format
             expected_clean = expected_value.replace("$", "").replace(",", "")
             model_clean = model_value.replace("$", "").replace(",", "")

@@ -1,5 +1,5 @@
 Lifetime_Sales_Amount|$0.00
-Second_Bestseller_Name|Sprite Yoga Strap 6 foot
+Cheap_Bestseller_Name|Sprite Yoga Strap 6 foot
 Second_Bestseller_Price|$14.00
 Second_Bestseller_Quantity|6
 Product_In_Last_Orders|No

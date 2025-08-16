@@ -2,29 +2,29 @@ Our marketing team is planning a new promotion for our bestselling fitness produ
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.185.85:7780/admin/. If need to login, login with username 'admin' and password 'admin1234'
+1. Navigate to http://34.143.228.182:7780/admin/. If need to login, login with username 'admin' and password 'admin1234'
 
-2. Start by checking our current bestsellers on the Dashboard:
+2. Start by checking our current bestsellers:
    - Identify the top 3 bestselling products based on their Price	and Quantity - record their names, prices, and quantities sold
    - Note the total Revenue amount displayed
    - Check if any of these bestsellers appear in the Top Search Terms table - if yes, record the search term and its usage count, else output 'No:0'
 
-3. Investigate these bestselling products in detail (Catalog > Products):
+3. Investigate these bestselling products in detail:
    - For each of the top 3 bestsellers identified, search for them by name and record:
      - Their SKU
      - Current inventory quantity
      - Whether they are 'Enabled' or 'Disabled'
 
-4. Check if we have existing promotions for these products (Marketing > Cart Price Rules):
+4. Check if we have existing promotions for these products:
    - Look for any active rules that might apply to fitness/yoga products
    - Find if there's a rule offering percentage discount - record the rule name and discount percentage
    - Count total number of active rules
 
-5. Analyze customer purchasing patterns (Sales > Orders):
+5. Analyze customer purchasing patterns:
    - Count total number of orders in the system
    - Note the ID of the most recent order
 
-6. Review our top customers who might be interested (Customers > All Customers):
+6. Review our top customers who might be interested:
    - Find the customer who appears in the Last Orders section of the dashboard with the highest total
    - Look up this customer in the All Customers list and record his email and customer group
    - Count how many other customers are in the same group

@@ -304,7 +304,7 @@ SERVICES = {
             },
             "base_url": {
                 "env_var": "PLAYWRIGHT_WEBARENA_BASE_URL",
-                "default": "http://34.143.185.85:7780/admin",
+                "default": "http://34.143.228.182:7780/admin",
                 "required": False,
                 "description": "Base URL for WebArena environment",
             },

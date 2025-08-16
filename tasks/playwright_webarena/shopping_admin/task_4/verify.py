@@ -31,16 +31,16 @@ def verify(messages):
                 for item in content:
                     if isinstance(item, dict) and item.get("type") == "output_text":
                         text = item.get("text", "")
-                        # Look for answer tags
+                        # Look for answer tags with case-insensitive search
                         answer_match = re.search(
-                            r"<answer>(.*?)</answer>", text, re.DOTALL
+                            r"<answer>(.*?)</answer>", text, re.DOTALL | re.IGNORECASE
                         )
                         if answer_match:
                             answer_content = answer_match.group(1).strip()
                             break
             elif isinstance(content, str):
                 # Look for answer tags in string content
-                answer_match = re.search(r"<answer>(.*?)</answer>", content, re.DOTALL)
+                answer_match = re.search(r"<answer>(.*?)</answer>", content, re.DOTALL | re.IGNORECASE)
                 if answer_match:
                     answer_content = answer_match.group(1).strip()
                     break

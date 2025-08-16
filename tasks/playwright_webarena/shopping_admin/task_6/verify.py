@@ -13,25 +13,53 @@ def get_model_response():
     messages_path = os.getenv("MCP_MESSAGES")
     print(f"MCP_MESSAGES: {messages_path}")
     if not messages_path:
-        print("Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
+        print("ERROR: MCP_MESSAGES environment variable not set", file=sys.stderr)
+        return None
+    
+    # Check if file exists
+    if not Path(messages_path).exists():
+        print(f"ERROR: Messages file not found at path: {messages_path}", file=sys.stderr)
         return None
     
     try:
         with open(messages_path, 'r') as f:
-            messages = json.load(f)
+            content = f.read()
+            
+        # Check if file is empty
+        if not content or content.strip() == '""':
+            print("ERROR: Messages file is empty or contains only empty string", file=sys.stderr)
+            return None
+            
+        messages = json.loads(content)
+        
+        # Check if messages is a list
+        if not isinstance(messages, list):
+            print(f"ERROR: Messages file should contain a list, got {type(messages).__name__}", file=sys.stderr)
+            return None
         
         # Find the last assistant message
         for message in reversed(messages):
             if message.get('role') == 'assistant' and message.get('status') == 'completed':
                 content = message.get('content', [])
+                if not content:
+                    print("WARNING: Assistant message has empty content", file=sys.stderr)
+                    continue
+                    
                 for item in content:
                     if item.get('type') == 'output_text':
-                        return item.get('text', '')
+                        text = item.get('text', '')
+                        if not text:
+                            print("WARNING: Output text is empty", file=sys.stderr)
+                            continue
+                        return text
         
-        print("Warning: No assistant response found in messages", file=sys.stderr)
+        print("ERROR: No assistant response with output_text found in messages", file=sys.stderr)
+        return None
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON in messages file: {str(e)}", file=sys.stderr)
         return None
     except Exception as e:
-        print(f"Error reading messages file: {str(e)}", file=sys.stderr)
+        print(f"ERROR: Unexpected error reading messages file: {str(e)}", file=sys.stderr)
         return None
 
 def parse_answer_format(text):
@@ -40,28 +68,75 @@ def parse_answer_format(text):
     Returns a dictionary with the parsed values.
     """
     if not text:
+        print("ERROR: No text provided to parse", file=sys.stderr)
         return None
     
     # Look for <answer>...</answer> pattern
     match = re.search(r'<answer>(.*?)</answer>', text, re.IGNORECASE | re.DOTALL)
     if not match:
+        print("ERROR: No <answer> tags found in the response", file=sys.stderr)
+        print(f"  Response preview: {text[:200]}...", file=sys.stderr)
         return None
     
     answer_content = match.group(1).strip()
+    
+    if not answer_content:
+        print("ERROR: Empty content between <answer> tags", file=sys.stderr)
+        return None
     
     # Parse each line
     result = {}
     lines = answer_content.split('\n')
     
-    # Skip the check for exact number of lines - just parse what we have
-    # if len(lines) != 20:
-    #     print(f"Error: Expected 20 lines in answer, got {len(lines)}", file=sys.stderr)
-    #     return None
+    # Expected keys that should be present
+    expected_keys = [
+        'Lifetime_Sales_Amount', 'Cheap_Bestseller_Name', 'Second_Bestseller_Price',
+        'Second_Bestseller_Quantity', 'Product_In_Last_Orders', 'NY_Tax_Rate',
+        'CA_Tax_Rate', 'Higher_Tax_State', 'Total_States_With_Tax',
+        'Processing_Visible_Storefront', 'Processing_Default_Status',
+        'Number_Of_Websites', 'Main_Store_Code', 'Default_Source_Pickup_Status',
+        'Default_Source_State', 'Dashboard_Revenue', 'Tax_Shipping_Zero'
+    ]
     
+    parsed_keys = []
     for line in lines:
-        if '|' in line:
-            key, value = line.split('|', 1)
-            result[key.strip()] = value.strip()
+        line = line.strip()
+        if not line:
+            continue
+            
+        if '|' not in line:
+            print(f"ERROR: Line missing pipe separator '|': {line}", file=sys.stderr)
+            continue
+            
+        parts = line.split('|', 1)
+        if len(parts) != 2:
+            print(f"ERROR: Invalid line format: {line}", file=sys.stderr)
+            continue
+            
+        key, value = parts
+        key = key.strip()
+        value = value.strip()
+        
+        if not key:
+            print(f"ERROR: Empty key in line: {line}", file=sys.stderr)
+            continue
+            
+        result[key] = value
+        parsed_keys.append(key)
+    
+    # Check for missing expected keys
+    missing_keys = set(expected_keys) - set(parsed_keys)
+    if missing_keys:
+        print(f"ERROR: Missing expected keys: {', '.join(sorted(missing_keys))}", file=sys.stderr)
+        
+    # Check for unexpected keys
+    unexpected_keys = set(parsed_keys) - set(expected_keys)
+    if unexpected_keys:
+        print(f"WARNING: Unexpected keys found: {', '.join(sorted(unexpected_keys))}", file=sys.stderr)
+    
+    if not result:
+        print("ERROR: No valid key-value pairs parsed from answer", file=sys.stderr)
+        return None
     
     return result
 
@@ -170,39 +245,55 @@ async def verify() -> bool:
     First checks the model's answer against the expected label,
     then optionally verifies the actual state in the Magento Admin.
     """
+    print("\n=== Starting Verification ===", file=sys.stderr)
+    
     # Get the label file path
     label_path = Path(__file__).parent / "label.txt"
     
     # Load expected answer
+    print("Loading expected answer from label.txt...", file=sys.stderr)
     expected_answer = load_expected_answer(label_path)
     if not expected_answer:
-        print("Error: Could not load expected answer from label.txt", file=sys.stderr)
+        print("FATAL ERROR: Could not load expected answer from label.txt", file=sys.stderr)
         return False
     
+    print(f"Expected answer loaded with {len(expected_answer)} keys", file=sys.stderr)
+    
     # Get model's response from MCP_MESSAGES
+    print("\nReading model response from MCP_MESSAGES...", file=sys.stderr)
     model_response = get_model_response()
-    if model_response:
-        print("Found model response, parsing answer format...", file=sys.stderr)
-        model_answer = parse_answer_format(model_response)
-        
-        if model_answer:
-            print("\n=== Model Answer Parsed ===", file=sys.stderr)
-            for key, value in model_answer.items():
-                print(f"{key}: {value}", file=sys.stderr)
-            
-            # Compare answers
-            answer_match = compare_answers(model_answer, expected_answer)
-            if not answer_match:
-                print("\nModel answer does not match expected answer", file=sys.stderr)
-                return False
-            print("\n✓ Model answer matches expected answer", file=sys.stderr)
-            return True
-        else:
-            print("Warning: Could not parse answer format from model response", file=sys.stderr)
-            return False
-    else:
-        print("No model response found", file=sys.stderr)
+    
+    if not model_response:
+        print("FATAL ERROR: No valid model response found", file=sys.stderr)
         return False
+    
+    print(f"Model response found (length: {len(model_response)} chars)", file=sys.stderr)
+    print("\nParsing answer format from model response...", file=sys.stderr)
+    
+    model_answer = parse_answer_format(model_response)
+    
+    if not model_answer:
+        print("FATAL ERROR: Could not parse answer format from model response", file=sys.stderr)
+        return False
+    
+    print(f"\n=== Model Answer Parsed Successfully ===", file=sys.stderr)
+    print(f"Parsed {len(model_answer)} key-value pairs", file=sys.stderr)
+    
+    for key, value in model_answer.items():
+        print(f"  {key}: {value}", file=sys.stderr)
+    
+    # Compare answers
+    print("\n=== Comparing Model Answer with Expected Answer ===", file=sys.stderr)
+    answer_match = compare_answers(model_answer, expected_answer)
+    
+    if not answer_match:
+        print("\nFATAL ERROR: Model answer does not match expected answer", file=sys.stderr)
+        print("Verification FAILED", file=sys.stderr)
+        return False
+    
+    print("\n✓ Model answer matches expected answer", file=sys.stderr)
+    print("Verification PASSED", file=sys.stderr)
+    return True
 
 def main():
     """
