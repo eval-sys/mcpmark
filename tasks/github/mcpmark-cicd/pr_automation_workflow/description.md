@@ -36,7 +36,7 @@ Create a new branch called `pr-automation-workflow` from main.
 **Step 2: Create the Workflow**
 Create `.github/workflows/pr-automation.yml` with proper YAML syntax:
 - Appropriate triggers for pull_request events
-- All four jobs configured to run in parallel (no job dependencies)
+- All four jobs configured to run in parallel
 - Error handling and retry logic
 - Avoid identifier conflicts in github-script actions
 
