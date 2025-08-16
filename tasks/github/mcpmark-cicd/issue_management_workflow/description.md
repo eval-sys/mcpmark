@@ -5,8 +5,11 @@ I need you to create an intelligent Issue Management automation workflow for thi
 Create `.github/workflows/issue-automation.yml` that triggers on `issues` events (opened, labeled) with these jobs:
 
 ### 1. **issue-triage** job:
-   - Auto-assigns labels based on keywords: `bug`, `epic`, `maintenance`
-   - Auto-assigns priority labels (highest priority wins if multiple keywords found, priority order: critical > high > medium > low):
+   - Auto-assigns category labels based on keywords in **issue title** (case-insensitive):
+     - Title contains "bug" → adds `bug` label
+     - Title contains "epic" → adds `epic` label  
+     - Title contains "maintenance" → adds `maintenance` label
+   - Auto-assigns priority labels based on keywords in **issue title OR body** (case-insensitive, highest priority wins if multiple keywords found):
      - "critical", "urgent", "production", "outage" → `priority-critical`
      - "important", "high", "blocking" → `priority-high` 
      - "medium", "normal" → `priority-medium` (default if no priority keywords found)
@@ -15,7 +18,7 @@ Create `.github/workflows/issue-automation.yml` that triggers on `issues` events
 
 ### 2. **task-breakdown** job:
    - For issues with a title containing "Epic", create exactly 4 sub-issues with the pattern: "[SUBTASK] [Original Title] - Task N: [Task Name]"
-   - Task names: Requirements Analysis, Design and Architecture, Implementation, Testing and Documentation
+   - Task names: 1. Requirements Analysis, 2. Design and Architecture, 3. Implementation, 4. Testing and Documentation
    - Links sub-issues to parent using "Related to #[parent-number]" in sub-issue body
    - Updates parent issue body with "## Epic Tasks" checklist linking to sub-issue numbers
    - All sub-issues get `enhancement` and `needs-review` labels
