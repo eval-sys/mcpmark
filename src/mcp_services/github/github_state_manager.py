@@ -219,6 +219,7 @@ class GitHubStateManager(BaseStateManager):
             "has_issues": True,
             "has_projects": True,
             "has_wiki": False,
+            "default_branch": default_branch,  # Set the correct default branch
         }
 
         auth_user = self._get_authenticated_user()
@@ -239,6 +240,11 @@ class GitHubStateManager(BaseStateManager):
 
         html_url = resp.json()["html_url"]
         logger.info("[import] Target repository created: %s", html_url)
+
+        # Immediately disable GitHub Actions for ALL repositories to prevent any accidental triggers
+        # We'll re-enable it later only for mcpmark-cicd
+        logger.info("[import] Disabling GitHub Actions immediately after repo creation...")
+        self._disable_github_actions(owner, repo_name)
 
         # ------------------------------------------------------------------
         # Phase 2 – push git history
@@ -373,9 +379,11 @@ class GitHubStateManager(BaseStateManager):
                 skipped_prs += 1
         logger.info("[phase] Created %d PRs, skipped %d PRs", created_prs, skipped_prs)
 
-        # Enable GitHub Actions after creating issues and PRs
-        logger.info("[import] Enabling GitHub Actions …")
-        self._enable_github_actions(owner, repo_name)
+        # Re-enable GitHub Actions ONLY for mcpmark-cicd repository
+        # All other repos remain disabled (as set immediately after creation)
+        if "mcpmark-cicd" in template_dir.name:
+            logger.info("[import] Re-enabling GitHub Actions for CI/CD repository…")
+            self._enable_github_actions(owner, repo_name)
 
         # Disable notifications to prevent email spam
         logger.info("[import] Disabling repository notifications …")
@@ -678,6 +686,31 @@ class GitHubStateManager(BaseStateManager):
 
         except Exception as e:
             logger.error("Failed to enable GitHub Actions: %s", e)
+
+    def _disable_github_actions(self, owner: str, repo_name: str):
+        """Disable GitHub Actions for the repository using REST API."""
+        try:
+            # Disable GitHub Actions
+            url = (
+                f"https://api.github.com/repos/{owner}/{repo_name}/actions/permissions"
+            )
+            response = self.session.put(
+                url, json={"enabled": False}
+            )
+
+            if response.status_code in [200, 204]:
+                logger.info(
+                    "Successfully disabled GitHub Actions for %s/%s", owner, repo_name
+                )
+            else:
+                logger.warning(
+                    "Failed to disable GitHub Actions: %s %s",
+                    response.status_code,
+                    response.text,
+                )
+
+        except Exception as e:
+            logger.error("Failed to disable GitHub Actions: %s", e)
 
     def _disable_repository_notifications(self, owner: str, repo_name: str):
         """Disable repository notifications to prevent email spam."""

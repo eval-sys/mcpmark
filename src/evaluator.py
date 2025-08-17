@@ -202,9 +202,6 @@ class MCPEvaluator:
 
         execute_start_time = time.time()
 
-        # NOTE: The agent now refreshes its service configuration internally, so
-        # we no longer need to perform that step here.
-
         # Get task instruction from task manager
         task_instruction = self.task_manager.get_task_instruction(task)
 
@@ -213,7 +210,7 @@ class MCPEvaluator:
 
         execute_time = time.time() - execute_start_time
 
-        # ---------- 写 messages.json 到 task_output_dir ----------
+        # ---------- Write messages.json to task_output_dir ----------
         task_output_dir = self._get_task_output_dir(task)
         task_output_dir.mkdir(parents=True, exist_ok=True)
         messages_path = task_output_dir / "messages.json"
