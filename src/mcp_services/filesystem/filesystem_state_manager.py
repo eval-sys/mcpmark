@@ -458,21 +458,21 @@ class FilesystemStateManager(BaseStateManager):
             # Get the category from the current task context
             category = getattr(self, '_current_task_category', None)
             if not category:
-                logger.error("No task category available for URL selection")
+                logger.error("| No task category available for URL selection")
                 return False
 
             # Select the appropriate URL based on category
             if category in url_mapping:
                 test_env_url = url_mapping[category]
-                logger.info(f"Selected URL for category '{category}': {test_env_url}")
+                logger.info(f"| ○ Selected URL for category '{category}': {test_env_url}")
             else:
-                logger.error(f"No URL mapping found for category: {category}")
+                logger.error(f"| No URL mapping found for category: {category}")
                 return False
 
             # Allow override via environment variable
             test_env_url = os.getenv('TEST_ENVIRONMENT_URL', test_env_url)
 
-            logger.info(f"Downloading test environment from: {test_env_url}")
+            logger.info(f"| ○ Downloading test environment from: {test_env_url}")
 
             # Create a temporary directory for the download
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -480,7 +480,7 @@ class FilesystemStateManager(BaseStateManager):
                 zip_path = temp_path / "test_environment.zip"
 
                 # Step 1: Download using wget
-                logger.info("Step 1: Downloading test environment zip file...")
+                logger.info("| ○ Downloading test environment zip file...")
                 try:
                     # Use wget if available, otherwise fall back to curl
                     if sys.platform == "win32":
@@ -510,42 +510,42 @@ class FilesystemStateManager(BaseStateManager):
                                 capture_output=True, text=True, check=True
                             )
                     
-                    logger.info("Download completed successfully")
+                    logger.info("| ✓ Download completed successfully")
                 except Exception as e:
-                    logger.error(f"Download failed: {e}")
+                    logger.error(f"| Download failed: {e}")
                     return False
 
                 # Step 2: Extract using unzip
-                logger.info("Step 2: Extracting test environment...")
+                logger.info("| ○ Extracting test environment...")
                 try:
                     # Extract to parent directory to maintain expected structure
                     result = subprocess.run(
                         ["unzip", "-o", str(zip_path), "-d", str(self.test_root.parent)],
                         capture_output=True, text=True, check=True
                     )
-                    logger.info("Extraction completed successfully")
+                    logger.info("| ✓ Extraction completed successfully")
                 except Exception as e:
-                    logger.error(f"Extraction failed: {e}")
+                    logger.error(f"| Extraction failed: {e}")
                     return False
 
                 # Step 3: Remove __MACOSX folder if it exists
-                logger.info("Step 3: Cleaning up macOS metadata...")
+                logger.info("| ○ Cleaning up macOS metadata...")
                 macosx_path = self.test_root.parent / "__MACOSX"
                 if macosx_path.exists():
                     try:
                         shutil.rmtree(macosx_path)
-                        logger.info("Removed __MACOSX folder")
+                        logger.info("| ✓ Removed __MACOSX folder")
                     except Exception as e:
-                        logger.warning(f"Failed to remove __MACOSX folder: {e}")
+                        logger.warning(f"| Failed to remove __MACOSX folder: {e}")
 
                 # Verify the extracted directory exists
                 if not self.test_root.exists():
-                    logger.error(f"Extracted directory not found at expected path: {self.test_root}")
+                    logger.error(f"| Extracted directory not found at expected path: {self.test_root}")
                     return False
 
-                logger.info(f"Successfully downloaded and extracted test environment to: {self.test_root}")
+                logger.info(f"| ✓ Successfully downloaded and extracted test environment to: {self.test_root}")
                 return True
 
         except Exception as e:
-            logger.error(f"Failed to download and extract test environment: {e}")
+            logger.error(f"| Failed to download and extract test environment: {e}")
             return False
