@@ -67,7 +67,10 @@ def main():
 
     # Load arguments and environment variables
     args = parser.parse_args()
-    load_dotenv(dotenv_path=".mcp_env", override=False)
+    # load_dotenv(dotenv_path=".mcp_env", override=False)
+
+    dotenv_path = Path(__file__).parent / ".mcp_env"
+    load_dotenv(dotenv_path=dotenv_path, override=False)
 
 
     # Generate default exp-name if not provided

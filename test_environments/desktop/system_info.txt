@@ -1,7 +1,0 @@
-System Configuration Information
-=================================
-
-Operating System: Ubuntu 20.04
-Memory: 16GB RAM
-Storage: 512GB SSD
-Processor: Intel i7-9700K

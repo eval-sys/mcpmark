@@ -1,7 +1,0 @@
-General Notes and Reminders
-============================
-
-- Remember to backup important files
-- Schedule meeting with team next week
-- Review quarterly reports
-- Update project documentation

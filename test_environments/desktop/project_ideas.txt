@@ -1,8 +1,0 @@
-Project Brainstorming Notes
-============================
-
-1. Mobile app for productivity
-2. Website redesign with modern UI
-3. Automation tools for workflow
-4. Dashboard for analytics
-5. API integration platform
