@@ -1,16 +1,23 @@
 {
-  "task_name": "employee_onboarding",
-  "author": "zijian",
-  "category": "company_in_a_box",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "onboarding",
-    "hr",
-    "checklist",
-    "employee management"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Company-In-A-Box-23d81626b6d7800098f3d0e64a706cd8",
-  "gt_page_url": "https://www.notion.so/Company-In-A-Box-Employee-Onboarding-2442b7e8cebd81dc9a58f2cfbbfbfdd0"
+    "task_id": "employee_onboarding",
+    "task_name": "Employee Onboarding",
+    "category_id": "company_in_a_box",
+    "category_name": "Company In A Box",
+    "description": "Build an integrated Employee Onboarding system for the existing Company In A Box page with a checklist database, onboarding hub, and feedback form.",
+    "author": "Zijian Wu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "database manipulation",
+        "template population",
+        "cross-reference linking",
+        "status tracking"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Company-In-A-Box-23d81626b6d7800098f3d0e64a706cd8",
+        "gt_page_url": "https://www.notion.so/Company-In-A-Box-Employee-Onboarding-2442b7e8cebd81dc9a58f2cfbbfbfdd0"
+    }
 }

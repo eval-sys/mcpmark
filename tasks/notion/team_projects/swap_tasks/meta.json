@@ -1,0 +1,22 @@
+{
+    "task_id": "swap_tasks",
+    "task_name": "Swap Tasks",
+    "category_id": "team_projects",
+    "category_name": "Team Projects",
+    "description": "Find the person responsible for the most and fewest tasks, then swap their assigned tasks.",
+    "author": "Xiangyan Liu",
+    "created_at": "2025-08-12",
+    "difficulty": "L3",
+    "tags": [
+        "data aggregation",
+        "automated migration",
+        "conditional filtering"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Team-Projects-24e81626b6d7809c982fdb7a25825898",
+        "gt_page_url": "https://www.notion.so/Team-Projects-Swap-Tasks-24f2b7e8cebd802ab70cc05e92fc917c"
+    }
+}

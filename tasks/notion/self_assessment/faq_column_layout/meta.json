@@ -1,16 +1,22 @@
 {
-  "task_name": "faq_column_layout",
-  "author": "xiangyan",
-  "category": "self_assessment",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "layout",
-    "faq",
-    "columns",
-    "organization"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Self-Assessment-24381626b6d780fe9f56c2ba14ea042d",
-  "gt_page_url": "https://www.notion.so/Self-Assessment-Faq-Column-Layout-2442b7e8cebd809cb68dc654d8db31fb"
+    "task_id": "faq_column_layout",
+    "task_name": "FAQ Column Layout",
+    "category_id": "self_assessment",
+    "category_name": "Self Assessment",
+    "description": "Reorganize the FAQ section content into a two-column layout with balanced Q&A pairs.",
+    "author": "Xiangyan Liu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "content organization",
+        "visual formatting",
+        "template population"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Self-Assessment-24381626b6d780fe9f56c2ba14ea042d",
+        "gt_page_url": "https://www.notion.so/Self-Assessment-Faq-Column-Layout-2442b7e8cebd809cb68dc654d8db31fb"
+    }
 }

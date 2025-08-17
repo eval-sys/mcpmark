@@ -1,16 +1,24 @@
 {
-  "task_name": "quarterly_review_dashboard",
-  "author": "zijian",
-  "category": "company_in_a_box",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "dashboard",
-    "business review",
-    "database",
-    "reporting"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Company-In-A-Box-23d81626b6d7800098f3d0e64a706cd8",
-  "gt_page_url": "https://www.notion.so/Company-In-A-Box-Quarterly-Review-Dashboard-2442b7e8cebd8162bc18c003d275f26e"
+    "task_id": "quarterly_review_dashboard",
+    "task_name": "Quarterly Review Dashboard",
+    "category_id": "company_in_a_box",
+    "category_name": "Company In A Box",
+    "description": "Create a quarterly business review dashboard in Notion based on the existing Company In A Box workspace with department objectives and action items database.",
+    "author": "Zijian Wu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "database manipulation",
+        "data aggregation",
+        "report generation",
+        "status tracking",
+        "template population"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Company-In-A-Box-23d81626b6d7800098f3d0e64a706cd8",
+        "gt_page_url": "https://www.notion.so/Company-In-A-Box-Quarterly-Review-Dashboard-2442b7e8cebd8162bc18c003d275f26e"
+    }
 }

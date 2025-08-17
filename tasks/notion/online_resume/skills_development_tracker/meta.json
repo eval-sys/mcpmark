@@ -1,16 +1,25 @@
 {
-  "task_name": "skills_development_tracker",
-  "author": "xiangyan",
-  "category": "online_resume",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "skills",
-    "development",
-    "tracking",
-    "resume"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Online-Resume-23181626b6d781159faaeb5eadaf612e",
-  "gt_page_url": "https://www.notion.so/Online-Resume-Skills-Development-Tracker-2442b7e8cebd8001add5f216391465c1"
+    "task_id": "skills_development_tracker",
+    "task_name": "Skills Development Tracker",
+    "category_id": "online_resume",
+    "category_name": "Online Resume",
+    "description": "Create a comprehensive skills audit system with development tracking for skills below 70% proficiency.",
+    "author": "Xiangyan Liu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "database manipulation",
+        "cross-reference linking",
+        "conditional filtering",
+        "data aggregation",
+        "template population",
+        "visual formatting"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Online-Resume-23181626b6d781159faaeb5eadaf612e",
+        "gt_page_url": "https://www.notion.so/Online-Resume-Skills-Development-Tracker-2442b7e8cebd8001add5f216391465c1"
+    }
 }

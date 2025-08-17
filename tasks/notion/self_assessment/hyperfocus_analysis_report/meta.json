@@ -1,16 +1,23 @@
 {
-  "task_name": "hyperfocus_analysis_report",
-  "author": "xiangyan",
-  "category": "self_assessment",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "analysis",
-    "reporting",
-    "productivity",
-    "self-assessment"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Self-Assessment-24381626b6d780fe9f56c2ba14ea042d",
-  "gt_page_url": "https://www.notion.so/Self-Assessment-Hyperfocus-Analysis-Report-2442b7e8cebd802aa345d8a2d24f3101"
+    "task_id": "hyperfocus_analysis_report",
+    "task_name": "Hyperfocus Analysis Report",
+    "category_id": "self_assessment",
+    "category_name": "Self Assessment",
+    "description": "Create a hyperfocus analysis report by analyzing high-productivity sessions with challenges.",
+    "author": "Xiangyan Liu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "conditional filtering",
+        "data aggregation",
+        "report generation",
+        "visual formatting"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Self-Assessment-24381626b6d780fe9f56c2ba14ea042d",
+        "gt_page_url": "https://www.notion.so/Self-Assessment-Hyperfocus-Analysis-Report-2442b7e8cebd802aa345d8a2d24f3101"
+    }
 }

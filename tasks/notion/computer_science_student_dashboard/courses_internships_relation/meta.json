@@ -1,16 +1,22 @@
 {
-  "task_name": "courses_internships_relation",
-  "author": "zijian",
-  "category": "computer_science_student_dashboard",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "database",
-    "relations",
-    "courses",
-    "internships"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Computer-Science-Student-Dashboard-23e81626b6d78083b787d3c832b02ef4",
-  "gt_page_url": "https://www.notion.so/Computer-Science-Student-Dashboard-Courses-Internships-Relation-2442b7e8cebd81ae9e5fcccb5fc4697e"
+    "task_id": "courses_internships_relation",
+    "task_name": "Courses Internships Relation",
+    "category_id": "computer_science_student_dashboard",
+    "category_name": "Computer Science Student Dashboard",
+    "description": "Connect the Courses and Internship search databases with bidirectional relations and populate with sample data.",
+    "author": "Zijian Wu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "database manipulation",
+        "cross-reference linking",
+        "template population"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Computer-Science-Student-Dashboard-23e81626b6d78083b787d3c832b02ef4",
+        "gt_page_url": "https://www.notion.so/Computer-Science-Student-Dashboard-Courses-Internships-Relation-2442b7e8cebd81ae9e5fcccb5fc4697e"
+    }
 }
