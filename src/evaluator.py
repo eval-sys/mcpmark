@@ -104,23 +104,17 @@ class MCPEvaluator:
             with meta_path.open("r", encoding="utf-8") as f:
                 meta_data = json.load(f)
 
-            # Reconstruct TaskResult from meta.json
-            # Handle backward compatibility: old files have execution_time, new have task_execution_time
-            task_execution_time = meta_data.get("task_execution_time", meta_data.get("execution_time", 0.0))
-            agent_execution_time = meta_data.get("agent_execution_time", 0.0)
-            
             return TaskResult(
                 task_name=meta_data["task_name"],
                 success=meta_data["execution_result"]["success"],
                 error_message=meta_data["execution_result"]["error_message"],
                 category=task.category,
                 task_id=task.task_id,
-                # We don't need model_output for resume functionality
                 model_output=None,
                 token_usage=meta_data.get("token_usage", {}),
-                turn_count=meta_data.get("turn_count", None),
-                agent_execution_time=agent_execution_time,
-                task_execution_time=task_execution_time,
+                turn_count=meta_data.get("turn_count"),
+                agent_execution_time=meta_data.get("agent_execution_time", 0.0),
+                task_execution_time=meta_data.get("task_execution_time", 0.0),
             )
         except Exception as exc:
             logger.warning("Failed to load existing result for %s: %s", task.name, exc)
@@ -159,10 +153,6 @@ class MCPEvaluator:
                 category = category_part.replace("-", "_")
                 task_id = identifier_part  # keep slug as-is (string)
 
-                # Handle backward compatibility: old files have execution_time, new have task_execution_time
-                task_execution_time = meta_data.get("task_execution_time", meta_data.get("execution_time", 0.0))
-                agent_execution_time = meta_data.get("agent_execution_time", 0.0)
-                
                 result = TaskResult(
                     task_name=meta_data["task_name"],
                     success=meta_data["execution_result"]["success"],
@@ -171,9 +161,9 @@ class MCPEvaluator:
                     task_id=task_id,
                     model_output=None,
                     token_usage=meta_data.get("token_usage", {}),
-                    turn_count=meta_data.get("turn_count", None),
-                    agent_execution_time=agent_execution_time,
-                    task_execution_time=task_execution_time,
+                    turn_count=meta_data.get("turn_count"),
+                    agent_execution_time=meta_data.get("agent_execution_time", 0.0),
+                    task_execution_time=meta_data.get("task_execution_time", 0.0),
                 )
                 results.append(result)
             except Exception as exc:

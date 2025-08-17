@@ -26,11 +26,14 @@ class TaskResult:
     Attributes:
         task_name: The full name of the task (e.g., "category/task_1").
         success: Whether the task completed successfully.
-        execution_time: Time taken to execute the task in seconds.
         category: The task category.
         task_id: The task identifier (number or slug).
         error_message: Error message if the task failed.
         model_output: Agent conversation trajectory (messages).
+        token_usage: Token usage statistics.
+        turn_count: Number of turns taken during task execution.
+        agent_execution_time: Time for Step 2 (agent execution) in seconds.
+        task_execution_time: Total time for Steps 1-4 in seconds.
     """
 
     task_name: str
@@ -232,7 +235,6 @@ class ResultsReporter:
         """Saves task metadata (excluding messages) as meta.json."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Flatten model_config - extract key fields to top level
         meta_data = {
             "task_name": task_result.task_name,
             "model": model_config.get("model_name", "unknown"),
