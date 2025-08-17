@@ -177,15 +177,15 @@ class FilesystemStateManager(BaseStateManager):
             self.test_root = base_test_path
             # For base directory, use 'desktop' as default category
             self._current_task_category = 'desktop'
-            logger.info(f"| Setting test root to base directory: {self.test_root}")
+            logger.info(f"| ✓ Setting test root to base directory: {self.test_root}")
 
         # Ensure the directory exists by downloading and extracting if needed
         if not self.test_root.exists():
-            logger.warning(f"Test directory does not exist: {self.test_root}")
+            logger.warning(f"| ○ Test directory does not exist: {self.test_root}")
             if not self._download_and_extract_test_environment():
-                logger.error(f"Failed to download and extract test environment for: {self.test_root}")
+                logger.error(f"| Failed to download and extract test environment for: {self.test_root}")
                 raise RuntimeError(f"Test environment not available: {self.test_root}")
-            logger.info(f"Downloaded and extracted test environment: {self.test_root}")
+            logger.info(f"| ✓ Downloaded and extracted test environment: {self.test_root}")
 
 
     def clean_up(self, task: Optional[BaseTask] = None, **kwargs) -> bool:
@@ -462,15 +462,15 @@ class FilesystemStateManager(BaseStateManager):
             # Select the appropriate URL based on category
             if category in url_mapping:
                 test_env_url = url_mapping[category]
-                logger.info(f"Selected URL for category '{category}': {test_env_url}")
+                logger.info(f"| ○ Selected URL for category '{category}': {test_env_url}")
             else:
-                logger.error(f"No URL mapping found for category: {category}")
+                logger.error(f"| No URL mapping found for category: {category}")
                 return False
 
             # Allow override via environment variable
             test_env_url = os.getenv('TEST_ENVIRONMENT_URL', test_env_url)
 
-            logger.info(f"Downloading test environment from: {test_env_url}")
+            logger.info(f"| ○ Downloading test environment from: {test_env_url}")
 
             # Create a temporary directory for the download
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -478,7 +478,7 @@ class FilesystemStateManager(BaseStateManager):
                 zip_path = temp_path / "test_environment.zip"
 
                 # Download the zip file with SSL context
-                logger.info("Downloading test environment zip file...")
+                logger.info("| ○ Downloading test environment zip file...")
 
                 # Create SSL context that handles certificate issues
                 ssl_context = ssl.create_default_context()
@@ -491,7 +491,7 @@ class FilesystemStateManager(BaseStateManager):
                         f.write(response.read())
 
                 # Extract the zip file, filtering out macOS metadata
-                logger.info("Extracting test environment...")
+                logger.info("| ○ Extracting test environment...")
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     # Filter out macOS metadata files
                     for file_info in zip_ref.filelist:
@@ -502,15 +502,15 @@ class FilesystemStateManager(BaseStateManager):
                         # Extract only the actual files
                         zip_ref.extract(file_info, self.test_root.parent)
 
-                logger.info(f"Successfully extracted test environment to: {self.test_root.parent}")
+                logger.info(f"| ✓ Successfully extracted test environment to: {self.test_root.parent}")
 
                 # Verify the extracted directory exists
                 if not self.test_root.exists():
-                    logger.error(f"Extracted directory not found at expected path: {self.test_root}")
+                    logger.error(f"| Extracted directory not found at expected path: {self.test_root}")
                     return False
 
                 return True
 
         except Exception as e:
-            logger.error(f"Failed to download and extract test environment: {e}")
+            logger.error(f"| Failed to download and extract test environment: {e}")
             return False

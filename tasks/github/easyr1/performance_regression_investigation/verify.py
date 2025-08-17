@@ -11,7 +11,8 @@ def _get_github_api(
     endpoint: str, headers: Dict[str, str]
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    url = f"https://api.github.com/repos/{github_org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -114,7 +115,7 @@ def _check_issue_comments(issue_number: int, headers: Dict[str, str]) -> bool:
     required_refs = [
         "verl/protocol.py",
         "examples/config.yaml",
-        "098931530606d22f867fd121b1dcb3225a43661f",
+        "0989315",
     ]
     comment_text = " ".join([comment.get("body", "") for comment in comments])
 

@@ -437,13 +437,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-issues",
         type=int,
-        default=50,
+        default=20,
         help="Export only the latest N issues (optional)",
     )
     parser.add_argument(
         "--max-pulls",
         type=int,
-        default=20,
+        default=5,
         help="Export only the latest N pull requests (optional)",
     )
     args = parser.parse_args()

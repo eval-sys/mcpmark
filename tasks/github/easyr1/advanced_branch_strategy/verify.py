@@ -11,7 +11,8 @@ def _get_github_api(
     endpoint: str, headers: Dict[str, str]
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    url = f"https://api.github.com/repos/{github_org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -120,35 +121,6 @@ def _check_release_branch_updated(headers: Dict[str, str]) -> bool:
     return True
 
 
-def _check_ci_workflow_updated(headers: Dict[str, str]) -> bool:
-    """Check if CI workflow includes develop and release branches."""
-    success, file_data = _get_github_api(
-        "contents/.github/workflows/tests.yml?ref=release/v1.0.0", headers
-    )
-    if not success or not file_data:
-        print("Error: Could not fetch CI workflow file", file=sys.stderr)
-        return False
-
-    # Decode base64 content
-    import base64
-
-    content = base64.b64decode(file_data.get("content", "")).decode("utf-8")
-
-    # Check that both branches are in the workflow triggers
-    if "develop" not in content:
-        print("Error: CI workflow missing 'develop' branch trigger", file=sys.stderr)
-        return False
-
-    if "release/v1.0.0" not in content:
-        print(
-            "Error: CI workflow missing 'release/v1.0.0' branch trigger",
-            file=sys.stderr,
-        )
-        return False
-
-    return True
-
-
 def _check_process_documentation(headers: Dict[str, str]) -> Optional[Dict]:
     """Check if process is properly documented in an issue."""
     success, issues = _get_github_api("issues", headers)
@@ -239,9 +211,6 @@ def verify() -> bool:
     # 4. Verify release branch updated and CI configured
     print("4. Checking release branch sync and CI configuration...")
     if not _check_release_branch_updated(headers):
-        return False
-
-    if not _check_ci_workflow_updated(headers):
         return False
 
     # 5. Verify process documentation

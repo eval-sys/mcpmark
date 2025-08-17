@@ -70,7 +70,7 @@ If you want to benchmark additional repositories:
 
 1. Export the desired repository state:
    ```bash
-   python -m src.mcp_services.github.repo_exporter --repo owner/name --out ./github_state/{your_repo_name}
+   python -m src.mcp_services.github.repo_exporter --source_repo_url owner/name --max-issues 20 --max-pulls 5
    ```
 2. Open `src/mcp_services/github/state_manager.py` and add a new entry to `self.initial_state_mapping` pointing to the exported folder.
 

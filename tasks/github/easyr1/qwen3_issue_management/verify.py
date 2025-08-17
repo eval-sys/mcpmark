@@ -11,7 +11,8 @@ def _get_github_api(
     endpoint: str, headers: Dict[str, str]
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    url = f"https://api.github.com/repos/{github_org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -47,8 +48,9 @@ def _search_github_issues(
 def _check_qwen3_issues_reopened(headers: Dict[str, str]) -> Tuple[bool, List]:
     """Check if all Qwen3 issues have been reopened and tagged."""
     # Search for all issues mentioning qwen3 (both open and closed)
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
     success, all_qwen3_issues = _search_github_issues(
-        "repo:mcpleague-eval-xiangyan/EasyR1 qwen3", headers
+        f"repo:{github_org}/EasyR1 qwen3", headers
     )
 
     if not success or not all_qwen3_issues:

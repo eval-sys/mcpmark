@@ -119,7 +119,11 @@ class MCPAgent:
 
     def _create_model_provider(self) -> ModelProvider:
         """Create and return a model provider for the specified model."""
-        client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
+        client = AsyncOpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            default_headers={ "App-Code": "LobeHub", 'HTTP-Referer': 'https://lobehub.com', 'X-Title': 'LobeHub' }
+        )
         agent_model_name = self.model_name  # Capture the model name from the agent
 
         class CustomModelProvider(ModelProvider):
@@ -379,7 +383,7 @@ class MCPAgent:
                                         print(line_prefix, end="", flush=True)
                                     print(chunk, end="", flush=True)
                                     at_line_start = chunk.endswith("\n")
-                                    
+
                             last_event_type = "text_output"
 
                         elif event.type == "run_item_stream_event":
@@ -392,7 +396,7 @@ class MCPAgent:
                                     if not at_line_start:
                                         print("\n", end="", flush=True)
                                         at_line_start = True
-                                    
+
                                 tool_name = getattr(
                                     getattr(event.item, "raw_item", None),
                                     "name",
@@ -408,7 +412,7 @@ class MCPAgent:
                                 logger.info(
                                     f"| \033[1m{tool_name}\033[0m \033[2;37m{display_arguments}\033[0m"
                                 )
-                                
+
                                 last_event_type = "tool_call"
 
                 # Extract token usage from raw responses
@@ -481,7 +485,7 @@ class MCPAgent:
             self._usage_stats["failed_executions"] += 1
             self._usage_stats["total_execution_time"] += execution_time
 
-            logger.error(f"Agent execution failed: {e}", exc_info=True)
+            logger.error(f"| Agent execution failed: {e}", exc_info=True)
             return {
                 "success": False,
                 "output": "",

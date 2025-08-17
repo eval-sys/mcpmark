@@ -37,6 +37,7 @@ async def verify() -> bool:
         verification_passed = True
         
         try:
+
             # 1. Check if account can login with correct credentials
             print("="*60)
             print("Step 1: Verifying account login with credentials...", file=sys.stderr)
@@ -87,6 +88,7 @@ async def verify() -> bool:
                 else:
                     print("✓ Account login successful with correct credentials", file=sys.stderr)
             
+
             # 2. Check if forum exists and has correct properties
             print("\n" + "="*60)
             print("Step 2: Checking forum existence and properties...", file=sys.stderr)
@@ -99,6 +101,7 @@ async def verify() -> bool:
             page_content = await page.content()
             page_title = await page.title()
             
+
             if "404" in page_title or "not found" in page_title.lower() or "Page not found" in page_content:
                 print("❌ ERROR: Forum /f/BudgetEuropeTravel does not exist (404)", file=sys.stderr)
                 await page.screenshot(path=str(SCREENSHOT_DIR / "forum_not_found.png"))
@@ -160,6 +163,7 @@ async def verify() -> bool:
                         print("❌ ERROR: Cannot find forum sidebar field", file=sys.stderr)
                         verification_passed = False
             
+
             # 3. Check wiki page existence and content
             print("\n" + "="*60)
             print("Step 3: Checking wiki page existence and content...", file=sys.stderr)
@@ -216,6 +220,7 @@ async def verify() -> bool:
             print("Step 4: Checking for post in forum...", file=sys.stderr)
             print("="*60)
             
+
             await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel', wait_until='networkidle')
             
             expected_post_title = "My 14-day Europe trip for under 1000 - Complete itinerary"
@@ -250,6 +255,7 @@ async def verify() -> bool:
             # Navigate to search results for "travel insurance Europe"
             await page.goto('http://34.143.228.182:9999/search?q=travel+insurance+Europe', wait_until='networkidle')
             
+
             # Check if we're on search results page
             if "/search" not in page.url:
                 print("❌ ERROR: Not on search results page", file=sys.stderr)
@@ -296,6 +302,7 @@ async def verify() -> bool:
             print("Step 6: Checking user settings...", file=sys.stderr)
             print("="*60)
             
+
             await page.goto('http://34.143.228.182:9999/user/EuroTravelPlanner/preferences', wait_until='networkidle')
             
             # Check timezone setting

@@ -1,4 +1,4 @@
-I need you to perform a deep investigation into recent configuration changes in our mcpleague-eval-xiangyan/EasyR1 repository that may be causing training instability issues.
+I need you to perform a deep investigation into recent configuration changes in our EasyR1 repository that may be causing training instability issues.
 
 ## Task Requirements
 
@@ -21,7 +21,7 @@ Search through all GitHub issues (both open and closed) to find issues that cont
 - "batch" (case insensitive)
 - "显存" (GPU memory in Chinese)
 
-You must find and list ALL issues that contain any of these keywords, regardless of whether you think they're related to the parameter changes.
+You must find and list ALL issues that contain any of these keywords in their titles or bodies, regardless of whether you think they're related to the parameter changes.
 
 ### 4. File Creation and Results
 Create a file named exactly `ANALYSIS_RESULTS.json` in the repository root with this exact structure:

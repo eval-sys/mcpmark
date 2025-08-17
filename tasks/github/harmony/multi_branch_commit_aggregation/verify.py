@@ -7,10 +7,10 @@ import json
 
 
 def _get_github_api(
-    endpoint: str, headers: Dict[str, str]
+    endpoint: str, headers: Dict[str, str], org: str
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval/harmony/{endpoint}"
+    url = f"https://api.github.com/repos/{org}/harmony/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -25,17 +25,17 @@ def _get_github_api(
         return False, None
 
 
-def _check_branch_exists(branch_name: str, headers: Dict[str, str]) -> bool:
+def _check_branch_exists(branch_name: str, headers: Dict[str, str], org: str) -> bool:
     """Verify that a branch exists in the repository."""
-    success, _ = _get_github_api(f"branches/{branch_name}", headers)
+    success, _ = _get_github_api(f"branches/{branch_name}", headers, org)
     return success
 
 
 def _get_file_content(
-    branch: str, file_path: str, headers: Dict[str, str]
+    branch: str, file_path: str, headers: Dict[str, str], org: str
 ) -> Optional[str]:
     """Get the content of a file from a specific branch."""
-    success, result = _get_github_api(f"contents/{file_path}?ref={branch}", headers)
+    success, result = _get_github_api(f"contents/{file_path}?ref={branch}", headers, org)
     if not success or not result:
         return None
 
@@ -234,10 +234,10 @@ def _check_merge_timeline(content: str) -> bool:
     return True
 
 
-def _find_pr_by_title(title: str, headers: Dict[str, str]) -> Optional[Dict]:
+def _find_pr_by_title(title: str, headers: Dict[str, str], org: str) -> Optional[Dict]:
     """Find a PR by exact title."""
     for state in ["open", "closed"]:
-        success, prs = _get_github_api(f"pulls?state={state}&per_page=100", headers)
+        success, prs = _get_github_api(f"pulls?state={state}&per_page=100", headers, org)
         if success and prs:
             for pr in prs:
                 if pr.get("title", "") == title:
@@ -272,19 +272,25 @@ def verify_task() -> bool:
         print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
 
+    # Get GitHub organization from environment
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    if not github_org:
+        print("Error: GITHUB_EVAL_ORG environment variable not set", file=sys.stderr)
+        return False
+
     headers = {
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github.v3+json",
     }
 
     # 1. Check if branch 'history-report-2025' exists
-    if not _check_branch_exists("history-report-2025", headers):
+    if not _check_branch_exists("history-report-2025", headers, github_org):
         print("Branch 'history-report-2025' does not exist", file=sys.stderr)
         return False
     print("✓ Branch 'history-report-2025' exists")
 
     # 2. Check BRANCH_COMMITS.json
-    content = _get_file_content("history-report-2025", "BRANCH_COMMITS.json", headers)
+    content = _get_file_content("history-report-2025", "BRANCH_COMMITS.json", headers, github_org)
     if not content:
         print(
             "File 'BRANCH_COMMITS.json' not found in 'history-report-2025' branch",
@@ -298,7 +304,7 @@ def verify_task() -> bool:
 
     # 3. Check CROSS_BRANCH_ANALYSIS.md
     content = _get_file_content(
-        "history-report-2025", "CROSS_BRANCH_ANALYSIS.md", headers
+        "history-report-2025", "CROSS_BRANCH_ANALYSIS.md", headers, github_org
     )
     if not content:
         print(
@@ -312,7 +318,7 @@ def verify_task() -> bool:
     print("✓ CROSS_BRANCH_ANALYSIS.md contains required sections and data")
 
     # 4. Check MERGE_TIMELINE.txt
-    content = _get_file_content("history-report-2025", "MERGE_TIMELINE.txt", headers)
+    content = _get_file_content("history-report-2025", "MERGE_TIMELINE.txt", headers, github_org)
     if not content:
         print(
             "File 'MERGE_TIMELINE.txt' not found in 'history-report-2025' branch",
@@ -325,7 +331,7 @@ def verify_task() -> bool:
     print("✓ MERGE_TIMELINE.txt has correct format and data")
 
     # 5. Check pull request
-    pr = _find_pr_by_title("Cross-Branch Commit Analysis Report", headers)
+    pr = _find_pr_by_title("Cross-Branch Commit Analysis Report", headers, github_org)
     if not pr:
         print(
             "Pull request with title 'Cross-Branch Commit Analysis Report' not found",
