@@ -14,33 +14,39 @@ SCREENSHOT_DIR.mkdir(exist_ok=True)
 
 def parse_key_value_format(text):
     """
-    Parse the Key: Value format from the submission body using regex.
-    Works regardless of line breaks.
+    Parse the Key|Value format from the submission body.
+    Handles both pipe (|) and colon (:) separators for compatibility.
     """
     data = {}
-
-    # Define patterns for each field
-    patterns = {
-        "Total_LLM_Posts": r"Total_LLM_Posts:\s*(\d+)",
-        "Top1_Title": r"Top1_Title:\s*(.+?)\s*Top1_Upvotes:",
-        "Top1_Upvotes": r"Top1_Upvotes:\s*(\d+)",
-        "Top1_Date": r"Top1_Date:\s*(.+?)\s*Top2_Title:",
-        "Top2_Title": r"Top2_Title:\s*(.+?)\s*Top2_Upvotes:",
-        "Top2_Upvotes": r"Top2_Upvotes:\s*(\d+)",
-        "Top2_Date": r"Top2_Date:\s*(.+?)\s*Top3_Title:",
-        "Top3_Title": r"Top3_Title:\s*(.+?)\s*Top3_Upvotes:",
-        "Top3_Upvotes": r"Top3_Upvotes:\s*(\d+)",
-        "Top3_Date": r"Top3_Date:\s*(.+?)\s*Deeplearning_MostDiscussed:",
-        "Deeplearning_MostDiscussed": r"Deeplearning_MostDiscussed:\s*(.+?)\s*Deeplearning_Comments:",
-        "Deeplearning_Comments": r"Deeplearning_Comments:\s*(\d+)",
-    }
-
-    # Extract each field using regex
-    for key, pattern in patterns.items():
-        match = re.search(pattern, text, re.DOTALL)
-        if match:
-            data[key] = match.group(1).strip()
-
+    
+    # Try to parse with pipe separator first (expected format)
+    lines = text.strip().split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        # Remove markdown list prefix if present
+        if line.startswith('- '):
+            line = line[2:]
+        elif line.startswith('* '):
+            line = line[2:]
+        
+        # Try pipe separator first
+        if '|' in line:
+            parts = line.split('|', 1)
+            if len(parts) == 2:
+                key = parts[0].strip()
+                value = parts[1].strip()
+                data[key] = value
+        # Fallback to colon separator for label.txt compatibility
+        elif ':' in line:
+            parts = line.split(':', 1)
+            if len(parts) == 2:
+                key = parts[0].strip()
+                value = parts[1].strip()
+                data[key] = value
+    
     return data
 
 
@@ -73,7 +79,7 @@ async def verify() -> bool:
         try:
             # Navigate to the main page
             print("Navigating to forum...", file=sys.stderr)
-            await page.goto("http://35.247.158.69:9999/", wait_until="networkidle")
+            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
 
             # Check if logged in as llm_analyst_2024
             user_button = page.locator('button:has-text("llm_analyst_2024")')
@@ -103,7 +109,7 @@ async def verify() -> bool:
             # Navigate to MachineLearning forum
             print("Navigating to MachineLearning forum...", file=sys.stderr)
             await page.goto(
-                "http://35.247.158.69:9999/f/MachineLearning", wait_until="networkidle"
+                "http://34.143.228.182:9999/f/MachineLearning", wait_until="networkidle"
             )
 
             # Look for the submission with our specific title

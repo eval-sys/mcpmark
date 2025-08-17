@@ -18,17 +18,9 @@ async def verify() -> bool:
         page = await context.new_page()
 
         try:
-            # Navigate to the main page
-            await page.goto("http://35.247.158.69:9999/", wait_until="networkidle")
-
-            # Take a screenshot to verify the page is accessible
-            screenshot_dir = Path(__file__).parent
-            screenshot_path = (
-                screenshot_dir
-                / f"verify_homepage_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-            )
-            await page.screenshot(path=str(screenshot_path), full_page=True)
-            print(f"Screenshot saved to: {screenshot_path}", file=sys.stderr)
+            # Step 1: Check if account can be logged in
+            print("Step 1: Verifying account login...", file=sys.stderr)
+            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
 
             # Check if already logged in
             user_button = page.locator('button:has-text("RoutineTracker2025")')
@@ -51,169 +43,102 @@ async def verify() -> bool:
                 # Check if login successful
                 user_button = page.locator('button:has-text("RoutineTracker2025")')
                 if not await user_button.count():
-                    print("Error: Login failed for RoutineTracker2025", file=sys.stderr)
+                    print("Error: Account login failed for RoutineTracker2025", file=sys.stderr)
                     return False
 
-                print("Successfully logged in as RoutineTracker2025", file=sys.stderr)
+                print("✓ Account login successful", file=sys.stderr)
+            else:
+                print("✓ Already logged in as RoutineTracker2025", file=sys.stderr)
 
-                # Take a screenshot after successful login
-                screenshot_path = (
-                    screenshot_dir
-                    / f"verify_after_login_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                )
-                await page.screenshot(path=str(screenshot_path), full_page=True)
-                print(
-                    f"Screenshot after login saved to: {screenshot_path}",
-                    file=sys.stderr,
-                )
-
-            # Navigate to user submissions page to check for the post
+            # Step 2: Check if the post exists in LifeProTips forum with correct content
+            print("Step 2: Verifying post in LifeProTips forum...", file=sys.stderr)
             await page.goto(
-                "http://35.247.158.69:9999/user/RoutineTracker2025/submissions",
-                wait_until="networkidle",
-            )
-
-            # Check if the post with the exact title exists
-            expected_title = (
-                "My 5-Step Morning Routine That Increased My Productivity by 200%"
-            )
-            post_title_link = page.locator(f'h1 a:has-text("{expected_title}")')
-            if not await post_title_link.count():
-                print(
-                    f"Error: Post with title '{expected_title}' not found in user submissions",
-                    file=sys.stderr,
-                )
-                return False
-
-            print("User submission verified successfully", file=sys.stderr)
-
-            # Navigate to LifeProTips forum
-            await page.goto(
-                "http://35.247.158.69:9999/f/LifeProTips", wait_until="networkidle"
+                "http://34.143.228.182:9999/f/LifeProTips", wait_until="networkidle"
             )
 
             # Check for the created post
-            post_title = (
-                "My 5-Step Morning Routine That Increased My Productivity by 200%"
-            )
-            post_link = page.locator(f'a:has-text("{post_title}")')
+            expected_title = "My 5-Step Morning Routine That Increased My Productivity by 200%"
+            post_link = page.locator(f'a:has-text("{expected_title}")')
+            
             if not await post_link.count():
-                print(
-                    f"Error: Post with title '{post_title}' not found", file=sys.stderr
-                )
+                print(f"Error: Post with title '{expected_title}' not found in LifeProTips forum", file=sys.stderr)
                 return False
 
             # Click on the post to verify content
             await post_link.click()
             await page.wait_for_load_state("networkidle")
 
-            # Verify post content
-            expected_content = """After years of struggling with mornings, I discovered these 5 steps:"""
+            # Verify post content - this should be the content from the most upvoted comment of the calendar post
+            expected_content = "As a college student, having a visible reminder of the assignments I have and when they are due is super helpful for me. It also just feels good to erase them from the board once they are completed."
 
             # Check if the content exists in the page
             content_found = False
-            paragraphs = await page.locator("article p").all()
-            for p in paragraphs:
-                text = await p.text_content()
-                if text and expected_content in text:
-                    content_found = True
-                    break
+            article_content = await page.locator("article").text_content()
+            if article_content and expected_content in article_content:
+                content_found = True
 
             if not content_found:
-                print(
-                    "Error: Post content does not match expected content",
-                    file=sys.stderr,
-                )
+                print(f"Error: Post content does not match expected content", file=sys.stderr)
+                print(f"Expected: {expected_content}", file=sys.stderr)
                 return False
 
-            # Navigate back to LifeProTips to check upvoted posts
-            await page.goto(
-                "http://35.247.158.69:9999/f/LifeProTips", wait_until="networkidle"
-            )
+            print("✓ Post found in LifeProTips with correct title and content", file=sys.stderr)
 
-            # Define expected upvote counts after upvoting
-            # Note: In the test environment, all upvoted posts show "1"
-            expected_upvotes = {
-                "calendar": {
-                    "title": "Use your calendar as your to-do list",
-                    "expected_count": "1",  # After upvoting, shows 1
-                    "comments": "179 comments",
-                },
-                "stovetop": {
-                    "title": "clean your stovetop after using the oven",
-                    "expected_count": "1",  # After upvoting, shows 1
-                },
-            }
-
-            # Check all posts for upvotes
+            # Step 3: Check upvotes via search
+            print("Step 3: Verifying upvotes on posts...", file=sys.stderr)
+            
+            # Check first post upvote
+            search_url1 = "http://34.143.228.182:9999/search?q=LPT%3A+Use+your+calendar+as+your+to-do+list.+Assigning+dedicated+time+to+tasks+increases+the+likelyhood+of+you+acting+upon+it."
+            await page.goto(search_url1, wait_until="networkidle")
+            
+            # Find the post and check its upvote count
             posts = await page.locator("article").all()
-            verification_results = {}
-
-            for post_key, post_info in expected_upvotes.items():
-                found = False
-                for post in posts:
-                    title_elem = post.locator("h1 a")
-                    if await title_elem.count():
-                        title = await title_elem.text_content()
-                        if post_info["title"] in title:
-                            # For calendar post, also verify comments
-                            if post_key == "calendar":
-                                comments = post.locator(
-                                    f'text="{post_info["comments"]}"'
-                                )
-                                if not await comments.count():
-                                    continue
-
-                            # Get upvote count - look for the vote count element
-                            # Try multiple selectors for vote count
-                            vote_count = None
-
-                            # Try 1: Look for span with class vote__net-score
-                            vote_count_elem = post.locator("span.vote__net-score")
-                            if await vote_count_elem.count():
-                                vote_count = await vote_count_elem.text_content()
-                            else:
-                                # Try 2: Look for generic element in the vote area
-                                vote_generic = post.locator(
-                                    ".submission__vote generic"
-                                ).nth(1)
-                                if await vote_generic.count():
-                                    vote_count = await vote_generic.text_content()
-
-                            if vote_count:
-                                vote_count = vote_count.strip()
-
-                                if vote_count == post_info["expected_count"]:
-                                    verification_results[post_key] = True
-                                    print(
-                                        f"✓ {post_key} post upvoted successfully (count: {vote_count})"
-                                    )
-                                else:
-                                    print(
-                                        f"Error: {post_key} post has {vote_count} upvotes, expected exactly {post_info['expected_count']}",
-                                        file=sys.stderr,
-                                    )
-                                    return False
-                            else:
-                                print(
-                                    f"Error: Could not find vote count for {post_key} post",
-                                    file=sys.stderr,
-                                )
-                                return False
-
-                            found = True
-                            break
-
-                if not found:
-                    print(f"Error: {post_key} post not found", file=sys.stderr)
-                    return False
-
-            # Verify all posts were upvoted
-            if len(verification_results) != 2 or not all(verification_results.values()):
-                print("Error: Not all posts were upvoted correctly", file=sys.stderr)
+            calendar_upvoted = False
+            
+            for post in posts:
+                title_elem = post.locator("h1 a")
+                if await title_elem.count():
+                    title = await title_elem.text_content()
+                    if "Use your calendar as your to-do list" in title:
+                        # Check upvote count
+                        vote_count_elem = post.locator("span.vote__net-score")
+                        if await vote_count_elem.count():
+                            vote_count = await vote_count_elem.text_content()
+                            if vote_count and vote_count.strip() == "1":
+                                calendar_upvoted = True
+                                print("✓ Calendar post upvoted (count: 1)", file=sys.stderr)
+                                break
+            
+            if not calendar_upvoted:
+                print("Error: Calendar post not upvoted or upvote count is not 1", file=sys.stderr)
                 return False
 
-            print("Success: Daily routine tracking setup completed successfully.")
+            # Check second post upvote
+            search_url2 = "http://34.143.228.182:9999/search?q=LPT%3A+clean+your+stovetop+after+using+the+oven.+The+heat+loosens+grime+for+easy+removal"
+            await page.goto(search_url2, wait_until="networkidle")
+            
+            posts = await page.locator("article").all()
+            stovetop_upvoted = False
+            
+            for post in posts:
+                title_elem = post.locator("h1 a")
+                if await title_elem.count():
+                    title = await title_elem.text_content()
+                    if "clean your stovetop after using the oven" in title:
+                        # Check upvote count
+                        vote_count_elem = post.locator("span.vote__net-score")
+                        if await vote_count_elem.count():
+                            vote_count = await vote_count_elem.text_content()
+                            if vote_count and vote_count.strip() == "1":
+                                stovetop_upvoted = True
+                                print("✓ Stovetop post upvoted (count: 1)", file=sys.stderr)
+                                break
+            
+            if not stovetop_upvoted:
+                print("Error: Stovetop post not upvoted or upvote count is not 1", file=sys.stderr)
+                return False
+
+            print("Success: All verification steps passed!")
             return True
 
         except PlaywrightTimeoutError as e:

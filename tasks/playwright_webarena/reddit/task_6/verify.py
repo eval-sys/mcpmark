@@ -14,26 +14,26 @@ SCREENSHOT_DIR.mkdir(exist_ok=True)
 
 def parse_key_value_format(text):
     """
-    Parse the Key: Value format from the submission body using regex.
+    Parse the Key|Value format from the submission body using regex.
     Works regardless of line breaks.
     """
     data = {}
 
-    # Define patterns for each field
+    # Define patterns for each field with the pipe separator
     patterns = {
-        "Total_Year_Posts": r"Total_Year_Posts:\s*(\d+)",
-        "Top1_Title": r"Top1_Title:\s*(.+?)(?=\s*Top1_Upvotes:)",
-        "Top1_Upvotes": r"Top1_Upvotes:\s*(\d+)",
-        "Top1_Comments": r"Top1_Comments:\s*(\d+)",
-        "Top2_Title": r"Top2_Title:\s*(.+?)(?=\s*Top2_Upvotes:)",
-        "Top2_Upvotes": r"Top2_Upvotes:\s*(\d+)",
-        "Top2_Comments": r"Top2_Comments:\s*(\d+)",
-        "Top3_Title": r"Top3_Title:\s*(.+?)(?=\s*Top3_Upvotes:)",
-        "Top3_Upvotes": r"Top3_Upvotes:\s*(\d+)",
-        "Top3_Comments": r"Top3_Comments:\s*(\d+)",
-        "Rittenhouse_Upvotes": r"Rittenhouse_Upvotes:\s*(\d+)",
-        "Rittenhouse_Comments": r"Rittenhouse_Comments:\s*(\d+)",
-        "Total_Image_Posts_5Pages": r"Total_Image_Posts_5Pages:\s*(\d+)",
+        "Total_Year_Posts": r"Total_Year_Posts\s*\|\s*(\d+)",
+        "Top1_Title": r"Top1_Title\s*\|\s*(.+?)(?=\nTop1_Upvotes|$)",
+        "Top1_Upvotes": r"Top1_Upvotes\s*\|\s*(\d+)",
+        "Top1_Comments": r"Top1_Comments\s*\|\s*(\d+)",
+        "Top2_Title": r"Top2_Title\s*\|\s*(.+?)(?=\nTop2_Upvotes|$)",
+        "Top2_Upvotes": r"Top2_Upvotes\s*\|\s*(\d+)",
+        "Top2_Comments": r"Top2_Comments\s*\|\s*(\d+)",
+        "Top3_Title": r"Top3_Title\s*\|\s*(.+?)(?=\nTop3_Upvotes|$)",
+        "Top3_Upvotes": r"Top3_Upvotes\s*\|\s*(\d+)",
+        "Top3_Comments": r"Top3_Comments\s*\|\s*(\d+)",
+        "Rittenhouse_Upvotes": r"Rittenhouse_Upvotes\s*\|\s*(\d+)",
+        "Rittenhouse_Comments": r"Rittenhouse_Comments\s*\|\s*(\d+)",
+        "Total_Image_Posts_5Pages": r"Total_Image_Posts_5Pages\s*\|\s*(\d+)",
     }
 
     # Extract each field using regex
@@ -80,7 +80,7 @@ async def verify() -> bool:
         try:
             # Navigate to the main page
             print("Navigating to forum...", file=sys.stderr)
-            await page.goto("http://35.247.158.69:9999/", wait_until="networkidle")
+            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
 
             # Check if logged in as movie_reviewer_2024
             user_button = page.locator('button:has-text("movie_reviewer_2024")')
@@ -92,7 +92,7 @@ async def verify() -> bool:
                 await page.wait_for_load_state("networkidle")
 
                 await page.fill('input[name="_username"]', "movie_reviewer_2024")
-                await page.fill('input[name="_password"]', "WonderfulMovies2024!")
+                await page.fill('input[name="_password"]', "movie_reviewer_2024")
 
                 await page.click('button:has-text("Log in")')
                 await page.wait_for_load_state("networkidle")
@@ -112,7 +112,7 @@ async def verify() -> bool:
             # Navigate to movies forum
             print("Navigating to movies forum...", file=sys.stderr)
             await page.goto(
-                "http://35.247.158.69:9999/f/movies", wait_until="networkidle"
+                "http://34.143.228.182:9999/f/movies", wait_until="networkidle"
             )
 
             # Look for the submission with our specific title
@@ -312,7 +312,7 @@ async def verify() -> bool:
             print(
                 f"- Total image posts across 5 pages: {extracted_data['Total_Image_Posts_5Pages']}"
             )
-            print("- All data in correct Key: Value format")
+            print("- All data in correct Key|Value format")
             return True
 
         except PlaywrightTimeoutError as e:

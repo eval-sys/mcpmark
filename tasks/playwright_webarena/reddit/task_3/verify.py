@@ -14,25 +14,26 @@ SCREENSHOT_DIR.mkdir(exist_ok=True)
 
 def parse_key_value_format(text):
     """
-    Parse the Key: Value format from the submission body using regex.
-    Works regardless of line breaks.
+    Parse the Key|Value format from the submission body using regex.
+    Works with markdown format using pipe separators, with or without list markers.
     """
     data = {}
 
-    # Define patterns for each field
+    # Define patterns for each field using pipe separator
+    # Optional list markers (-, •, *) at the beginning
     patterns = {
-        "Deeplearning_Post_Count": r"Deeplearning_Post_Count:\s*(\d+)",
-        "ChatGPT_Tool_Vote_Count": r"ChatGPT_Tool_Vote_Count:\s*(\d+)",
-        "Transformer_Third_Result": r"Transformer_Third_Result:\s*(.+?)(?=\s*Page2_Top_Post_Title:)",
-        "Page2_Top_Post_Title": r"Page2_Top_Post_Title:\s*(.+?)(?=\s*Page2_Top_Post_Votes:)",
-        "Page2_Top_Post_Votes": r"Page2_Top_Post_Votes:\s*(\d+)",
-        "Page2_Last_Comment_Username": r"Page2_Last_Comment_Username:\s*(.+?)(?=\s*Page2_Last_Comment_Text:)",
-        "Page2_Last_Comment_Text": r"Page2_Last_Comment_Text:\s*(.+?)(?=\s*$)",
+        "Deeplearning_Post_Count": r"(?:[-•*]\s*)?Deeplearning_Post_Count\s*\|\s*(\d+)",
+        "ChatGPT_Tool_Vote_Count": r"(?:[-•*]\s*)?ChatGPT_Tool_Vote_Count\s*\|\s*(\d+)",
+        "Transformer_Third_Result": r"(?:[-•*]\s*)?Transformer_Third_Result\s*\|\s*(.+?)(?=\n|$)",
+        "Page2_Top_Post_Title": r"(?:[-•*]\s*)?Page2_Top_Post_Title\s*\|\s*(.+?)(?=\n|$)",
+        "Page2_Top_Post_Votes": r"(?:[-•*]\s*)?Page2_Top_Post_Votes\s*\|\s*(\d+)",
+        "Page2_Last_Comment_Username": r"(?:[-•*]\s*)?Page2_Last_Comment_Username\s*\|\s*(.+?)(?=\n|$)",
+        "Page2_Last_Comment_Text": r"(?:[-•*]\s*)?Page2_Last_Comment_Text\s*\|\s*(.+?)(?=\n|$)",
     }
 
     # Extract each field using regex
     for key, pattern in patterns.items():
-        match = re.search(pattern, text, re.DOTALL | re.MULTILINE)
+        match = re.search(pattern, text, re.MULTILINE)
         if match:
             # For text fields, clean up newlines and extra spaces
             value = match.group(1).strip()
@@ -77,13 +78,14 @@ async def verify() -> bool:
         try:
             # Navigate to the main page
             print("Navigating to forum...", file=sys.stderr)
-            await page.goto("http://35.247.158.69:9999/", wait_until="networkidle")
+            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
 
-            # Check if already logged in
+            # Step 1: Check if account was created correctly by trying to login
+            print("Step 1: Verifying account creation...", file=sys.stderr)
             user_button = page.locator('button:has-text("AIDataAnalyst2025")')
             if not await user_button.count():
                 # Try to login
-                print("Not logged in, attempting to login...", file=sys.stderr)
+                print("Attempting to login with AIDataAnalyst2025...", file=sys.stderr)
 
                 # Click login link
                 await page.click('a:has-text("Log in")')
@@ -100,37 +102,44 @@ async def verify() -> bool:
                 # Check if login successful
                 user_button = page.locator('button:has-text("AIDataAnalyst2025")')
                 if not await user_button.count():
-                    print("Error: Login failed for AIDataAnalyst2025", file=sys.stderr)
+                    print("FAILED: Account AIDataAnalyst2025 with password SecurePass123! cannot be logged in", file=sys.stderr)
+                    print("This means the account was not created correctly", file=sys.stderr)
                     await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
                     return False
 
-                print("Successfully logged in as AIDataAnalyst2025", file=sys.stderr)
+                print("PASSED: Successfully logged in as AIDataAnalyst2025", file=sys.stderr)
             else:
-                print("Already logged in as AIDataAnalyst2025", file=sys.stderr)
+                print("PASSED: Already logged in as AIDataAnalyst2025", file=sys.stderr)
 
-            # Navigate to MachineLearning forum
+            # Step 2: Check if submission was created correctly in MachineLearning forum
+            print("\nStep 2: Verifying submission creation...", file=sys.stderr)
             print("Navigating to MachineLearning forum...", file=sys.stderr)
             await page.goto(
-                "http://35.247.158.69:9999/f/machinelearning", wait_until="networkidle"
+                "http://34.143.228.182:9999/f/MachineLearning", wait_until="networkidle"
             )
 
             # Look for the post with title "MachineLearning_Extraction"
             print(
-                "Looking for submission 'MachineLearning_Extraction'...",
+                "Looking for submission with title 'MachineLearning_Extraction'...",
                 file=sys.stderr,
             )
             post_link = page.locator('a:has-text("MachineLearning_Extraction")')
 
             if not await post_link.count():
                 print(
-                    "Error: Could not find submission with required title",
+                    "FAILED: Could not find submission with title 'MachineLearning_Extraction' in MachineLearning forum",
                     file=sys.stderr,
                 )
                 await page.screenshot(
                     path=str(SCREENSHOT_DIR / "submission_not_found.png")
                 )
                 return False
+            
+            print("PASSED: Found submission 'MachineLearning_Extraction' in MachineLearning forum", file=sys.stderr)
 
+            # Step 3: Check submission content matches expected values
+            print("\nStep 3: Verifying submission content...", file=sys.stderr)
+            
             # Click on the submission to view its content
             await post_link.first.click()
             await page.wait_for_load_state("networkidle")
@@ -167,7 +176,11 @@ async def verify() -> bool:
 
             if not post_content or "Deeplearning_Post_Count" not in post_content:
                 print(
-                    "Error: Could not find submission body with required format",
+                    "FAILED: Could not find submission body with required format",
+                    file=sys.stderr,
+                )
+                print(
+                    "Expected body to contain 'Deeplearning_Post_Count' in pipe-separated format",
                     file=sys.stderr,
                 )
                 await page.screenshot(
@@ -175,8 +188,8 @@ async def verify() -> bool:
                 )
                 return False
 
-            print("Submission content found, parsing data...", file=sys.stderr)
-            print(f"Raw content: {post_content[:200]}...", file=sys.stderr)
+            print("Found submission body content", file=sys.stderr)
+            print(f"Raw content preview: {post_content[:200]}...", file=sys.stderr)
 
             # Parse the Key: Value format
             extracted_data = parse_key_value_format(post_content)
@@ -208,7 +221,11 @@ async def verify() -> bool:
 
             if missing_keys:
                 print(
-                    f"Error: Missing required keys: {', '.join(missing_keys)}",
+                    f"FAILED: Missing required keys in submission: {', '.join(missing_keys)}",
+                    file=sys.stderr,
+                )
+                print(
+                    "Expected all 7 fields to be present in pipe-separated format",
                     file=sys.stderr,
                 )
                 return False
@@ -277,11 +294,16 @@ async def verify() -> bool:
 
             if errors:
                 print(
-                    "Error: Validation failed with the following issues:",
+                    "FAILED: Content validation failed with the following issues:",
                     file=sys.stderr,
                 )
                 for error in errors:
                     print(f"  - {error}", file=sys.stderr)
+                print("\nExpected values from label.txt:", file=sys.stderr)
+                if "expected_data" in locals():
+                    for key in required_keys:
+                        if key in expected_data:
+                            print(f"  {key}: {expected_data[key]}", file=sys.stderr)
                 return False
 
             # Take final success screenshot
@@ -292,25 +314,18 @@ async def verify() -> bool:
             )
 
             # All checks passed
-            print("Success: ML extraction task completed successfully.")
-            print("- Account AIDataAnalyst2025 verified")
-            print("- Submission 'MachineLearning_Extraction' found")
-            print(
-                f"- Deeplearning forum post count: {extracted_data['Deeplearning_Post_Count']}"
-            )
-            print(
-                f"- ChatGPT tool post vote count: {extracted_data['ChatGPT_Tool_Vote_Count']}"
-            )
-            print(
-                f"- Third transformer search result: {extracted_data['Transformer_Third_Result']}"
-            )
-            print(
-                f"- Page 2 highest upvoted post captured with {extracted_data['Page2_Top_Post_Votes']} votes"
-            )
-            print(
-                f"- Last comment by {extracted_data['Page2_Last_Comment_Username']}: {extracted_data['Page2_Last_Comment_Text']}"
-            )
-            print("- All data in correct Key: Value format with 7 lines")
+            print("\n=== VERIFICATION SUCCESSFUL ===")
+            print("✓ Step 1: Account AIDataAnalyst2025 can login with password SecurePass123!")
+            print("✓ Step 2: Submission 'MachineLearning_Extraction' found in MachineLearning forum")
+            print("✓ Step 3: All submission content matches expected values:")
+            print(f"  - Deeplearning_Post_Count: {extracted_data['Deeplearning_Post_Count']}")
+            print(f"  - ChatGPT_Tool_Vote_Count: {extracted_data['ChatGPT_Tool_Vote_Count']}")
+            print(f"  - Transformer_Third_Result: {extracted_data['Transformer_Third_Result']}")
+            print(f"  - Page2_Top_Post_Title: {extracted_data['Page2_Top_Post_Title']}")
+            print(f"  - Page2_Top_Post_Votes: {extracted_data['Page2_Top_Post_Votes']}")
+            print(f"  - Page2_Last_Comment_Username: {extracted_data['Page2_Last_Comment_Username']}")
+            print(f"  - Page2_Last_Comment_Text: {extracted_data['Page2_Last_Comment_Text']}")
+            print("✓ All data in correct pipe-separated markdown format")
             return True
 
         except PlaywrightTimeoutError as e:

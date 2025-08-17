@@ -17,7 +17,7 @@ Create a comprehensive budget travel resource for European travel on the Postmil
    - Title: "Complete Budget Travel Guide for Europe 2024"
    - Content must contain: "Eurail passes and budget airlines"
 
-5. Navigate to your newly created forum (/f/BudgetEuropeTravel) and create your first post:
+5. Navigate to your newly created forum and create your first post:
    - Title: "My 14-day Europe trip for under 1000 - Complete itinerary"
    - Body must contain: "budget guide wiki"
 

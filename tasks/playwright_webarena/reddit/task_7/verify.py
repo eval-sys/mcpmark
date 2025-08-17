@@ -34,27 +34,39 @@ async def verify() -> bool:
         context = await browser.new_context()
         page = await context.new_page()
         
+        verification_passed = True
+        
         try:
-            # 1. Check if account can login
-            print("Step 1: Verifying account login...", file=sys.stderr)
+            # 1. Check if account can login with correct credentials
+            print("="*60)
+            print("Step 1: Verifying account login with credentials...", file=sys.stderr)
+            print("="*60)
             await page.goto('http://34.143.228.182:9999/', wait_until='networkidle')
             
-            # Check if already logged in
+            # First logout if already logged in
             user_button = page.locator('button:has-text("EuroTravelPlanner")')
-            if not await user_button.count():
-                # Try to login
-                print("Not logged in, attempting to login...", file=sys.stderr)
-                
-                # Navigate to login page
-                login_link = page.locator('a:has-text("Log in")')
-                if await login_link.count():
-                    await login_link.click()
+            if await user_button.count():
+                print("Already logged in, logging out first...", file=sys.stderr)
+                await user_button.click()
+                logout_link = page.locator('a:has-text("Log out")')
+                if await logout_link.count():
+                    await logout_link.click()
                     await page.wait_for_load_state('networkidle')
-                else:
-                    print("Error: Cannot find login link", file=sys.stderr)
-                    return False
+            
+            # Now try to login with the specified credentials
+            print("Attempting to login with username 'EuroTravelPlanner' and password 'SecureTravel2024!'...", file=sys.stderr)
+            
+            # Navigate to login page
+            login_link = page.locator('a:has-text("Log in")')
+            if await login_link.count():
+                await login_link.click()
+                await page.wait_for_load_state('networkidle')
+            else:
+                print("❌ ERROR: Cannot find login link", file=sys.stderr)
+                verification_passed = False
                 
-                # Fill login form
+            if verification_passed:
+                # Fill login form with exact credentials
                 await page.fill('input[name="_username"]', 'EuroTravelPlanner')
                 await page.fill('input[name="_password"]', 'SecureTravel2024!')
                 
@@ -69,233 +81,298 @@ async def verify() -> bool:
                 # Verify login success
                 user_button = page.locator('button:has-text("EuroTravelPlanner")')
                 if not await user_button.count():
-                    print("Error: Login failed for EuroTravelPlanner", file=sys.stderr)
+                    print("❌ ERROR: Login failed with username 'EuroTravelPlanner' and password 'SecureTravel2024!'", file=sys.stderr)
                     await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
-                    return False
-                
-                print("✓ Successfully logged in as EuroTravelPlanner", file=sys.stderr)
-            else:
-                print("✓ Already logged in as EuroTravelPlanner", file=sys.stderr)
+                    verification_passed = False
+                else:
+                    print("✓ Account login successful with correct credentials", file=sys.stderr)
             
-            # 2. Check if forum exists at /f/BudgetEuropeTravel
-            print("\nStep 2: Checking forum existence...", file=sys.stderr)
+            # 2. Check if forum exists and has correct properties
+            print("\n" + "="*60)
+            print("Step 2: Checking forum existence and properties...", file=sys.stderr)
+            print("="*60)
+            
+            # Check if forum exists at /f/BudgetEuropeTravel
             await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel', wait_until='networkidle')
             
             # Check if we get 404 or the forum exists
+            page_content = await page.content()
             page_title = await page.title()
-            if "404" in page_title or "not found" in page_title.lower() or "Page not found" in await page.content():
-                print("Error: Forum /f/BudgetEuropeTravel does not exist (404)", file=sys.stderr)
+            
+            if "404" in page_title or "not found" in page_title.lower() or "Page not found" in page_content:
+                print("❌ ERROR: Forum /f/BudgetEuropeTravel does not exist (404)", file=sys.stderr)
                 await page.screenshot(path=str(SCREENSHOT_DIR / "forum_not_found.png"))
-                return False
-            
-            print("✓ Forum /f/BudgetEuropeTravel exists", file=sys.stderr)
-            
-            # 3. Verify forum details at edit page
-            print("\nStep 3: Verifying forum details at edit page...", file=sys.stderr)
-            await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel/edit', wait_until='networkidle')
-            
-            # Check if we can access edit page (should be moderator)
-            if "404" in await page.title() or "not found" in (await page.title()).lower():
-                print("Warning: Cannot access forum edit page", file=sys.stderr)
+                verification_passed = False
             else:
-                # Check title field
-                title_input = page.locator('input[name*="title"], input#forum_title')
-                if await title_input.count():
-                    title_value = await title_input.input_value()
-                    if title_value != "Budget Travel Europe":
-                        print(f"Error: Forum title is '{title_value}', expected 'Budget Travel Europe'", file=sys.stderr)
-                        return False
-                    print("✓ Forum title verified: 'Budget Travel Europe'", file=sys.stderr)
+                print("✓ Forum /f/BudgetEuropeTravel exists", file=sys.stderr)
                 
-                # Check description field
-                desc_input = page.locator('textarea[name*="description"], input[name*="description"]')
-                if await desc_input.count():
-                    desc_value = await desc_input.input_value()
-                    if "Community for sharing money-saving tips for European travel" not in desc_value:
-                        print(f"Warning: Forum description different: '{desc_value}'", file=sys.stderr)
-                    else:
-                        print("✓ Forum description verified", file=sys.stderr)
+                # Navigate to edit page to check properties
+                await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel/edit', wait_until='networkidle')
                 
-                # Check sidebar field
-                sidebar_input = page.locator('textarea[name*="sidebar"]')
-                if await sidebar_input.count():
-                    sidebar_value = await sidebar_input.input_value()
-                    if "Share your best European travel deals and budget tips here!" not in sidebar_value:
-                        print(f"Warning: Forum sidebar different: '{sidebar_value}'", file=sys.stderr)
+                # Check if we can access edit page
+                edit_page_content = await page.content()
+                edit_page_title = await page.title()
+                
+                if "404" in edit_page_title or "not found" in edit_page_title.lower() or "Page not found" in edit_page_content:
+                    print("❌ ERROR: Cannot access forum edit page at /f/BudgetEuropeTravel/edit", file=sys.stderr)
+                    verification_passed = False
+                else:
+                    print("✓ Forum edit page accessible", file=sys.stderr)
+                    
+                    # Check forum title
+                    title_input = page.locator('input[name*="title"], input#forum_title')
+                    if await title_input.count():
+                        title_value = await title_input.input_value()
+                        if title_value != "Budget Travel Europe":
+                            print(f"❌ ERROR: Forum title is '{title_value}', expected 'Budget Travel Europe'", file=sys.stderr)
+                            verification_passed = False
+                        else:
+                            print("✓ Forum title correct: 'Budget Travel Europe'", file=sys.stderr)
                     else:
-                        print("✓ Forum sidebar verified", file=sys.stderr)
+                        print("❌ ERROR: Cannot find forum title field", file=sys.stderr)
+                        verification_passed = False
+                    
+                    # Check forum description
+                    desc_input = page.locator('textarea[name*="description"], input[name*="description"]')
+                    if await desc_input.count():
+                        desc_value = await desc_input.input_value()
+                        expected_desc = "Community for sharing money-saving tips for European travel"
+                        if desc_value != expected_desc:
+                            print(f"❌ ERROR: Forum description is '{desc_value}', expected '{expected_desc}'", file=sys.stderr)
+                            verification_passed = False
+                        else:
+                            print("✓ Forum description correct", file=sys.stderr)
+                    else:
+                        print("❌ ERROR: Cannot find forum description field", file=sys.stderr)
+                        verification_passed = False
+                    
+                    # Check sidebar content
+                    sidebar_input = page.locator('textarea[name*="sidebar"]')
+                    if await sidebar_input.count():
+                        sidebar_value = await sidebar_input.input_value()
+                        expected_sidebar = "Share your best European travel deals and budget tips here!"
+                        if sidebar_value != expected_sidebar:
+                            print(f"❌ ERROR: Forum sidebar is '{sidebar_value}', expected '{expected_sidebar}'", file=sys.stderr)
+                            verification_passed = False
+                        else:
+                            print("✓ Forum sidebar correct", file=sys.stderr)
+                    else:
+                        print("❌ ERROR: Cannot find forum sidebar field", file=sys.stderr)
+                        verification_passed = False
             
-            # 4. Verify wiki page exists at /w/europe-travel-budget-guide
-            print("\nStep 4: Checking wiki page...", file=sys.stderr)
-            await page.goto('http://34.143.228.182:9999/w/europe-travel-budget-guide', wait_until='networkidle')
+            # 3. Check wiki page existence and content
+            print("\n" + "="*60)
+            print("Step 3: Checking wiki page existence and content...", file=sys.stderr)
+            print("="*60)
             
-            if "404" in await page.title() or "not found" in (await page.title()).lower():
-                # Try alternative URL
-                await page.goto('http://34.143.228.182:9999/wiki/europe-travel-budget-guide', wait_until='networkidle')
-                if "404" in await page.title() or "not found" in (await page.title()).lower():
-                    print("Error: Wiki page does not exist", file=sys.stderr)
-                    await page.screenshot(path=str(SCREENSHOT_DIR / "wiki_not_found.png"))
-                    return False
+            # Try the wiki URL with /wiki/ path
+            await page.goto('http://34.143.228.182:9999/wiki/europe-travel-budget-guide', wait_until='networkidle')
             
-            # Check wiki title
-            wiki_title = page.locator('h1:has-text("Complete Budget Travel Guide for Europe 2024")')
-            if not await wiki_title.count():
-                print("Error: Wiki title 'Complete Budget Travel Guide for Europe 2024' not found", file=sys.stderr)
-                return False
+            wiki_page_content = await page.content()
+            wiki_page_title = await page.title()
             
-            # Check for required content in wiki
-            wiki_content = await page.content()
-            if "Eurail passes and budget airlines" not in wiki_content:
-                print("Error: Wiki content must contain 'Eurail passes and budget airlines'", file=sys.stderr)
-                return False
+            if "404" in wiki_page_title or "not found" in wiki_page_title.lower() or "Page not found" in wiki_page_content:
+                print("❌ ERROR: Wiki page does not exist at /wiki/europe-travel-budget-guide", file=sys.stderr)
+                await page.screenshot(path=str(SCREENSHOT_DIR / "wiki_not_found.png"))
+                verification_passed = False
+            else:
+                print("✓ Wiki page exists at /wiki/europe-travel-budget-guide", file=sys.stderr)
+                
+                # Check wiki title
+                wiki_title_found = False
+                expected_wiki_title = "Complete Budget Travel Guide for Europe 2024"
+                
+                # Try multiple selectors for wiki title
+                wiki_title_selectors = [
+                    f'h1:has-text("{expected_wiki_title}")',
+                    f'h1:text-is("{expected_wiki_title}")',
+                    'h1'
+                ]
+                
+                for selector in wiki_title_selectors:
+                    wiki_title_elem = page.locator(selector)
+                    if await wiki_title_elem.count():
+                        title_text = await wiki_title_elem.first.text_content()
+                        if expected_wiki_title in title_text:
+                            wiki_title_found = True
+                            break
+                
+                if not wiki_title_found:
+                    print(f"❌ ERROR: Wiki title '{expected_wiki_title}' not found", file=sys.stderr)
+                    verification_passed = False
+                else:
+                    print(f"✓ Wiki title correct: '{expected_wiki_title}'", file=sys.stderr)
+                
+                # Check for required content in wiki
+                required_wiki_content = "Eurail passes and budget airlines"
+                if required_wiki_content not in wiki_page_content:
+                    print(f"❌ ERROR: Wiki content must contain '{required_wiki_content}'", file=sys.stderr)
+                    verification_passed = False
+                else:
+                    print(f"✓ Wiki content contains required text: '{required_wiki_content}'", file=sys.stderr)
             
-            print("✓ Wiki page verified with correct title and content", file=sys.stderr)
+            # 4. Check for post in the forum
+            print("\n" + "="*60)
+            print("Step 4: Checking for post in forum...", file=sys.stderr)
+            print("="*60)
             
-            # 5. Check for the post in the forum
-            print("\nStep 5: Checking for post in forum...", file=sys.stderr)
             await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel', wait_until='networkidle')
             
-            post_title = "My 14-day Europe trip for under 1000 - Complete itinerary"
-            post_link = page.locator(f'a:has-text("{post_title}")')
+            expected_post_title = "My 14-day Europe trip for under 1000 - Complete itinerary"
+            post_link = page.locator(f'a:has-text("{expected_post_title}")')
             
             if not await post_link.count():
-                print(f"Error: Post '{post_title}' not found in forum", file=sys.stderr)
+                print(f"❌ ERROR: Post with title '{expected_post_title}' not found in forum", file=sys.stderr)
                 await page.screenshot(path=str(SCREENSHOT_DIR / "post_not_found.png"))
-                return False
-            
-            # Click on the post to check its content
-            await post_link.first.click()
-            await page.wait_for_load_state('networkidle')
-            
-            # Check if post contains required text
-            post_content = await page.content()
-            if "budget guide wiki" not in post_content:
-                print("Error: Post body must contain 'budget guide wiki'", file=sys.stderr)
-                return False
-            
-            print("✓ Post found with correct title and content", file=sys.stderr)
-            
-            # 6. Check travel insurance search and upvote
-            print("\nStep 6: Checking travel insurance search and upvote...", file=sys.stderr)
-            
-            # Perform the search
-            await page.goto('http://34.143.228.182:9999/', wait_until='networkidle')
-            search_box = page.locator('input[type="search"], input[placeholder*="Search"]')
-            if await search_box.count():
-                await search_box.fill("travel insurance Europe")
-                await search_box.press("Enter")
+                verification_passed = False
+            else:
+                print(f"✓ Post found with title: '{expected_post_title}'", file=sys.stderr)
+                
+                # Click on the post to check its content
+                await post_link.first.click()
                 await page.wait_for_load_state('networkidle')
                 
-                # Check if we're on search results page
-                if "/search" in page.url:
-                    print("✓ Search performed for 'travel insurance Europe'", file=sys.stderr)
-                    
-                    # Check for upvoted posts (looking for upvote count of 1 or "Retract upvote" button)
-                    upvote_buttons = page.locator('button:has-text("Retract upvote")')
-                    upvote_counts = page.locator('div:has(> button[aria-label*="vote"]) >> text=/^[1-9]/')
-                    
-                    if await upvote_buttons.count() > 0:
-                        print("✓ Found upvoted post (Retract upvote button present)", file=sys.stderr)
-                    elif await upvote_counts.count() > 0:
-                        print("✓ Found post with upvote count > 0", file=sys.stderr)
-                    else:
-                        # Check if the first result has been upvoted by looking at vote count
-                        first_result = page.locator('article').first
-                        if await first_result.count():
-                            vote_display = first_result.locator('text=/^\\d+$/').first
-                            if await vote_display.count():
-                                vote_count = await vote_display.text_content()
-                                if int(vote_count) > 0:
-                                    print(f"✓ First search result has {vote_count} upvote(s)", file=sys.stderr)
-                                else:
-                                    print("Warning: Could not verify upvote on search result", file=sys.stderr)
-                            else:
-                                print("Warning: Could not find vote count", file=sys.stderr)
+                # Check if post contains required text
+                post_page_content = await page.content()
+                required_post_content = "budget guide wiki"
+                
+                if required_post_content not in post_page_content:
+                    print(f"❌ ERROR: Post body must contain '{required_post_content}'", file=sys.stderr)
+                    verification_passed = False
                 else:
-                    print("Warning: Search might not have been performed", file=sys.stderr)
+                    print(f"✓ Post content contains required text: '{required_post_content}'", file=sys.stderr)
             
-            # 7. Verify user settings at /user/EuroTravelPlanner/preferences
-            print("\nStep 7: Checking user settings...", file=sys.stderr)
+            # 5. Check upvote on search result
+            print("\n" + "="*60)
+            print("Step 5: Checking upvote on search result...", file=sys.stderr)
+            print("="*60)
+            
+            # Navigate to search results for "travel insurance Europe"
+            await page.goto('http://34.143.228.182:9999/search?q=travel+insurance+Europe', wait_until='networkidle')
+            
+            # Check if we're on search results page
+            if "/search" not in page.url:
+                print("❌ ERROR: Not on search results page", file=sys.stderr)
+                verification_passed = False
+            else:
+                print("✓ On search results page for 'travel insurance Europe'", file=sys.stderr)
+                
+                # Check for upvoted posts
+                upvote_found = False
+                
+                # Method 1: Check for "Retract upvote" button (indicates user has upvoted)
+                retract_buttons = page.locator('button:has-text("Retract upvote")')
+                if await retract_buttons.count() > 0:
+                    print("✓ Found upvoted post (Retract upvote button present)", file=sys.stderr)
+                    upvote_found = True
+                
+                # Method 2: Check for posts with upvote count >= 1
+                if not upvote_found:
+                    # Look for vote counts
+                    vote_elements = page.locator('div.vote, span.vote-count, [class*="vote"]')
+                    
+                    for i in range(await vote_elements.count()):
+                        vote_elem = vote_elements.nth(i)
+                        vote_text = await vote_elem.text_content()
+                        try:
+                            # Extract number from vote text
+                            import re
+                            numbers = re.findall(r'\d+', vote_text)
+                            if numbers:
+                                vote_count = int(numbers[0])
+                                if vote_count >= 1:
+                                    print(f"✓ Found post with {vote_count} upvote(s)", file=sys.stderr)
+                                    upvote_found = True
+                                    break
+                        except:
+                            continue
+                
+                if not upvote_found:
+                    print("❌ ERROR: No upvoted posts found in search results", file=sys.stderr)
+                    verification_passed = False
+            
+            # 6. Check user settings
+            print("\n" + "="*60)
+            print("Step 6: Checking user settings...", file=sys.stderr)
+            print("="*60)
+            
             await page.goto('http://34.143.228.182:9999/user/EuroTravelPlanner/preferences', wait_until='networkidle')
             
-            # Check timezone setting - look for the select element with Europe/Amsterdam selected
-            timezone_select = page.locator('select[name*="timezone"], select:has(option:has-text("Amsterdam"))')
+            # Check timezone setting
+            timezone_correct = False
+            timezone_select = page.locator('select[name*="timezone"], select#timezone')
+            
             if await timezone_select.count():
                 selected_value = await timezone_select.input_value()
-                # The value might be "Europe/Amsterdam" or similar
-                if "Amsterdam" in selected_value or selected_value == "Europe/Amsterdam":
-                    print("✓ Timezone correctly set to Europe/Amsterdam", file=sys.stderr)
+                
+                if selected_value == "Europe/Amsterdam":
+                    print("✓ Timezone correctly set to 'Europe/Amsterdam'", file=sys.stderr)
+                    timezone_correct = True
                 else:
-                    # Check if Amsterdam option is selected
+                    # Check selected option text
                     selected_option = timezone_select.locator('option[selected]')
                     if await selected_option.count():
                         option_text = await selected_option.text_content()
                         if "Amsterdam" in option_text:
                             print("✓ Timezone correctly set to Europe/Amsterdam", file=sys.stderr)
+                            timezone_correct = True
                         else:
-                            print(f"Error: Timezone is set to '{option_text}', not Europe/Amsterdam", file=sys.stderr)
-                            return False
+                            print(f"❌ ERROR: Timezone is set to '{option_text}', expected 'Europe/Amsterdam'", file=sys.stderr)
+                            verification_passed = False
                     else:
-                        print(f"Error: Timezone is '{selected_value}', not Europe/Amsterdam", file=sys.stderr)
-                        return False
+                        print(f"❌ ERROR: Timezone is '{selected_value}', expected 'Europe/Amsterdam'", file=sys.stderr)
+                        verification_passed = False
             else:
-                print("Error: Could not find timezone selector", file=sys.stderr)
-                return False
+                print("❌ ERROR: Cannot find timezone selector", file=sys.stderr)
+                verification_passed = False
             
             # Check "Notify on reply" setting
-            notify_checkbox = None
+            notify_correct = False
             
             # Try multiple selectors for the checkbox
-            selectors = [
+            notify_selectors = [
                 'input[type="checkbox"]:near(:text("Notify on reply"))',
                 'label:has-text("Notify on reply") input[type="checkbox"]',
-                'input[type="checkbox"][name*="notify_on_reply"]',
-                'input[type="checkbox"][id*="notify_on_reply"]'
+                'input[type="checkbox"][name*="notify"]',
+                'input[type="checkbox"][id*="notify"]'
             ]
             
-            for selector in selectors:
-                element = page.locator(selector)
-                if await element.count():
-                    notify_checkbox = element
+            for selector in notify_selectors:
+                notify_checkbox = page.locator(selector)
+                if await notify_checkbox.count():
+                    is_checked = await notify_checkbox.first.is_checked()
+                    if is_checked:
+                        print("✓ 'Notify on reply' is enabled (checked)", file=sys.stderr)
+                        notify_correct = True
+                    else:
+                        print("❌ ERROR: 'Notify on reply' is not enabled (unchecked)", file=sys.stderr)
+                        verification_passed = False
                     break
             
-            if notify_checkbox:
-                is_checked = await notify_checkbox.is_checked()
-                if is_checked:
-                    print("✓ 'Notify on reply' is enabled", file=sys.stderr)
-                else:
-                    print("Error: 'Notify on reply' is not enabled", file=sys.stderr)
-                    return False
+            if not notify_correct and verification_passed:
+                print("❌ ERROR: Cannot verify 'Notify on reply' setting", file=sys.stderr)
+                verification_passed = False
+            
+            # Final summary
+            print("\n" + "="*60)
+            if verification_passed:
+                print("✅ SUCCESS: All verification checks passed!", file=sys.stderr)
+                await page.screenshot(path=str(SCREENSHOT_DIR / "verification_success.png"))
+                print(f"Screenshot saved: {SCREENSHOT_DIR / 'verification_success.png'}", file=sys.stderr)
             else:
-                # If we can't find the checkbox, check if the text indicates it's enabled
-                page_content = await page.content()
-                if "Notify on reply" in page_content:
-                    print("✓ 'Notify on reply' setting found (assuming enabled)", file=sys.stderr)
-                else:
-                    print("Warning: Could not verify 'Notify on reply' setting", file=sys.stderr)
+                print("❌ FAILED: One or more verification checks failed!", file=sys.stderr)
+                await page.screenshot(path=str(SCREENSHOT_DIR / "verification_failed.png"))
+                print(f"Screenshot saved: {SCREENSHOT_DIR / 'verification_failed.png'}", file=sys.stderr)
+            print("="*60)
             
-            # Take final success screenshot
-            await page.screenshot(path=str(SCREENSHOT_DIR / "verification_success.png"))
-            print(f"\n✓ Screenshot saved: {SCREENSHOT_DIR / 'verification_success.png'}", file=sys.stderr)
-            
-            # All checks passed
-            print("\n" + "="*50)
-            print("SUCCESS: All verification checks passed!")
-            print("="*50)
-            print("✓ Account 'EuroTravelPlanner' can login")
-            print("✓ Forum /f/BudgetEuropeTravel exists with correct details")
-            print("✓ Wiki page created with required content")
-            print("✓ Post created with required content")
-            print("✓ Travel insurance search performed")
-            print("✓ User settings configured correctly")
-            return True
+            return verification_passed
             
         except PlaywrightTimeoutError as e:
-            print(f"Error: Timeout occurred - {str(e)}", file=sys.stderr)
+            print(f"❌ ERROR: Timeout occurred - {str(e)}", file=sys.stderr)
             await page.screenshot(path=str(SCREENSHOT_DIR / "timeout_error.png"))
             return False
         except Exception as e:
-            print(f"Error: Unexpected error - {str(e)}", file=sys.stderr)
+            print(f"❌ ERROR: Unexpected error - {str(e)}", file=sys.stderr)
             await page.screenshot(path=str(SCREENSHOT_DIR / "unexpected_error.png"))
             return False
         finally:

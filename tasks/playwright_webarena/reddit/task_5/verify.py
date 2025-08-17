@@ -14,43 +14,33 @@ SCREENSHOT_DIR.mkdir(exist_ok=True)
 
 def parse_key_value_format(text):
     """
-    Parse the Key: Value format from the submission body using regex.
-    Works regardless of line breaks.
+    Parse the Key|Value format from the submission body.
+    This handles both the expected format from label.txt and the submission format.
     """
     data = {}
-
-    # Define patterns for each field
-    patterns = {
-        "Total_NBA_Posts": r"Total_NBA_Posts:\s*(\d+)",
-        "Top1_Title": r"Top1_Title:\s*(.+?)\s*Top1_Votes:",
-        "Top1_Votes": r"Top1_Votes:\s*(\d+)",
-        "Top1_Comments": r"Top1_Comments:\s*(\d+)",
-        "Top1_Author": r"Top1_Author:\s*(.+?)\s*Top2_Title:",
-        "Top2_Title": r"Top2_Title:\s*(.+?)\s*Top2_Votes:",
-        "Top2_Votes": r"Top2_Votes:\s*(\d+)",
-        "Top2_Comments": r"Top2_Comments:\s*(\d+)",
-        "Top2_Author": r"Top2_Author:\s*(.+?)\s*Top3_Title:",
-        "Top3_Title": r"Top3_Title:\s*(.+?)\s*Top3_Votes:",
-        "Top3_Votes": r"Top3_Votes:\s*(\d+)",
-        "Top3_Comments": r"Top3_Comments:\s*(\d+)",
-        "Top3_Author": r"Top3_Author:\s*(.+?)\s*Top4_Title:",
-        "Top4_Title": r"Top4_Title:\s*(.+?)\s*Top4_Votes:",
-        "Top4_Votes": r"Top4_Votes:\s*(\d+)",
-        "Top4_Comments": r"Top4_Comments:\s*(\d+)",
-        "Top4_Author": r"Top4_Author:\s*(.+?)\s*Top5_Title:",
-        "Top5_Title": r"Top5_Title:\s*(.+?)\s*Top5_Votes:",
-        "Top5_Votes": r"Top5_Votes:\s*(\d+)",
-        "Top5_Comments": r"Top5_Comments:\s*(\d+)",
-        "Top5_Author": r"Top5_Author:\s*(.+?)\s*BCLetsRide69_Total_Posts:",
-        "BCLetsRide69_Total_Posts": r"BCLetsRide69_Total_Posts:\s*(\d+)",
-    }
-
-    # Extract each field using regex
-    for key, pattern in patterns.items():
-        match = re.search(pattern, text, re.DOTALL)
-        if match:
-            data[key] = match.group(1).strip()
-
+    
+    # Split by lines and parse each line
+    lines = text.strip().split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+            
+        # Remove bullet point if present
+        if line.startswith('- '):
+            line = line[2:]
+        elif line.startswith('• '):
+            line = line[2:]
+            
+        # Parse pipe-separated format
+        if '|' in line:
+            parts = line.split('|', 1)
+            if len(parts) == 2:
+                key = parts[0].strip()
+                value = parts[1].strip()
+                if value and value != 'FILL_VALUE':
+                    data[key] = value
+    
     return data
 
 
@@ -64,6 +54,9 @@ def normalize_text(text):
     # Replace various quote styles with standard quotes
     text = text.replace(""", "'").replace(""", "'")
     text = text.replace('"', '"').replace('"', '"')
+    # Also normalize apostrophes - use unicode escapes to be safe
+    text = text.replace("\u2019", "'")  # RIGHT SINGLE QUOTATION MARK (')
+    text = text.replace("\u2018", "'")  # LEFT SINGLE QUOTATION MARK (')
 
     # Normalize whitespace
     text = " ".join(text.split())
@@ -83,7 +76,7 @@ async def verify() -> bool:
         try:
             # Navigate to the main page
             print("Navigating to forum...", file=sys.stderr)
-            await page.goto("http://35.247.158.69:9999/", wait_until="networkidle")
+            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
 
             # Check if logged in as NBA_DataAnalyst_2024
             user_button = page.locator('button:has-text("NBA_DataAnalyst_2024")')
@@ -112,10 +105,10 @@ async def verify() -> bool:
             else:
                 print("Already logged in as NBA_DataAnalyst_2024", file=sys.stderr)
 
-            # Navigate to sports forum
-            print("Navigating to sports forum...", file=sys.stderr)
+            # Navigate to sports forum to check submission
+            print("Navigating to sports forum to check submission...", file=sys.stderr)
             await page.goto(
-                "http://35.247.158.69:9999/f/sports", wait_until="networkidle"
+                "http://34.143.228.182:9999/f/sports", wait_until="networkidle"
             )
 
             # Look for the submission with our specific title
@@ -327,7 +320,7 @@ async def verify() -> bool:
             print(
                 f"- BCLetsRide69's total posts: {extracted_data['BCLetsRide69_Total_Posts']}"
             )
-            print("- All data in correct Key: Value format")
+            print("- All data in correct Key|Value format")
             return True
 
         except PlaywrightTimeoutError as e:
