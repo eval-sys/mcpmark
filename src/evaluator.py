@@ -105,15 +105,22 @@ class MCPEvaluator:
                 meta_data = json.load(f)
 
             # Reconstruct TaskResult from meta.json
+            # Handle backward compatibility: old files have execution_time, new have task_execution_time
+            task_execution_time = meta_data.get("task_execution_time", meta_data.get("execution_time", 0.0))
+            agent_execution_time = meta_data.get("agent_execution_time", 0.0)
+            
             return TaskResult(
                 task_name=meta_data["task_name"],
                 success=meta_data["execution_result"]["success"],
-                execution_time=meta_data["execution_time"],
                 error_message=meta_data["execution_result"]["error_message"],
                 category=task.category,
                 task_id=task.task_id,
                 # We don't need model_output for resume functionality
                 model_output=None,
+                token_usage=meta_data.get("token_usage", {}),
+                turn_count=meta_data.get("turn_count", None),
+                agent_execution_time=agent_execution_time,
+                task_execution_time=task_execution_time,
             )
         except Exception as exc:
             logger.warning("Failed to load existing result for %s: %s", task.name, exc)
@@ -152,14 +159,21 @@ class MCPEvaluator:
                 category = category_part.replace("-", "_")
                 task_id = identifier_part  # keep slug as-is (string)
 
+                # Handle backward compatibility: old files have execution_time, new have task_execution_time
+                task_execution_time = meta_data.get("task_execution_time", meta_data.get("execution_time", 0.0))
+                agent_execution_time = meta_data.get("agent_execution_time", 0.0)
+                
                 result = TaskResult(
                     task_name=meta_data["task_name"],
                     success=meta_data["execution_result"]["success"],
-                    execution_time=meta_data["execution_time"],
                     error_message=meta_data["execution_result"]["error_message"],
                     category=category,
                     task_id=task_id,
                     model_output=None,
+                    token_usage=meta_data.get("token_usage", {}),
+                    turn_count=meta_data.get("turn_count", None),
+                    agent_execution_time=agent_execution_time,
+                    task_execution_time=task_execution_time,
                 )
                 results.append(result)
             except Exception as exc:
@@ -172,6 +186,9 @@ class MCPEvaluator:
         """
         Runs a single task, including setup, agent execution, verification, and cleanup.
         """
+        # Track overall task start time
+        task_start_time = time.time()
+        
         # Stage 1: Set up the initial state for the task
         setup_start_time = time.time()
         logger.info(
@@ -182,13 +199,15 @@ class MCPEvaluator:
 
         if not setup_success:
             logger.error(f"State setup failed for task: {task.name}")
+            task_total_time = time.time() - task_start_time
             return TaskResult(
                 task_name=task.name,
                 success=False,
-                execution_time=setup_time,
                 error_message="State Duplication Error",
                 category=task.category,
                 task_id=task.task_id,
+                agent_execution_time=0.0,
+                task_execution_time=task_total_time,
             )
         display_time = self._format_duration(setup_time)
         logger.info(
@@ -208,7 +227,7 @@ class MCPEvaluator:
         # Execute with agent
         agent_result = self.agent.execute_sync(task_instruction)
 
-        execute_time = time.time() - execute_start_time
+        agent_execution_time = time.time() - execute_start_time
 
         # ---------- Write messages.json to task_output_dir ----------
         task_output_dir = self._get_task_output_dir(task)
@@ -221,7 +240,7 @@ class MCPEvaluator:
         # Set service-specific environment variables for verification scripts
         self.state_manager.set_verification_environment(str(messages_path))
         logger.info(
-            f"└─ Completed in {self._format_duration(execute_time)}\n"
+            f"└─ Completed in {self._format_duration(agent_execution_time)}\n"
         )
 
         # Stage 3: Verify
@@ -253,6 +272,13 @@ class MCPEvaluator:
             f"└─ Completed in {self._format_duration(cleanup_time)}\n"
         )
 
+        # Calculate total task execution time
+        task_total_time = time.time() - task_start_time
+        
+        # Add timing information to the result
+        result.agent_execution_time = agent_execution_time
+        result.task_execution_time = task_total_time
+
         return result
 
     def run_evaluation(self, task_filter: str) -> EvaluationReport:
@@ -260,7 +286,6 @@ class MCPEvaluator:
         Runs the full evaluation for the specified tasks.
         """
         tasks = self.task_manager.filter_tasks(task_filter)
-        pipeline_start_time = time.time()
 
         results = []
 
@@ -339,8 +364,6 @@ class MCPEvaluator:
                 meta_path,
             )
 
-        pipeline_end_time = time.time()
-
         # --------------------------------------------------------------
         # Aggregate results – combine current `results` with any previously
         # saved TaskResults that ALSO match the current task_filter.
@@ -376,8 +399,6 @@ class MCPEvaluator:
                 "model_name": self.actual_model_name,
                 "timeout": self.timeout,
             },
-            start_time=datetime.fromtimestamp(pipeline_start_time),
-            end_time=datetime.fromtimestamp(pipeline_end_time),
             total_tasks=len(final_results),
             successful_tasks=sum(1 for r in final_results if r.success),
             failed_tasks=sum(1 for r in final_results if not r.success),
@@ -398,7 +419,7 @@ class MCPEvaluator:
             f"✓ Tasks passed: {aggregated_report.successful_tasks}/{aggregated_report.total_tasks} ({aggregated_report.success_rate:.1f}%)"
         )
         logger.info(
-            f"⏱ Total time: {aggregated_report.execution_time.total_seconds():.1f}s"
+            f"⏱ Total time: {aggregated_report.total_task_execution_time:.1f}s"
         )
 
         return aggregated_report

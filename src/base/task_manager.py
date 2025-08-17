@@ -196,11 +196,9 @@ class BaseTaskManager(ABC):
             # Check for any pre-execution conditions
             pre_check_result = self._pre_execution_check(task)
             if not pre_check_result["success"]:
-                execution_time = time.time() - start_time
                 return TaskResult(
                     task_name=task.name,
                     success=False,
-                    execution_time=execution_time,
                     error_message=pre_check_result["error"],
                     category=task.category,
                     task_id=task.task_id,
@@ -208,7 +206,6 @@ class BaseTaskManager(ABC):
 
             # If agent execution failed, return the failure
             if not agent_result.get("success", False):
-                execution_time = time.time() - start_time
                 error_message = agent_result.get("error", "Agent execution failed")
 
                 # Standardize MCP network errors
@@ -224,7 +221,6 @@ class BaseTaskManager(ABC):
                 return TaskResult(
                     task_name=task.name,
                     success=False,
-                    execution_time=execution_time,
                     error_message=error_message,
                     category=task.category,
                     task_id=task.task_id,
@@ -239,7 +235,6 @@ class BaseTaskManager(ABC):
             error_message = (
                 verify_result.stderr if not success and verify_result.stderr else None
             )
-            execution_time = time.time() - start_time
 
             # Post-execution cleanup or tracking
             self._post_execution_hook(task, success)
@@ -254,7 +249,6 @@ class BaseTaskManager(ABC):
             return TaskResult(
                 task_name=task.name,
                 success=success,
-                execution_time=execution_time,
                 error_message=error_message,
                 model_output=agent_result.get("output", ""),
                 category=task.category,
@@ -264,12 +258,10 @@ class BaseTaskManager(ABC):
             )
 
         except Exception as e:
-            execution_time = time.time() - start_time
             logger.error(f"Task verification failed: {e}", exc_info=True)
             return TaskResult(
                 task_name=task.name,
                 success=False,
-                execution_time=execution_time,
                 error_message=str(e),
                 category=task.category,
                 task_id=task.task_id,
