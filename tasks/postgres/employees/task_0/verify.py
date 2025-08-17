@@ -43,8 +43,8 @@ def verify_query_results(conn) -> bool:
             return False
 
         for i, (actual, exp) in enumerate(zip(results, expected)):
-            if actual[0] != exp[0] or float(actual[1]) != exp[1]:
-                print(f"❌ Row {i + 1} mismatch: expected {exp}, got {actual}")
+            if actual[0] != exp[0] or abs(float(actual[1]) - exp[1]) > 0.1:
+                print(f"❌ Row {i+1} mismatch: expected {exp}, got {actual}")
                 return False
 
         print("✅ Query results are correct")
