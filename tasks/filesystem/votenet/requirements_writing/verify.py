@@ -128,7 +128,6 @@ def verify_no_duplicate_entries(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_votenet_requirements_writing_99322")
     print("🔍 Verifying VoteNet Task: Create Requirements.txt File...")
     
     # Define verification steps

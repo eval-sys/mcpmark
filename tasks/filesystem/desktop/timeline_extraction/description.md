@@ -1,4 +1,4 @@
-# Desktop2 2024 Time Extraction Task
+# Desktop 2024 Time Extraction Task
 
 Read all the files under current path, extract every time/plan information that clearly indicates 2024, and integrate them into a list and create a file in main directory called `timeline.txt`. Write the timeline in the file in the following format.
 

@@ -125,7 +125,6 @@ def verify_no_extra_files(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    #test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_context_file_splitting_1734")
     print("🔍 Verifying File Splitting Task...")
     
     # Define verification steps

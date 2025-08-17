@@ -205,7 +205,6 @@ def verify_expected_students(students: list) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_student_database_english_talent_87534")
     print("🔍 Verifying Student Database Task: English Talent Recruitment...")
     
     # Define verification steps

@@ -179,7 +179,6 @@ def verify_filename_headers(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_context_file_merging_98834")
     print("🔍 Verifying File Merging Task...")
     
     # Show expected files for debugging

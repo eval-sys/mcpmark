@@ -248,7 +248,6 @@ def verify_file_structure(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_votenet_dataset_comparison_61641")
     print("🔍 Verifying Votenet Dataset Comparison Task...")
     
     # Define verification steps

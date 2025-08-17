@@ -389,8 +389,7 @@ def verify_file_paths_exist(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_desktop_2_timeline_extraction_15442")
-    print("🔍 Verifying Desktop 2 Timeline Extraction Task...")
+    print("🔍 Verifying Desktop Timeline Extraction Task...")
     
     # Define verification steps
     verification_steps = [

@@ -169,7 +169,6 @@ def verify_bug_fix(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_votenet_debugging_33829")
     print("🔍 Verifying VoteNet Task: Debug Backbone Module...")
     
     # Define verification steps

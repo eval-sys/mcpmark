@@ -133,7 +133,6 @@ def main():
     """Main verification function."""
     try:
         test_dir = get_test_directory()
-        # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_student_database_gradebased_score_58026")
         print(f"🔍 Verifying Student Database Grade-Based Score Analysis in: {test_dir}")
         
         # Define verification steps

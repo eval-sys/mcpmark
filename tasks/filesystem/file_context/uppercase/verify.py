@@ -246,8 +246,7 @@ def main():
     """Main verification function."""
     try:
         test_dir = get_test_directory()
-        #test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_context_uppercase_53670")
-        print(f"🔍 Verifying task in: {test_dir}")
+        print(f"🔍 Verifying Uppercase in: {test_dir}")
         print()
         
         # Run all verification checks

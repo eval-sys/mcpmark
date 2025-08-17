@@ -257,8 +257,7 @@ def verify_files_exist(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_file_context_file_filtering_18503")
-    print("🔍 Verifying File Filtering Task: Find Files with Common Substring...")
+    print("🔍 Verifying Pattern Matching Task: Find Files with Common Substring...")
     
     # Define verification steps
     verification_steps = [

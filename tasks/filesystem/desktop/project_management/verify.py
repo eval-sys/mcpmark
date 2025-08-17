@@ -249,7 +249,6 @@ def verify_file_counts(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_desktop_2_project_management_76359")
     print("🔍 Verifying Desktop 2 Project Management Task: File Reorganization...")
     
     # Define verification steps

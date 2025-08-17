@@ -299,7 +299,6 @@ def verify_no_extra_content(test_dir: Path) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_desktop_2_music_report_3788")
     print("🔍 Verifying Desktop 2 Music Report Task: Music Collection Analysis...")
     
     # Define verification steps

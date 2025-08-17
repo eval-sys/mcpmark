@@ -152,7 +152,6 @@ def verify_against_expected_results(namesakes: dict) -> bool:
 def main():
     """Main verification function."""
     test_dir = get_test_directory()
-    # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_student_database_duplicate_name_91065")
     print("🔍 Verifying Student Database Task: Find Duplicate Names...")
     
     # Check if namesake file exists

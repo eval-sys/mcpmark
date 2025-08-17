@@ -165,7 +165,6 @@ def main():
     """Main verification function."""
     try:
         test_dir = get_test_directory()
-        # test_dir = Path("/Users/chenlingjun/Desktop/MCP/MCPBench/.mcpbench_backups/backup_filesystem_folder_structure_structure_mirror_30572")
         print(f"🔍 Verifying Directory Structure Mirroring with Smart Placeholders in: {test_dir}")
         
         # Define verification steps
