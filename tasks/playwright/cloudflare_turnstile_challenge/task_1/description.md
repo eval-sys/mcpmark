@@ -13,6 +13,7 @@ Use Playwright MCP tools to complete Cloudflare Turnstile authentication challen
 5. Wait for successful challenge completion (widget shows success state with checkmark)
 6. Submit the form by clicking the "Sign In" button
 7. Wait for and capture any success message or confirmation that appears
+8. Output the success capture in step 7
 
 ## Notes:
 
