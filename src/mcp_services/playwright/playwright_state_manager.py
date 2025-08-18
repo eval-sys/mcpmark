@@ -332,6 +332,24 @@ class PlaywrightStateManager(BaseStateManager):
         except Exception as e:
             logger.error(f"Error closing browser resources: {e}")
 
+    def set_verification_environment(self, messages_path: str = None) -> None:
+        """
+        Set Playwright-specific environment variables for verification scripts.
+
+        Args:
+            messages_path: Optional path to messages.json file for verification
+        """
+        import os
+
+        # Set common MCP_MESSAGES if provided
+        if messages_path:
+            os.environ["MCP_MESSAGES"] = str(messages_path)
+            # Also set PLAYWRIGHT_WORK_DIR to the directory containing messages.json
+            work_dir = str(Path(messages_path).parent)
+            os.environ["PLAYWRIGHT_WORK_DIR"] = work_dir
+            logger.info(f"| Set PLAYWRIGHT_WORK_DIR to: {work_dir}")
+            logger.info(f"| Set MCP_MESSAGES to: {messages_path}")
+
     def __del__(self):
         """Ensure cleanup on deletion."""
         self.close_all()

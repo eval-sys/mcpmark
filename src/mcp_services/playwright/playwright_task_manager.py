@@ -7,10 +7,15 @@ Follows anti-over-engineering principles: keep it simple, do what's needed.
 """
 
 import sys
+import os
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Any
 
 from src.base.task_manager import BaseTask, BaseTaskManager
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class PlaywrightTaskManager(BaseTaskManager):
@@ -52,6 +57,30 @@ class PlaywrightTaskManager(BaseTaskManager):
     def _get_verification_command(self, task: BaseTask) -> List[str]:
         """Get verification command - just run the verify.py script."""
         return [sys.executable, str(task.task_verification_path)]
+
+    def run_verification(self, task: BaseTask) -> subprocess.CompletedProcess:
+        """Run verification with Playwright-specific environment."""
+        env = os.environ.copy()
+
+        # Pass messages.json path and working directory to verification script
+        messages_path = os.getenv("MCP_MESSAGES")
+        work_dir = os.getenv("PLAYWRIGHT_WORK_DIR")
+        
+        if messages_path:
+            env["MCP_MESSAGES"] = messages_path
+            logger.debug(f"Setting MCP_MESSAGES to: {messages_path}")
+        
+        if work_dir:
+            env["PLAYWRIGHT_WORK_DIR"] = work_dir
+            logger.debug(f"Setting PLAYWRIGHT_WORK_DIR to: {work_dir}")
+
+        return subprocess.run(
+            self._get_verification_command(task),
+            capture_output=True,
+            text=True,
+            timeout=90,
+            env=env,
+        )
 
     def _format_task_instruction(self, base_instruction: str) -> str:
         """Add Playwright-specific note to instructions."""

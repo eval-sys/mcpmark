@@ -233,7 +233,8 @@ SERVICES = {
             },
             "password": {
                 "env_var": "POSTGRES_PASSWORD",
-                "required": True,
+                "default": "123456",
+                "required": False,
                 "description": "PostgreSQL password",
             },
         },

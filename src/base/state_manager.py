@@ -57,7 +57,7 @@ class BaseStateManager(ABC):
             # Store initial state info in task
             self._store_initial_state_info(task, initial_state_info)
 
-            logger.info(f"✅ Initial state setup completed for {task.name}")
+            logger.info(f"| Initial state setup completed for {task.name}")
             return True
 
         except Exception as e:
