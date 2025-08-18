@@ -100,7 +100,7 @@ class FilesystemTaskManager(BaseTaskManager):
             self._get_verification_command(task),
             capture_output=True,
             text=True,
-            timeout=90,
+            timeout=300,
             env=env,
         )
 
