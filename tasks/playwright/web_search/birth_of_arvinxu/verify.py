@@ -97,12 +97,10 @@ def parse_ai_results(work_dir: Path) -> Dict[str, Any]:
 
 def verify_task() -> bool:
     """Verify the AI agent found the correct answer"""
-    print("🔍 Verifying Playwright Web Search Task")
 
     # Parse AI agent results
-    print("🤖 Parsing AI agent results...")
     work_dir = get_working_directory()
-    print(f"📁 Working directory: {work_dir}")
+    print(f"| Working directory: {work_dir}")
 
     ai_results = parse_ai_results(work_dir)
 
@@ -110,15 +108,11 @@ def verify_task() -> bool:
         print(f"| ❌ Could not parse AI results: {ai_results.get('error')}")
         return False
 
-    # Check results
-    print(f"| 📊 AI agent provided {ai_results['total_responses']} responses")
-
     if ai_results["found_answer"]:
         print(f"| AI agent correctly identified: {EXPECTED_GROUND_TRUTH}")
         return True
     else:
-        print(f"❌ AI agent did not find the correct answer: {EXPECTED_GROUND_TRUTH}")
-        print(f"💡 Expected one of: {', '.join(ACCEPTED_ANSWERS)}")
+        print(f"| AI agent did not find the correct answer: {EXPECTED_GROUND_TRUTH}")
         return False
 
 
