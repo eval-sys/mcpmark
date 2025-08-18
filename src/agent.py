@@ -539,8 +539,8 @@ class MCPAgent:
             if is_retryable_error(result["error"]) and attempt < self.max_retries:
                 wait_seconds = get_retry_delay(attempt)
                 logger.warning(
-                    f"[Retry] Attempt {attempt}/{self.max_retries} failed. "
-                    f"Waiting {wait_seconds}s before retrying: {error_msg}"
+                    f"| [Retry] Attempt {attempt}/{self.max_retries} failed. "
+                    f"| Waiting {wait_seconds}s before retrying: {error_msg}"
                 )
                 await asyncio.sleep(wait_seconds)
                 continue  # Retry

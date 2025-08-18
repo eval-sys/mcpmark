@@ -3,7 +3,7 @@
 Verification script for Playwright web search task.
 
 Simple verification that checks if the AI agent found the correct answer.
-Since we know the answer is "Andrew Jackson", we just parse the AI's results.
+The expected ground truth answer is configured at the top of the file.
 """
 
 import sys
@@ -16,14 +16,9 @@ from typing import Dict, Any
 # CONFIGURATION
 # =============================================================================
 
-# Expected answer (case insensitive)
-EXPECTED_PRESIDENT = "Andrew Jackson"
-ACCEPTED_PRESIDENT_NAMES = [
-    "andrew jackson",
-    "jackson",
-    "president andrew jackson",
-    "president jackson",
-]
+# Expected ground truth answer (case insensitive)
+EXPECTED_GROUND_TRUTH = "1995"
+ACCEPTED_ANSWERS = []
 
 # =============================================================================
 # MCP RESULT PARSING
@@ -36,19 +31,19 @@ def get_working_directory() -> Path:
     messages_path = os.getenv("MCP_MESSAGES")
     if messages_path and Path(messages_path).exists():
         return Path(messages_path).parent.resolve()
-    
+
     # Priority 2: Use PLAYWRIGHT_WORK_DIR environment variable
     work_dir = os.getenv("PLAYWRIGHT_WORK_DIR")
     if work_dir:
         work_path = Path(work_dir).resolve()
         if (work_path / "messages.json").exists():
             return work_path
-    
+
     # Priority 3: Check current directory (fallback)
     current_dir = Path.cwd()
     if (current_dir / "messages.json").exists():
         return current_dir
-    
+
     # Priority 4: Default fallback
     return Path(".").resolve()
 
@@ -65,8 +60,8 @@ def parse_ai_results(work_dir: Path) -> Dict[str, Any]:
     except (json.JSONDecodeError, IOError) as e:
         return {"success": False, "error": f"Failed to read messages.json: {e}"}
 
-    # Look for Andrew Jackson in the AI's responses
-    found_andrew_jackson = False
+    # Look for expected answer in the AI's responses
+    found_answer = False
     ai_responses = []
 
     for message in messages:
@@ -83,13 +78,13 @@ def parse_ai_results(work_dir: Path) -> Dict[str, Any]:
             ai_responses.append(content)
             content_lower = content.lower()
 
-            # Check if Andrew Jackson was found (case insensitive)
-            if any(name in content_lower for name in ACCEPTED_PRESIDENT_NAMES):
-                found_andrew_jackson = True
+            # Check if expected answer was found (case insensitive)
+            if any(answer in content_lower for answer in ACCEPTED_ANSWERS):
+                found_answer = True
 
     return {
         "success": True,
-        "found_andrew_jackson": found_andrew_jackson,
+        "found_answer": found_answer,
         "ai_responses": ai_responses,
         "total_responses": len(ai_responses),
     }
@@ -102,7 +97,7 @@ def parse_ai_results(work_dir: Path) -> Dict[str, Any]:
 
 def verify_task() -> bool:
     """Verify the AI agent found the correct answer"""
-    print("| Verifying Playwright Web Search Task")
+    print("🔍 Verifying Playwright Web Search Task")
 
     # Parse AI agent results
     print("🤖 Parsing AI agent results...")
@@ -112,22 +107,18 @@ def verify_task() -> bool:
     ai_results = parse_ai_results(work_dir)
 
     if not ai_results["success"]:
-        print(f"❌ Could not parse AI results: {ai_results.get('error')}")
+        print(f"| ❌ Could not parse AI results: {ai_results.get('error')}")
         return False
 
     # Check results
-    print(f"📊 AI agent provided {ai_results['total_responses']} responses")
+    print(f"| 📊 AI agent provided {ai_results['total_responses']} responses")
 
-    if ai_results["found_andrew_jackson"]:
-        print("✅ AI agent correctly identified: Andrew Jackson")
-        print("🎉 Task verification: PASSED")
+    if ai_results["found_answer"]:
+        print(f"| AI agent correctly identified: {EXPECTED_GROUND_TRUTH}")
         return True
     else:
-        print("❌ AI agent did not find the correct answer: Andrew Jackson")
-        print(
-            "💡 Expected one of: Andrew Jackson, Jackson, President Andrew Jackson, President Jackson"
-        )
-        print("❌ Task verification: FAILED")
+        print(f"❌ AI agent did not find the correct answer: {EXPECTED_GROUND_TRUTH}")
+        print(f"💡 Expected one of: {', '.join(ACCEPTED_ANSWERS)}")
         return False
 
 
