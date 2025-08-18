@@ -18,7 +18,6 @@ pip install -e .
 
 #### 1.3 Docker Installation
 ```bash
-# Build Docker image
 ./build-docker.sh
 ```
 
@@ -58,8 +57,8 @@ Suppose you are running the employee query task with gemini-2.5-flash, and name 
 ```bash
 python -m pipeline 
 --exp-name mcpmark_quickstart
---mcp postgres 
---tasks basic_queries/task_1
+--mcp filesystem
+--tasks file_context/file_merging
 --models gemini-2.5-flash
 ```
 
