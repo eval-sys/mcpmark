@@ -1,6 +1,3 @@
-# Data Consistency Enforcement System for the LEGO Database
-
-### Goal
 Implement a data consistency enforcement system for the LEGO database. The system must ensure that the reported part count in the `lego_sets` table matches the actual sum of non-spare parts in the latest inventory version. This involves a three-step process: identifying existing inconsistencies, fixing them, and creating a trigger-based constraint system to prevent future issues.
 
 ### Consistency Rule
@@ -19,7 +16,7 @@ Write a single `SELECT` query to find all sets where the stored `num_parts` does
 2.  **Calculate Actual Part Count**: For these latest inventories, join with `lego_inventory_parts` and calculate the `SUM(quantity)`, but only for parts where `is_spare` is false.
 3.  **Compare and Filter**: Join this calculated result back to the `lego_sets` table and return the rows where `lego_sets.num_parts` is different from your calculated sum.
 
-## Task 2: Fix Existing Inconsistencies (Simplified Approach)
+## Task 2: Fix Existing Inconsistencies
 
 ### Objective
 Correct all mismatched `num_parts` values using a clear, multi-step process with a temporary table. This approach is designed to be robust against all edge cases.

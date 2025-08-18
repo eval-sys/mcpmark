@@ -110,5 +110,3 @@ SELECT transfer_parts(14469, 14469, '3024', 15, 10, 'self_transfer');
 - Self-transfers are prevented
 - Quantity limits are enforced
 - Database state remains consistent after failures
-
-The task tests intermediate PostgreSQL knowledge including transactions, validation, audit logging, error handling, and business rule implementation.

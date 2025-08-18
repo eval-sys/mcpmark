@@ -60,6 +60,4 @@ When the `theme_analyst` role queries the database:
 - All reference tables should return complete data
 - Queries for other themes should return empty results
 
-The task tests advanced PostgreSQL security features including role-based access control, Row-Level Security policies, and complex data isolation patterns.
-
 OUTPUT THE SQL YOU EXECUTED.
