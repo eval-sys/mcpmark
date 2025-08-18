@@ -18,6 +18,15 @@ from src.logger import get_logger
 logger = get_logger(__name__)
 
 
+class PlaywrightTask(BaseTask):
+    """Playwright-specific task that uses directory name as task name."""
+    
+    @property
+    def name(self) -> str:
+        """Return the task name in the format 'category/task_id' without forcing 'task_' prefix."""
+        return f"{self.category}/{self.task_id}"
+
+
 class PlaywrightTaskManager(BaseTaskManager):
     """Simple task manager for Playwright MCP tasks."""
 
@@ -29,24 +38,18 @@ class PlaywrightTaskManager(BaseTaskManager):
         super().__init__(
             tasks_root,
             mcp_service="playwright",
-            task_class=BaseTask,
+            task_class=PlaywrightTask,
             task_organization="directory",
         )
 
     def _create_task_from_files(
         self, category_name: str, task_files_info: Dict[str, Any]
-    ) -> BaseTask:
-        """Instantiate a `BaseTask` from the dictionary returned by `_find_task_files`."""
-        # Extract numeric ID from folder name like "task_1" so that the default
-        # `BaseTask.name` ("{category}/task_{task_id}") matches the original path
-        # pattern used by the CLI filter, e.g. "form_interaction/task_1".
-        try:
-            task_id = int(task_files_info["task_name"].split("_")[1])
-        except (IndexError, ValueError):
-            # Fallback to entire slug when it is not in the expected format
-            task_id = task_files_info["task_name"]
+    ) -> PlaywrightTask:
+        """Instantiate a `PlaywrightTask` from the dictionary returned by `_find_task_files`."""
+        # Use the directory name directly as task_id for cleaner task names
+        task_id = task_files_info["task_name"]
 
-        return BaseTask(
+        return PlaywrightTask(
             task_instruction_path=task_files_info["instruction_path"],
             task_verification_path=task_files_info["verification_path"],
             service="playwright",

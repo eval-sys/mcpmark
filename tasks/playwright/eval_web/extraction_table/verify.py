@@ -17,7 +17,7 @@ from io import StringIO
 EXPECTED_HEADER_LINE = "Title, Rating, Likes, Views, Replies"
 EXPECTED_HEADERS = ["Title", "Rating", "Likes", "Views", "Replies"]
 # 确切的数据行数（与data.csv完全一致）
-EXPECTED_DATA_ROWS = 50
+EXPECTED_DATA_ROWS = 97
 
 
 def get_model_response():
