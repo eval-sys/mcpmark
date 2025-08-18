@@ -54,7 +54,7 @@ def main():
 
     # Execution configuration
     parser.add_argument(
-        "--timeout", type=int, default=300, help="Timeout in seconds for each task"
+        "--timeout", type=int, default=1000, help="Timeout in seconds for each task"
     )
 
     # Output configuration

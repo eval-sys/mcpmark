@@ -100,11 +100,70 @@ class NotionStateManager(BaseStateManager):
     # Core Template Methods (Required by BaseStateManager)
     # =========================================================================
 
+    def _cleanup_eval_hub_orphans(self) -> None:
+        """Clean up all pages in MCPMark Eval Hub before creating new task state."""
+        try:
+            # Search for the MCPMark Eval Hub parent page in eval workspace
+            response = self.eval_notion_client.search(
+                query=self.eval_parent_page_title,
+                filter={"property": "object", "value": "page"},
+            )
+
+            # Find the parent page ID
+            parent_page_id = None
+            for result in response.get("results", []):
+                props = result.get("properties", {})
+                title_prop = props.get("title", {}).get("title") or props.get(
+                    "Name", {}
+                ).get("title")
+                if title_prop:
+                    title = "".join(t.get("plain_text", "") for t in title_prop).strip()
+                    if title == self.eval_parent_page_title:
+                        parent_page_id = result.get("id")
+                        break
+
+            if not parent_page_id:
+                logger.debug(
+                    "Parent page '%s' not found in eval workspace, skipping cleanup",
+                    self.eval_parent_page_title,
+                )
+                return
+
+            # Get all child pages and archive them
+            children = self.eval_notion_client.blocks.children.list(
+                block_id=parent_page_id
+            )
+            orphan_count = 0
+            for child in children.get("results", []):
+                if child.get("type") == "child_page":
+                    try:
+                        self.eval_notion_client.pages.update(
+                            page_id=child["id"], archived=True
+                        )
+                        orphan_count += 1
+                        logger.debug("Archived orphan page: %s", child["id"])
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to archive orphan page %s: %s", child["id"], e
+                        )
+
+            if orphan_count > 0:
+                logger.info(
+                    "Cleaned up %d orphan page(s) from MCPMark Eval Hub", orphan_count
+                )
+
+        except Exception as e:
+            logger.warning("Orphan cleanup failed (non-critical, continuing): %s", e)
+            # Don't raise exception - allow execution to continue
+
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
         """Create initial state by duplicating Notion page."""
         if not isinstance(task, NotionTask):
             logger.error("Task must be NotionTask for Notion state manager")
             return None
+
+        # Clean up any orphan pages in eval hub before creating new state
+        self._cleanup_eval_hub_orphans()
 
         try:
             initial_state_title = self._category_to_initial_state_title(task.category)
@@ -123,6 +182,8 @@ class NotionStateManager(BaseStateManager):
             duplicated_url, duplicated_id = self._duplicate_initial_state_for_task(
                 initial_state_url, task.category, task.name
             )
+
+            time.sleep(5) # allow the page to fully load
 
             return InitialStateInfo(
                 state_id=duplicated_id,
