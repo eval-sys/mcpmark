@@ -45,7 +45,7 @@ class BaseStateManager(ABC):
         """
         try:
             logger.info(
-                f"Setting up initial state for {self.service_name} task: {task.name}"
+                f"| Setting up initial state for {self.service_name} task: {task.name}"
             )
 
             # Create initial state
@@ -138,10 +138,10 @@ class BaseStateManager(ABC):
     def set_verification_environment(self, messages_path: str = None) -> None:
         """
         Set environment variables needed for verification scripts.
-        
+
         Args:
             messages_path: Optional path to messages.json file for verification
-        
+
         This method can be overridden by service implementations that need
         to set specific environment variables for their verification scripts.
         The default implementation sets MCP_MESSAGES if provided.

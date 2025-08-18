@@ -94,7 +94,7 @@ class PlaywrightStateManager(BaseStateManager):
         """
         try:
             logger.info(
-                "Skipping Playwright browser launch – no initial browser state "
+                "| Skipping Playwright browser launch – no initial browser state "
                 "needed for task: %s",
                 task.name,
             )
