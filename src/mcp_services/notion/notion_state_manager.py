@@ -100,6 +100,59 @@ class NotionStateManager(BaseStateManager):
     # Core Template Methods (Required by BaseStateManager)
     # =========================================================================
 
+    def _wait_for_database_ready(
+        self, 
+        page_id: str, 
+        max_retries: int = 10,
+        retry_delay: int = 2
+    ) -> bool:
+        """
+        Wait for the database backend to be ready by checking page accessibility.
+        
+        Args:
+            page_id: The ID of the page to check
+            max_retries: Maximum number of retry attempts
+            retry_delay: Delay between retries in seconds
+            
+        Returns:
+            True if the database is ready, False if timeout
+        """
+        logger.info("| ○ Starting heartbeat detection for page %s", page_id)
+        
+        for attempt in range(max_retries):
+            try:
+                # Try to retrieve the page from the evaluation workspace
+                result = self.eval_notion_client.pages.retrieve(page_id=page_id)
+                
+                # Check if we got a valid response
+                if result and isinstance(result, dict):
+                    # Additional check: try to get page properties
+                    if "properties" in result:
+                        logger.info(
+                            "| ✓ Database backend is ready (attempt %d/%d)", 
+                            attempt + 1, 
+                            max_retries
+                        )
+                        return True
+                        
+            except Exception as e:
+                logger.debug(
+                    "Database not ready yet (attempt %d/%d): %s", 
+                    attempt + 1, 
+                    max_retries, 
+                    str(e)
+                )
+            
+            # Wait before next retry
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+        
+        logger.error(
+            "Database backend failed to become ready after %d attempts", 
+            max_retries
+        )
+        return False
+
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
         """Create initial state by duplicating Notion page."""
         if not isinstance(task, NotionTask):
@@ -123,6 +176,26 @@ class NotionStateManager(BaseStateManager):
             duplicated_url, duplicated_id = self._duplicate_initial_state_for_task(
                 initial_state_url, task.category, task.name
             )
+            
+            # Wait for database backend to be ready
+            logger.info("| ○ Checking database backend accessibility for duplicated page...")
+            if not self._wait_for_database_ready(duplicated_id):
+                logger.error(
+                    "Database backend is not accessible after duplication for task %s",
+                    task.name
+                )
+                # Clean up the duplicated page if database is not ready
+                try:
+                    self.eval_notion_client.pages.update(
+                        page_id=duplicated_id, archived=True
+                    )
+                    logger.info("| ✓ Cleaned up inaccessible duplicated page: %s", duplicated_id)
+                except Exception as cleanup_error:
+                    logger.error("Failed to clean up duplicated page: %s", cleanup_error)
+                
+                raise RuntimeError(
+                    f"Database backend failed to become ready for duplicated page {duplicated_id}"
+                )
 
             return InitialStateInfo(
                 state_id=duplicated_id,
@@ -168,7 +241,7 @@ class NotionStateManager(BaseStateManager):
             self.eval_notion_client.pages.update(
                 page_id=initial_state_id, archived=True
             )
-            logger.info("Archived page initial state: %s", initial_state_id)
+            logger.info("| ✓ Archived page initial state: %s", initial_state_id)
 
             # Remove from tracked resources to avoid duplicate cleanup
             self.tracked_resources = [
@@ -239,7 +312,7 @@ class NotionStateManager(BaseStateManager):
         """
 
         logger.info(
-            "- Moving duplicated page to evaluation parent '%s'...",
+            "| ○ Moving duplicated page to evaluation parent '%s'...",
             self.eval_parent_page_title,
         )
 
@@ -364,19 +437,19 @@ class NotionStateManager(BaseStateManager):
     ) -> str:
         """Duplicates the currently open Notion initial state using Playwright."""
         try:
-            logger.info("- Opening page menu...")
+            logger.info("| ○ Opening page menu...")
             page.wait_for_selector(
                 PAGE_MENU_BUTTON_SELECTOR, state="visible", timeout=30_000
             )
             page.click(PAGE_MENU_BUTTON_SELECTOR)
 
-            logger.info("- Clicking 'Duplicate'...")
+            logger.info("| ○ Clicking 'Duplicate'...")
             page.hover(DUPLICATE_MENU_ITEM_SELECTOR)
             page.click(DUPLICATE_MENU_ITEM_SELECTOR)
 
             original_url = page.url
             logger.info(
-                "- Waiting for duplicated initial state to load (up to %.1f s)...",
+                "| ○ Waiting for duplicated initial state to load (up to %.1f s)...",
                 wait_timeout / 1000,
             )
             page.wait_for_url(lambda url: url != original_url, timeout=wait_timeout)
@@ -425,7 +498,7 @@ class NotionStateManager(BaseStateManager):
                         "Playwright move to error: Notion API did not return a valid page dict after move."
                     )
                 logger.info(
-                    "✅ Page moved to '%s' successfully.", self.eval_parent_page_title
+                    "| ✓ Page moved to '%s' successfully.", self.eval_parent_page_title
                 )
             except Exception as move_exc:
                 logger.error(f"Playwright move to error: {move_exc}")
@@ -518,7 +591,7 @@ class NotionStateManager(BaseStateManager):
                     context = browser.new_context(storage_state=str(self.state_file))
                     page = context.new_page()
 
-                    logger.info("- Navigating to initial state for %s...", category)
+                    logger.info("| ○ Navigating to initial state for %s...", category)
                     # Start timing from the moment we begin navigating to the initial state page.
                     start_time = time.time()
                     page.goto(initial_state_url, wait_until="load", timeout=60_000)
@@ -544,7 +617,7 @@ class NotionStateManager(BaseStateManager):
                     # Log how long the whole duplication (navigate → duplicate) took.
                     elapsed = time.time() - start_time
                     logger.info(
-                        "✅ Initial state duplicated successfully in %.2f seconds (task: %s).",
+                        "| ✓ Initial state duplicated successfully in %.2f seconds (task: %s).",
                         elapsed,
                         task_name,
                     )

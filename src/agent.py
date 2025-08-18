@@ -151,13 +151,14 @@ class MCPAgent:
 
         cfg = self.service_config  # shorthand
 
-        # Services that use npx and need startup delay
+        # Services that use npx or pipx and need startup delay
         NPX_BASED_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena"]
-
-        # Add startup delay for npx-based services to ensure proper initialization
-        if self.mcp_service in NPX_BASED_SERVICES:
-            logger.debug(f"Adding startup delay for npx-based service: {self.mcp_service}")
-            await asyncio.sleep(2)
+        PIPX_BASED_SERVICES = ["postgres"]
+        
+        # Add startup delay for npx-based and pipx-based services to ensure proper initialization
+        if self.mcp_service in NPX_BASED_SERVICES or self.mcp_service in PIPX_BASED_SERVICES:
+            logger.debug(f"Adding startup delay for service: {self.mcp_service}")
+            await asyncio.sleep(5)
 
         if self.mcp_service == "notion":
             notion_key = cfg.get("notion_key")
