@@ -44,7 +44,7 @@ Perform a comprehensive marketing and customer analysis workflow in the Magento 
 
 6. Finally, let's review overall business performance metrics from the main dashboard:
    Go to Dashboard and identify:
-   - The top bestselling and most expensive product name and quantity sold
+   - The names and sales quantities of the products that are both the best-selling and most expensive
    - The total revenue displayed on the dashboard
 
 7. Compile all your findings and must output them in the following exact format at last:

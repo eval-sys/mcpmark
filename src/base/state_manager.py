@@ -57,7 +57,7 @@ class BaseStateManager(ABC):
             # Store initial state info in task
             self._store_initial_state_info(task, initial_state_info)
 
-            logger.info(f"✅ Initial state setup completed for {task.name}")
+            logger.info(f"| ✓ Initial state setup completed for {task.name}")
             return True
 
         except Exception as e:
@@ -79,7 +79,7 @@ class BaseStateManager(ABC):
             # Task-specific cleanup
             if task:
                 logger.info(
-                    f"Cleaning up initial state for {self.service_name} task: {task.name}"
+                    f"| ○ Cleaning up initial state for {self.service_name} task: {task.name}"
                 )
                 if not self._cleanup_task_initial_state(task):
                     cleanup_success = False
@@ -89,7 +89,7 @@ class BaseStateManager(ABC):
                 cleanup_success = False
 
             if cleanup_success:
-                logger.info(f"✅ Cleanup completed for {self.service_name}")
+                logger.info(f"| ✓ Cleanup completed for {self.service_name}")
             else:
                 logger.warning(
                     f"⚠️ Cleanup completed with some failures for {self.service_name}"
