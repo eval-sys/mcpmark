@@ -155,17 +155,13 @@ def verify_task(work_dir: Path) -> bool:
     print(f"| Expected content loaded ({len(expected_content)} characters)")
 
     # Parse MCP messages
-    print("| Parsing MCP messages...")
     messages = parse_ai_results(work_dir)
 
     if not messages["success"]:
         print(f"| Error: Could not parse AI results: {messages.get('error')}")
         return False
 
-    print(f"| Found {messages['total_responses']} MCP messages")
-
     # Extract AI agent response
-    print("| Extracting AI agent response...")
     extracted_content = messages.get("extracted_content", "")
 
     if not extracted_content:
