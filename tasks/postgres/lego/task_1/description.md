@@ -6,12 +6,13 @@ For any given `set_num`, the following invariant must be maintained:
 
 **Important**: If a set has no inventory records, the consistency check should be skipped.
 
+# Your Tasks:
+
 ## Task 1: Identify Data Inconsistencies
 
 ### Objective
 Write a single `SELECT` query to find all sets where the stored `num_parts` does not match the actual calculated number of parts from the latest inventory.
 
-### Key Logic
 1.  **Find the Latest Inventory**: For each `set_num`, find its latest inventory id by getting the `MAX(version)` from the `lego_inventories` table.
 2.  **Calculate Actual Part Count**: For these latest inventories, join with `lego_inventory_parts` and calculate the `SUM(quantity)`, but only for parts where `is_spare` is false.
 3.  **Compare and Filter**: Join this calculated result back to the `lego_sets` table and return the rows where `lego_sets.num_parts` is different from your calculated sum.
@@ -20,8 +21,6 @@ Write a single `SELECT` query to find all sets where the stored `num_parts` does
 
 ### Objective
 Correct all mismatched `num_parts` values using a clear, multi-step process with a temporary table. This approach is designed to be robust against all edge cases.
-
-### Key Logic
 
 #### Step 1: Create a Temporary Table
 Create a temporary table (e.g., `correct_counts`) with two columns: `set_num` (text) and `actual_parts` (integer).
