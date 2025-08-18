@@ -51,6 +51,7 @@ def _wait_for_workflow_completion(
 
     start_time = time.time()
     expected_runs = 3  # We created 3 test issues
+    no_workflow_check_count = 0
 
     while time.time() - start_time < max_wait:
         try:
@@ -101,6 +102,21 @@ def _wait_for_workflow_completion(
                         print("⏳ Additional wait for issue processing to complete...")
                         time.sleep(5)
                         return True
+                elif len(runs) == 0:
+                    # No workflow runs found
+                    no_workflow_check_count += 1
+                    if no_workflow_check_count == 1:
+                        print(
+                            "   No workflow runs found yet, waiting 5 seconds and checking once more..."
+                        )
+                        time.sleep(5)
+                        continue
+                    elif no_workflow_check_count >= 2:
+                        print(
+                            "⚠️ No workflow runs detected after 2 checks. Workflow may not have been triggered."
+                        )
+                        print("   Continuing with verification...")
+                        return False
                 else:
                     print(
                         f"   Waiting for workflow runs... Found {len(runs)}, expected {expected_runs}"

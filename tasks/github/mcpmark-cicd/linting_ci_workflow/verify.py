@@ -78,11 +78,11 @@ def _get_workflow_runs_for_pr(
 ) -> List[Dict]:
     """Get workflow runs for a specific PR."""
     success, runs = _get_github_api(
-        f"actions/runs?event=pull_request&per_page=100", headers, org, repo
+        "actions/runs?event=pull_request&per_page=100", headers, org, repo
     )
     if not success or not runs:
         return []
-    
+
     pr_runs = []
     for run in runs.get("workflow_runs", []):
         # Check if this run is associated with our PR
@@ -90,7 +90,7 @@ def _get_workflow_runs_for_pr(
             if pr.get("number") == pr_number:
                 pr_runs.append(run)
                 break
-    
+
     return pr_runs
 
 
@@ -116,8 +116,6 @@ def _get_workflow_runs_for_commit(
     return runs.get("workflow_runs", [])
 
 
-
-
 def verify() -> bool:
     """
     Programmatically verify that the ESLint CI workflow setup
@@ -126,12 +124,12 @@ def verify() -> bool:
     # Configuration constants
     BRANCH_NAME = "ci/add-eslint-workflow"
     PR_KEYWORD = "eslint workflow"
-    
+
     # Expected files and their content checks
     ESLINT_CONFIG_PATH = ".eslintrc.json"
     WORKFLOW_PATH = ".github/workflows/lint.yml"
     EXAMPLE_FILE_PATH = "src/example.js"
-    
+
     # Expected workflow content keywords
     WORKFLOW_KEYWORDS = [
         "Code Linting",
@@ -185,13 +183,15 @@ def verify() -> bool:
     try:
         eslint_config = json.loads(eslint_content)
         rules = eslint_config.get("rules", {})
-        
+
         required_rules = ["no-unused-vars", "semi", "quotes"]
         missing_rules = [rule for rule in required_rules if rule not in rules]
         if missing_rules:
-            print(f"Error: .eslintrc.json missing rules: {missing_rules}", file=sys.stderr)
+            print(
+                f"Error: .eslintrc.json missing rules: {missing_rules}", file=sys.stderr
+            )
             return False
-            
+
     except json.JSONDecodeError:
         print("Error: .eslintrc.json is not valid JSON", file=sys.stderr)
         return False
@@ -237,7 +237,7 @@ def verify() -> bool:
     if not lint_pr:
         # Try alternative keywords
         lint_pr = _find_pr_by_title_keyword("eslint", headers, github_org)
-    
+
     if not lint_pr:
         print("Error: Linting PR not found", file=sys.stderr)
         return False
@@ -247,55 +247,86 @@ def verify() -> bool:
 
     # Check PR body sections
     required_sections = ["## Summary", "## Changes", "## Testing"]
-    missing_sections = [section for section in required_sections if section not in pr_body]
+    missing_sections = [
+        section for section in required_sections if section not in pr_body
+    ]
     if missing_sections:
-        print(f"Error: Linting PR missing sections: {missing_sections}", file=sys.stderr)
+        print(
+            f"Error: Linting PR missing sections: {missing_sections}", file=sys.stderr
+        )
         return False
 
     print("✓ Linting PR created with proper structure")
 
     # 6. Check workflow runs and status changes
     print("6. Verifying workflow execution and status...")
-    
+
     # First get the commits for this PR
     commits = _get_pr_commits(pr_number, headers, github_org)
     if len(commits) != 2:
-        print(f"Error: Expected exactly 2 commits, found {len(commits)}", file=sys.stderr)
+        print(
+            f"Error: Expected exactly 2 commits, found {len(commits)}", file=sys.stderr
+        )
         return False
-    
-    print(f"✓ Found exactly 2 commits as expected")
-    
+
+    print("✓ Found exactly 2 commits as expected")
+
     # Sort commits chronologically (oldest first)
     commits.sort(key=lambda x: x.get("commit", {}).get("author", {}).get("date", ""))
-    
+
     first_commit_sha = commits[0].get("sha")
     second_commit_sha = commits[1].get("sha")
-    
+
     print(f"First commit (should fail): {first_commit_sha[:7]}")
     print(f"Second commit (should pass): {second_commit_sha[:7]}")
-    
+
     # Wait for workflows on both commits to complete
     print("Waiting for workflow completion on first commit...")
     first_commit_runs = []
     second_commit_runs = []
-    
+
     start_time = time.time()
     timeout = 120
-    
+    no_workflow_check_count = 0
+
     while time.time() - start_time < timeout:
-        first_commit_runs = _get_workflow_runs_for_commit(first_commit_sha, headers, github_org)
-        second_commit_runs = _get_workflow_runs_for_commit(second_commit_sha, headers, github_org)
-        
+        first_commit_runs = _get_workflow_runs_for_commit(
+            first_commit_sha, headers, github_org
+        )
+        second_commit_runs = _get_workflow_runs_for_commit(
+            second_commit_sha, headers, github_org
+        )
+
+        # Check if any workflows exist
+        if not first_commit_runs and not second_commit_runs:
+            no_workflow_check_count += 1
+            if no_workflow_check_count == 1:
+                print(
+                    "No workflow runs found yet, waiting 5 seconds and checking once more..."
+                )
+                time.sleep(5)
+                continue
+            elif no_workflow_check_count >= 2:
+                print(
+                    "⚠️ No workflow runs detected after 2 checks. Workflows may not have been triggered."
+                )
+                print("   Continuing with verification...")
+                break
+
         # Check if workflows are completed
-        first_completed = any(run.get("status") == "completed" for run in first_commit_runs)
-        second_completed = any(run.get("status") == "completed" for run in second_commit_runs)
-        
+        first_completed = any(
+            run.get("status") == "completed" for run in first_commit_runs
+        )
+        second_completed = any(
+            run.get("status") == "completed" for run in second_commit_runs
+        )
+
         if first_completed and second_completed:
             break
-        
+
         print("Waiting for workflows to complete...")
         time.sleep(10)
-    
+
     # Verify first commit workflow failed
     first_commit_status = None
     for run in first_commit_runs:
@@ -308,12 +339,15 @@ def verify() -> bool:
             elif conclusion == "success":
                 first_commit_status = "passed"
                 break
-    
+
     if first_commit_status != "failed":
-        print("Error: First commit workflow should have failed due to linting errors", file=sys.stderr)
+        print(
+            "Error: First commit workflow should have failed due to linting errors",
+            file=sys.stderr,
+        )
         return False
-    
-    # Verify second commit workflow succeeded  
+
+    # Verify second commit workflow succeeded
     second_commit_status = None
     for run in second_commit_runs:
         if run.get("status") == "completed":
@@ -325,24 +359,34 @@ def verify() -> bool:
             elif conclusion in ["failure", "cancelled"]:
                 second_commit_status = "failed"
                 break
-    
+
     if second_commit_status != "passed":
-        print("Error: Second commit workflow should have passed after fixing linting errors", file=sys.stderr)
+        print(
+            "Error: Second commit workflow should have passed after fixing linting errors",
+            file=sys.stderr,
+        )
         return False
-    
-    print("✓ Workflow status sequence verified: first commit failed → second commit passed")
+
+    print(
+        "✓ Workflow status sequence verified: first commit failed → second commit passed"
+    )
 
     # 7. Verify the final state shows clean code
     print("7. Verifying final file state...")
     final_example_content = _get_file_content(
         EXAMPLE_FILE_PATH, headers, github_org, "mcpmark-cicd", BRANCH_NAME
     )
-    
+
     if final_example_content:
         # Check that obvious linting errors are fixed
-        if ("unusedVariable" in final_example_content or 
-            'console.log("Hello World")' in final_example_content):
-            print("Warning: Example file may still contain linting errors", file=sys.stderr)
+        if (
+            "unusedVariable" in final_example_content
+            or 'console.log("Hello World")' in final_example_content
+        ):
+            print(
+                "Warning: Example file may still contain linting errors",
+                file=sys.stderr,
+            )
         else:
             print("✓ Linting errors appear to be fixed")
 
@@ -350,10 +394,16 @@ def verify() -> bool:
     print("ESLint CI workflow setup completed successfully:")
     print(f"  - Linting PR #{pr_number}")
     print(f"  - Branch: {BRANCH_NAME}")
-    print("  - Files created: .eslintrc.json, .github/workflows/lint.yml, src/example.js")
+    print(
+        "  - Files created: .eslintrc.json, .github/workflows/lint.yml, src/example.js"
+    )
     print("  - Workflow configured for pull_request and push triggers")
-    print(f"  - Total workflow runs found: {len(first_commit_runs) + len(second_commit_runs)}")
-    print(f"  - First commit runs: {len(first_commit_runs)}, Second commit runs: {len(second_commit_runs)}")
+    print(
+        f"  - Total workflow runs found: {len(first_commit_runs) + len(second_commit_runs)}"
+    )
+    print(
+        f"  - First commit runs: {len(first_commit_runs)}, Second commit runs: {len(second_commit_runs)}"
+    )
 
     return True
 

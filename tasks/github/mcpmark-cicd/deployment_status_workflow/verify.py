@@ -50,6 +50,7 @@ def _wait_for_workflow_completion(
     print("⏳ Waiting for deployment status workflows to complete...")
 
     start_time = time.time()
+    no_workflow_check_count = 0
 
     while time.time() - start_time < max_wait:
         try:
@@ -95,11 +96,26 @@ def _wait_for_workflow_completion(
                             f"✅ All workflows completed. Found {completed_count} completed runs."
                         )
                         # Additional wait to ensure all processing is done
-                        print("⏳ Additional wait for deployment processing to complete...")
+                        print(
+                            "⏳ Additional wait for deployment processing to complete..."
+                        )
                         time.sleep(5)
                         return True
                 else:
-                    print("   Waiting for workflow runs...")
+                    # No workflow runs found
+                    no_workflow_check_count += 1
+                    if no_workflow_check_count == 1:
+                        print(
+                            "   No workflow runs found yet, waiting 5 seconds and checking once more..."
+                        )
+                        time.sleep(5)
+                        continue
+                    elif no_workflow_check_count >= 2:
+                        print(
+                            "⚠️ No workflow runs detected after 2 checks. Workflow may not have been triggered."
+                        )
+                        print("   Continuing with verification...")
+                        return False
 
             print(f"⏳ Still waiting... ({int(time.time() - start_time)}s elapsed)")
             time.sleep(5)
@@ -183,20 +199,27 @@ def _verify_workflow_runs(
         if len(job_times) >= 3:
             # Check that jobs ran in correct sequence
             import datetime
-            times = {name: datetime.datetime.fromisoformat(time.replace('Z', '+00:00')) 
-                    for name, time in job_times.items()}
-            
+
+            times = {
+                name: datetime.datetime.fromisoformat(time.replace("Z", "+00:00"))
+                for name, time in job_times.items()
+            }
+
             # pre-deployment should start first
             # rollback-preparation should start after pre-deployment
             # post-deployment should start after rollback-preparation
             if all(job in times for job in expected_jobs):
-                if (times["rollback-preparation"] <= times["pre-deployment"] or
-                    times["post-deployment"] <= times["rollback-preparation"]):
+                if (
+                    times["rollback-preparation"] <= times["pre-deployment"]
+                    or times["post-deployment"] <= times["rollback-preparation"]
+                ):
                     errors.append("Jobs did not run in correct sequential order")
                 else:
                     print("   ✅ Jobs ran in correct sequential order")
             else:
-                errors.append("Not enough job timing data to verify sequential execution")
+                errors.append(
+                    "Not enough job timing data to verify sequential execution"
+                )
 
     return len(errors) == 0, errors, latest_successful_run
 
@@ -239,7 +262,9 @@ def _verify_deployment_issue(
 
     # Check that issue is closed
     if deployment_issue.get("state") != "closed":
-        errors.append(f"Deployment issue #{issue_number} is not closed (state: {deployment_issue.get('state')})")
+        errors.append(
+            f"Deployment issue #{issue_number} is not closed (state: {deployment_issue.get('state')})"
+        )
     else:
         print(f"   ✅ Deployment issue #{issue_number} is closed")
 
@@ -249,7 +274,9 @@ def _verify_deployment_issue(
     missing_labels = [label for label in expected_labels if label not in actual_labels]
 
     if missing_labels:
-        errors.append(f"Missing labels on deployment issue: {missing_labels}. Found: {actual_labels}")
+        errors.append(
+            f"Missing labels on deployment issue: {missing_labels}. Found: {actual_labels}"
+        )
     else:
         print(f"   ✅ Required labels found: {expected_labels}")
 
@@ -264,16 +291,17 @@ def _verify_deployment_issue(
 
     # Filter for GitHub Actions bot comments only
     bot_comments = [
-        comment for comment in comments 
+        comment
+        for comment in comments
         if comment.get("user", {}).get("login") == "github-actions[bot]"
     ]
-    
+
     if not bot_comments:
         errors.append("No comments found from GitHub Actions bot")
         return len(errors) == 0, errors
-    
+
     print(f"   Found {len(bot_comments)} comment(s) from GitHub Actions bot")
-    
+
     # Get all bot comment bodies
     bot_comment_bodies = [comment.get("body", "") for comment in bot_comments]
     all_bot_comments = " ".join(bot_comment_bodies)
@@ -281,13 +309,15 @@ def _verify_deployment_issue(
     # Check for required GitHub Actions bot comment indicators
     required_comment_indicators = [
         "Pre-deployment checks completed",
-        "🔄 Rollback Plan Ready", 
-        "Deployment Completed Successfully"
+        "🔄 Rollback Plan Ready",
+        "Deployment Completed Successfully",
     ]
 
     for indicator in required_comment_indicators:
         if indicator not in all_bot_comments:
-            errors.append(f"Missing required GitHub Actions bot comment indicator: '{indicator}'")
+            errors.append(
+                f"Missing required GitHub Actions bot comment indicator: '{indicator}'"
+            )
         else:
             print(f"   ✅ Found GitHub Actions bot comment indicator: '{indicator}'")
 
@@ -300,11 +330,11 @@ def _verify_deployment_issue(
 
     if rollback_comment:
         print("   ✅ Found rollback plan comment from GitHub Actions bot")
-        
+
         # Check for required rollback plan elements
         required_elements = [
             "**Previous Commit**:",
-            "**Current Commit**:", 
+            "**Current Commit**:",
             "**Package Version**:",
             "✅ Executable rollback script created",
             "✅ Configuration backups saved",
@@ -313,7 +343,7 @@ def _verify_deployment_issue(
             "✅ Compressed rollback package created",
             "**SHA256**:",
             "**Artifact**:",
-            "Quick Rollback Commands"
+            "Quick Rollback Commands",
         ]
 
         for element in required_elements:
@@ -326,21 +356,30 @@ def _verify_deployment_issue(
         if f"**Current Commit**: {head_sha}" in rollback_comment:
             print(f"   ✅ Current commit SHA verified: {head_sha}")
         else:
-            errors.append(f"Current commit SHA {head_sha} not found in rollback comment")
+            errors.append(
+                f"Current commit SHA {head_sha} not found in rollback comment"
+            )
 
         # Extract and verify previous commit SHA
         if "**Previous Commit**:" in rollback_comment:
             import re
-            prev_sha_match = re.search(r"\*\*Previous Commit\*\*:\s*([a-f0-9]{40})", rollback_comment)
+
+            prev_sha_match = re.search(
+                r"\*\*Previous Commit\*\*:\s*([a-f0-9]{40})", rollback_comment
+            )
             if prev_sha_match:
                 prev_sha = prev_sha_match.group(1)
                 print(f"   ✅ Previous commit SHA found: {prev_sha}")
-                
+
                 # Verify it's a valid 40-character SHA
                 if len(prev_sha) != 40:
-                    errors.append(f"Previous commit SHA has invalid length: {len(prev_sha)}")
+                    errors.append(
+                        f"Previous commit SHA has invalid length: {len(prev_sha)}"
+                    )
             else:
-                errors.append("Previous commit SHA format not found in rollback comment")
+                errors.append(
+                    "Previous commit SHA format not found in rollback comment"
+                )
         else:
             errors.append("Previous commit SHA not found in rollback comment")
 
@@ -350,7 +389,9 @@ def _verify_deployment_issue(
             sha256_value = sha256_match.group(1)
             print(f"   ✅ SHA256 checksum found: {sha256_value[:16]}...")
         else:
-            errors.append("SHA256 checksum not found or invalid format in rollback comment")
+            errors.append(
+                "SHA256 checksum not found or invalid format in rollback comment"
+            )
 
     else:
         errors.append("Rollback plan comment not found from GitHub Actions bot")
@@ -410,7 +451,9 @@ def verify() -> bool:
 
         # 2. Verify deployment issue if workflow runs passed
         if run_data:
-            issue_ok, issue_errors = _verify_deployment_issue(run_data, headers, owner, repo)
+            issue_ok, issue_errors = _verify_deployment_issue(
+                run_data, headers, owner, repo
+            )
             if not issue_ok:
                 all_passed = False
                 print("❌ Deployment Issue Verification Failed:")
@@ -423,12 +466,16 @@ def verify() -> bool:
     if all_passed:
         print("🎉 All Deployment Status Workflow verifications PASSED!")
         print("\n📋 Summary:")
-        print("   ✅ Workflow runs with correct 3 sequential jobs: pre-deployment, rollback-preparation, post-deployment")
+        print(
+            "   ✅ Workflow runs with correct 3 sequential jobs: pre-deployment, rollback-preparation, post-deployment"
+        )
         print("   ✅ Deployment tracking issue created and closed with proper labels")
         print("   ✅ Issue contains rollback plan with all required elements")
         print("   ✅ Previous and current commit SHAs are correctly tracked")
         print("   ✅ All workflow automation comments are present")
-        print("\n🤖 The GitHub Actions deployment status workflow is working correctly!")
+        print(
+            "\n🤖 The GitHub Actions deployment status workflow is working correctly!"
+        )
     else:
         print("❌ Deployment Status Workflow verification FAILED!")
         print("   Some components did not meet the expected automation requirements.")

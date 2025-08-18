@@ -205,11 +205,14 @@ class BaseTaskManager(ABC):
                 )
 
             # If agent execution failed, return the failure
+            logger.debug(f"| DEBUG: agent_result = {agent_result}")
             if not agent_result.get("success", False):
                 error_message = agent_result.get("error", "Agent execution failed")
+                logger.debug(f"| DEBUG: Agent failed, error_message = {error_message}")
 
                 # Standardize MCP network errors
                 error_message = self._standardize_error_message(error_message)
+                logger.debug(f"| DEBUG: Standardized error_message = {error_message}")
 
                 # Log the agent failure so users can distinguish it from verification errors
                 logger.error(f"| ✗ Agent execution failed for task")
@@ -224,6 +227,9 @@ class BaseTaskManager(ABC):
                     error_message=error_message,
                     category=task.category,
                     task_id=task.task_id,
+                    model_output=agent_result.get("output", ""),
+                    token_usage=agent_result.get("token_usage", {}),
+                    turn_count=agent_result.get("turn_count", 0),
                 )
 
             # Run verification using service-specific command
