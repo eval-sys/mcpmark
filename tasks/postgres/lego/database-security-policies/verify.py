@@ -211,16 +211,6 @@ def test_theme_analyst_access(conn) -> bool:
             pass
         return False
 
-def verify_security_audit() -> bool:
-    """
-    TASK 6 VERIFICATION: Placeholder for manual check of the security audit.
-    """
-    print("\n-- Verifying Task 6: Security Audit Documentation --")
-    print("ℹ️  INFO: This step requires manual review of the agent's output to ensure")
-    print("   it provided the complete SQL statements and documentation as requested.")
-    print("✅ PASS: Security audit documentation check is marked as complete.")
-    return True
-
 def main():
     """Main verification function."""
     print("=" * 60)
@@ -242,7 +232,6 @@ def main():
             verify_rls_policies(conn),
             verify_theme_function(conn),
             test_theme_analyst_access(conn),
-            verify_security_audit(),
         ]
 
         if all(results):

@@ -59,5 +59,3 @@ When the `theme_analyst` role queries the database:
 - `lego_inventory_parts` should return only parts for those 2 sets
 - All reference tables should return complete data
 - Queries for other themes should return empty results
-
-OUTPUT THE SQL YOU EXECUTED.
