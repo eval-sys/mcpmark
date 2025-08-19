@@ -57,14 +57,14 @@ The experiment results are written to `./results/` (JSON + CSV).
 Quickly get to know model success rate and token comsumption through one line of command
 
 ```bash
-python -m examples.results_parser --exp-name exp_name --mcp notion
+python -m examples.results_parser --exp-name exp_name --mcp SERVICE
 ```
 
 This command scans `./results/{args.exp_name}/` for all model folders that start with the given service prefix.
 
 Only models that finished all tasks without pipeline errors are visualized. Incomplete models are listed with a resume command so you can easily continue evaluation.
 
-The generated plot is saved next to the experiment folder, e.g. `./results/{args.exp_name}/summary_notion.png`.
+The generated plot is saved next to the experiment folder, e.g. `./results/{args.exp_name}/summary_{SERVICE}.png`.
 
 ### Model Support
 MCPMark supports frontier models from various organizations, specifically

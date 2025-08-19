@@ -1,24 +1,11 @@
 # Quick Start
 To quickly experience MCPMark, we recommend firstly preparing the environment, and then execute the Postgres tasks.
 
-### 1. Setup MCPMark
-There are two approaches to setup MCPMark: through pip or through docker (recommended).
-
-#### 1.1 Clone MCPMark
+### 1. Clone MCPMark
 ```bash
 git clone https://github.com/eval-sys/mcpmark.git
 
 cd mcpmark
-```
-
-#### 1.2 Pip Installation
-```bash
-pip install -e .
-```
-
-#### 1.3 Docker Installation
-```bash
-./build-docker.sh
 ```
 
 ### 2. Setup Environment Variables
@@ -51,19 +38,20 @@ XAI_BASE_URL="https://your-xai-base-url.com/v1"
 XAI_API_KEY="your-xai-api-key"
 ```
 
-#### 3. Run Quick Example in MCPMark
+### 3. Run Quick Example in MCPMark
 Suppose you are running the employee query task with gemini-2.5-flash, and name your experiment as mcpmark_quickstart, you can use the following command to test the `size_classification` task in `file_property`, which categorizes files by their sizes.
 
 ```bash
 python -m pipeline 
---exp-name mcpmark_quickstart
+--exp-name test-run-1
 --mcp filesystem
 --tasks file_property/size_classification
 --models gemini-2.5-flash
 ```
 
-Here is the expected output (the verification may encounter failure due to model choices).
+Here is the expected output (the verification may encounter failure due to model choices). 
 ![Sample Experiment Output](../asset/task_sample/task_sample_file_property_size_classification.png)
 
+The reuslts is saved at `restuls/{exp_name}/{mcp}_{model}/{tasks}`, if `exp-name` is not specified, the default name would be timestamp of the experiment. 
 
 
