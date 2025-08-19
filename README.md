@@ -7,8 +7,8 @@ MCPMark is a comprehensive evaluation suite for testing AI models’ agentic abi
 
 Before running MCPMark you need to prepare the environment for the MCP service you plan to evaluate. Follow the service-specific guides below:
 
-- **Notion** – [docs/setup/notion-env-setup.md](docs/setup/notion-env-setup.md)
-- **GitHub** – [docs/setup/github-env-setup.md](docs/setup/github-env-setup.md)
+- **Notion** – [Notion Setup Doc](docs/mcp/notion.md)
+- **GitHub** – [Notion Setup Doc](docs/mcp/github.md)
 - **Filesystem** – coming soon...
 
 ## 2 · Environment Variables
@@ -59,12 +59,16 @@ ANTHROPIC_API_KEY="your-anthropic-api-key"
 MOONSHOT_BASE_URL="https://your-moonshot-base-url.com/v1"
 MOONSHOT_API_KEY="your-moonshot-api-key"
 
+## Alibaba
+QWEN_BASE_URL="https://your-alibaba-base-url.com/v1"
+QWEN_API_KEY="your-alibaba-api-key"
+
 ## xAI
 XAI_BASE_URL="https://your-xai-base-url.com/v1"
 XAI_API_KEY="your-xai-api-key"
 ```
 
-You only need to set the variables for the model providers you plan to use. Currently supported model providers: **OpenAI, Google Gemini, DeepSeek, Anthropic, Moonshot, xAI**.
+You only need to set the variables for the model providers you plan to use. Currently supported model providers: **OpenAI, Google Gemini, DeepSeek, Anthropic, Moonshot, xAI, Alibaba**.
 
 ## 3 · Installation
 
@@ -93,47 +97,55 @@ The verification script will tell you which browser is working properly. The pip
 
 ## 5 · Run the Evaluation
 
-### Using Local Installation
+### Single Run Evaluation (k=1)
 ```bash
-# Evaluate ALL 20 tasks
-python -m pipeline --exp-name run-1 --mcp notion --tasks all --models o3
+# Evaluate ALL tasks (single run)
+python -m pipeline --exp-name your-exp-name --mcp notion --tasks all --models o3 --k 1
 
 # Evaluate a single task group
-python -m pipeline --exp-name run-1 --mcp notion --tasks online_resume --models o3
+python -m pipeline --exp-name your-exp-name --mcp notion --tasks online_resume --models o3 --k 1
 
 # Evaluate one specific task
-python -m pipeline --exp-name run-1 --mcp notion --tasks online_resume/task_1 --models o3
+python -m pipeline --exp-name your-exp-name --mcp notion --tasks online_resume/task_1 --models o3 --k 1
 
 # Evaluate multiple models
-python -m pipeline --exp-name run-1 --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet
+python -m pipeline --exp-name your-exp-name --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet --k 1
+```
+
+### Multiple Run Evaluation (k>1) - Pass@K Metrics
+```bash
+# Run k=5 evaluations for pass@k metrics (requires --exp-name)
+python -m pipeline --exp-name your-exp-name --mcp notion --tasks all --models o3 --k 5
+
+# Aggregate results to get pass@1, pass@k, pass^k, avg@k metrics
+python -m src.aggregators.aggregate_results --exp-name your-exp-name
+
+# Multiple models with k runs
+python -m pipeline --exp-name your-exp-name --mcp github --tasks all --models gpt-4,claude-3 --k 3
 ```
 
 ### Using Docker
 ```bash
 # Run all tasks for a service
-./run-task.sh --mcp notion --models o3 --exp-name run-1 --tasks all
+./run-task.sh --mcp notion --models o3 --exp-name your-exp-name --tasks all
 
 # Run comprehensive benchmark across all services
-./run-benchmark.sh --models o3,gpt-4.1 --exp-name benchmark-1 --docker
+./run-benchmark.sh --models o3,gpt-4.1 --exp-name your-exp-name --docker
 ```
 
 **Auto-resume is supported:** When you rerun an evaluation command, only unfinished tasks will be executed. Tasks that previously failed due to pipeline errors (such as `State Duplication Error` or `MCP Network Error`) will also be retried automatically.
 
 Results are written to `./results/` (JSON + CSV).
 
-### Visualize Results
+### Aggregate Results
 
-After your evaluations are done, generate a quick dashboard of model performance (success rate + token usage) with:
+After your evaluations are done, generate a comprehensive summary with:
 
 ```bash
-python -m examples.results_parser --exp-name MCP-RUN --mcp notion
+python -m src.aggregators.aggregate_results --exp-name your-exp-name
 ```
 
-This command scans `./results/{args.exp_name}/` for all model folders that start with the given service prefix.
-
-Only models that finished **all** tasks without pipeline errors are visualized. Incomplete models are listed with a resume command so you can easily continue evaluation.
-
-The generated plot is saved next to the experiment folder, e.g. `./results/{args.exp_name}/summary_notion.png`.
+This generates `./results/your-exp-name/summary.json` with detailed metrics including pass@k metrics for multiple runs.
 
 ---
 
