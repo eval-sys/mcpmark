@@ -204,6 +204,74 @@ class PlaywrightStateManager(BaseStateManager):
         logger.error("Timed out waiting for WebArena at %s", url)
         return False
 
+    def _configure_shopping_post_start(self) -> None:
+        """Run Magento-specific steps for shopping container.
+        Uses EXTERNAL_IP env var if provided; waits a bit for services to start.
+        """
+        external_ip = os.getenv("EXTERNAL_IP", "34.143.228.182")
+        try:
+            # Shopping container needs more time to initialize (2-3 minutes)
+            wait_seconds = int(os.getenv("SHOPPING_SETUP_WAIT", "200"))
+        except ValueError:
+            wait_seconds = 200
+
+        logger.info(
+            "Running shopping post-start setup using external IP %s (wait %s s)",
+            external_ip,
+            wait_seconds,
+        )
+
+        if wait_seconds > 0:
+            time.sleep(wait_seconds)
+
+        base_url = f"http://{external_ip}:{self.config.host_port}"
+
+        cmds = [
+            [
+                "docker",
+                "exec",
+                self.config.container_name,
+                "/var/www/magento2/bin/magento",
+                "setup:store-config:set",
+                f"--base-url={base_url}",
+            ],
+            [
+                "docker",
+                "exec",
+                self.config.container_name,
+                "mysql",
+                "-u",
+                "magentouser",
+                "-pMyPassword",
+                "magentodb",
+                "-e",
+                f"UPDATE core_config_data SET value='{base_url}/' WHERE path IN ('web/secure/base_url', 'web/unsecure/base_url');",
+            ],
+            [
+                "docker",
+                "exec",
+                self.config.container_name,
+                "/var/www/magento2/bin/magento",
+                "cache:flush",
+            ],
+        ]
+
+        for cmd in cmds:
+            result = self._run_cmd(cmd)
+            if result.returncode != 0:
+                logger.warning(
+                    "shopping setup step failed (%s): %s",
+                    " ".join(cmd),
+                    result.stderr.strip(),
+                )
+            else:
+                logger.debug(
+                    "shopping setup step ok (%s): %s",
+                    " ".join(cmd),
+                    result.stdout.strip(),
+                )
+
+
     def _configure_shopping_admin_post_start(self) -> None:
         """Run Magento-specific steps for shopping_admin container.
         Uses EXTERNAL_IP env var if provided; waits a bit for services to start.
@@ -319,7 +387,9 @@ class PlaywrightStateManager(BaseStateManager):
                 "Started container %s (%s)", self.config.container_name, container_id
             )
 
-            # Special handling for shopping_admin
+            # Special handling for shopping and shopping_admin
+            if self.config.container_name == "shopping":
+                self._configure_shopping_post_start()
             if self.config.container_name == "shopping_admin":
                 self._configure_shopping_admin_post_start()
 
