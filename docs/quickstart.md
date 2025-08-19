@@ -62,7 +62,8 @@ python -m pipeline
 --models gemini-2.5-flash
 ```
 
-Here is the expected output.
+Here is the expected output (the verification may encounter failure due to model choices).
+![Sample Experiment Output](../asset/task_sample/task_sample_file_property_size_classification.png)
 
 
 
