@@ -91,13 +91,14 @@ class PostgresStateManager(BaseStateManager):
             else:
                 self._create_empty_database(db_name)
                 logger.info(f"Created empty database '{db_name}'")
+                # Run prepare_environment.py if it exists
+                self._run_prepare_environment(db_name, task)
+                logger.info(f"Prepared environment for database '{db_name}'")
 
             # Track for cleanup
             self.created_databases.append(db_name)
             self.track_resource("database", db_name, {"task": task.name})
 
-            # Run prepare_environment.py if it exists
-            self._run_prepare_environment(db_name, task)
 
             return InitialStateInfo(
                 state_id=db_name,
