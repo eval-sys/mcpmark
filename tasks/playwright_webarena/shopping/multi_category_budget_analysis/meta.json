@@ -9,10 +9,8 @@
     "difficulty": "L3",
     "tags": [
         "data extraction",
-        "search aggregation",
-        "content submission",
         "comparative analysis",
-        "inventory management"
+        "content submission"
     ],
     "mcp": [
         "playwright"

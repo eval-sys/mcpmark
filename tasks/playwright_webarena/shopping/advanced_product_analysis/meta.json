@@ -9,8 +9,8 @@
     "difficulty": "L3",
     "tags": [
         "data extraction",
-        "content submission",
-        "comparative analysis"
+        "comparative analysis",
+        "content submission"
     ],
     "mcp": [
         "playwright"
