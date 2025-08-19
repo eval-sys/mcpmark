@@ -1,16 +1,22 @@
 {
-  "task_name": "code_snippets_go",
-  "author": "zijian",
-  "category": "computer_science_student_dashboard",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "code",
-    "programming",
-    "go language",
-    "snippets"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Computer-Science-Student-Dashboard-23e81626b6d78083b787d3c832b02ef4",
-  "gt_page_url": "https://www.notion.so/Computer-Science-Student-Dashboard-Code-Snippets-Go-2442b7e8cebd81faaedef936f18fd9b3"
+    "task_id": "code_snippets_go",
+    "task_name": "Code Snippets Go",
+    "category_id": "computer_science_student_dashboard",
+    "category_name": "Computer Science Student Dashboard",
+    "description": "Add a new Go column to the Code Snippets section between Python and JavaScript columns.",
+    "author": "Zijian Wu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "content organization",
+        "visual formatting",
+        "template population"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Computer-Science-Student-Dashboard-23e81626b6d78083b787d3c832b02ef4",
+        "gt_page_url": "https://www.notion.so/Computer-Science-Student-Dashboard-Code-Snippets-Go-2442b7e8cebd81faaedef936f18fd9b3"
+    }
 }

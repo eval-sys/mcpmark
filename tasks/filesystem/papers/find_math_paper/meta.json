@@ -1,0 +1,18 @@
+{
+  "task_id": "find_math_paper",
+  "task_name": "Find Math Paper",
+  "category_id": "papers",
+  "category_name": "Papers",
+  "description": "Search through academic papers to identify and locate mathematics-related content that satisfies specific mathematical criteria and research requirements.",
+  "author": "Xiangyan Liu",
+  "created_at": "2025-08-12",
+  "difficulty": "L3",
+  "tags": [
+    "pattern analysis",
+    "data extraction"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

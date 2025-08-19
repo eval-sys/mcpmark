@@ -1,16 +1,21 @@
 {
-  "task_name": "numbered_list_emojis",
-  "author": "xiangyan",
-  "category": "self_assessment",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "formatting",
-    "emojis",
-    "lists",
-    "visual"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Self-Assessment-24381626b6d780fe9f56c2ba14ea042d",
-  "gt_page_url": "https://www.notion.so/Self-Assessment-Numbered-List-Emojis-2442b7e8cebd80d1b7b9fd1049758dcc"
+    "task_id": "numbered_list_emojis",
+    "task_name": "Numbered List Emojis",
+    "category_id": "self_assessment",
+    "category_name": "Self Assessment",
+    "description": "Replace numbered list items with corresponding emoji numbers for better visual formatting.",
+    "author": "Xiangyan Liu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "visual formatting",
+        "automated migration"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Self-Assessment-24381626b6d780fe9f56c2ba14ea042d",
+        "gt_page_url": "https://www.notion.so/Self-Assessment-Numbered-List-Emojis-2442b7e8cebd80d1b7b9fd1049758dcc"
+    }
 }

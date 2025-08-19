@@ -1,0 +1,18 @@
+{
+  "task_id": "duplicate_name",
+  "task_name": "Duplicate Name",
+  "category_id": "student_database",
+  "category_name": "Student Database",
+  "description": "Identify students with identical names from a 150-student database and generate a formatted namesake grouping report file.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-10",
+  "difficulty": "L3",
+  "tags": [
+    "pattern analysis",
+    "data extraction"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

@@ -60,18 +60,5 @@ MCP supports aggreated metrics of pass@1, pass@K, $\text{pass}^{K}$, avg@K.
 python -m src.aggregators.aggregate_results --exp-name new_exp
 ```
 
-#### Visualization
-Quickly get to know model success rate and token comsumption through one line of command
-
-```bash
-python -m examples.results_parser --exp-name exp_name --mcp SERVICE
-```
-
-This command scans `./results/{args.exp_name}/` for all model folders that start with the given service prefix.
-
-Only models that finished all tasks without pipeline errors are visualized. Incomplete models are listed with a resume command so you can easily continue evaluation.
-
-The generated plot is saved next to the experiment folder, e.g. `./results/{args.exp_name}/summary_{SERVICE}.png`.
-
 ### Want to contribute?
 Visit [Contributing Page](./contributing) to learn how to make contribution to MCPMark.

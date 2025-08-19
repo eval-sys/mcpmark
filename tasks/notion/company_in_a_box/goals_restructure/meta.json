@@ -1,16 +1,21 @@
 {
-  "task_name": "goals_restructure",
-  "author": "zijian",
-  "category": "company_in_a_box",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "goals",
-    "restructuring",
-    "toggles",
-    "formatting"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Company-In-A-Box-23d81626b6d7800098f3d0e64a706cd8",
-  "gt_page_url": "https://www.notion.so/Company-In-A-Box-Goals-Restructure-2442b7e8cebd81f59692d1da4f2fdbc8"
+    "task_id": "goals_restructure",
+    "task_name": "Goals Restructure",
+    "category_id": "company_in_a_box",
+    "category_name": "Company In A Box",
+    "description": "Restructure the Current Goals section on the Company In A Box page by adding a new goal heading and converting all goal headings to toggles with content inside.",
+    "author": "Zijian Wu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "content organization",
+        "visual formatting"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Company-In-A-Box-23d81626b6d7800098f3d0e64a706cd8",
+        "gt_page_url": "https://www.notion.so/Company-In-A-Box-Goals-Restructure-2442b7e8cebd81f59692d1da4f2fdbc8"
+    }
 }

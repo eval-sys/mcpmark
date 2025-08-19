@@ -1,0 +1,19 @@
+{
+  "task_id": "gradebased_score",
+  "task_name": "Gradebased Score",
+  "category_id": "student_database",
+  "category_name": "Student Database",
+  "description": "Process student numerical scores to calculate letter grades using A-F scale and produce comprehensive grade distribution analysis reports.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-10",
+  "difficulty": "L3",
+  "tags": [
+    "data extraction",
+    "content transformation",
+    "pattern analysis"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

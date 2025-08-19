@@ -1,0 +1,17 @@
+{
+  "task_id": "debugging",
+  "task_name": "Debugging",
+  "category_id": "votenet",
+  "category_name": "Votenet",
+  "description": "Identify and fix bugs in the VoteNet backbone module by examining the codebase and implementing necessary corrections.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-13",
+  "difficulty": "L3",
+  "tags": [
+    "code exploration"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

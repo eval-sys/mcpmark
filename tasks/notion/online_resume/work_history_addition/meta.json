@@ -1,16 +1,23 @@
 {
-  "task_name": "work_history_addition",
-  "author": "xiangyan",
-  "category": "online_resume",
-  "created_at": "2025-07-27",
-  "difficulty": "random",
-  "tags": [
-    "work experience",
-    "resume",
-    "formatting",
-    "consistency"
-  ],
-  "mcp": "notion",
-  "ori_template_url": "https://painted-tennis-ebc.notion.site/Online-Resume-23181626b6d781159faaeb5eadaf612e",
-  "gt_page_url": "https://www.notion.so/Online-Resume-Work-History-Addition-2442b7e8cebd80fc8c8ae8896d640eb9"
+    "task_id": "work_history_addition",
+    "task_name": "Work History Addition",
+    "category_id": "online_resume",
+    "category_name": "Online Resume",
+    "description": "Add a Research Assistant position to the Work History section with consistent formatting and university logo.",
+    "author": "Xiangyan Liu",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [
+        "database manipulation",
+        "template population",
+        "cross-reference linking",
+        "visual formatting"
+    ],
+    "mcp": [
+        "notion"
+    ],
+    "metadata": {
+        "ori_template_url": "https://painted-tennis-ebc.notion.site/Online-Resume-23181626b6d781159faaeb5eadaf612e",
+        "gt_page_url": "https://www.notion.so/Online-Resume-Work-History-Addition-2442b7e8cebd80fc8c8ae8896d640eb9"
+    }
 }

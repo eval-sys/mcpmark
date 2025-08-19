@@ -36,7 +36,10 @@ def _post_github_api(
         if response.status_code in [200, 201]:
             return True, response.json()
         else:
-            print(f"API error for {endpoint}: {response.status_code} - {response.text}", file=sys.stderr)
+            print(
+                f"API error for {endpoint}: {response.status_code} - {response.text}",
+                file=sys.stderr,
+            )
             return False, None
     except Exception as e:
         print(f"Exception for {endpoint}: {e}", file=sys.stderr)
@@ -53,7 +56,10 @@ def _patch_github_api(
         if response.status_code == 200:
             return True, response.json()
         else:
-            print(f"API error for {endpoint}: {response.status_code} - {response.text}", file=sys.stderr)
+            print(
+                f"API error for {endpoint}: {response.status_code} - {response.text}",
+                file=sys.stderr,
+            )
             return False, None
     except Exception as e:
         print(f"Exception for {endpoint}: {e}", file=sys.stderr)
@@ -98,12 +104,17 @@ def _find_pr_by_title(
 
 
 def _wait_for_workflow_completion(
-    headers: Dict[str, str], owner: str, repo: str, workflow_file: str, max_wait: int = 600
+    headers: Dict[str, str],
+    owner: str,
+    repo: str,
+    workflow_file: str,
+    max_wait: int = 600,
 ) -> bool:
     """Wait for GitHub Actions workflows to complete processing."""
     print(f"⏳ Waiting for {workflow_file} workflows to complete...")
 
     start_time = time.time()
+    no_workflow_check_count = 0
 
     while time.time() - start_time < max_wait:
         try:
@@ -127,11 +138,28 @@ def _wait_for_workflow_completion(
                         elif status in ["in_progress", "queued"]:
                             running_count += 1
 
-                    print(f"   Status: {completed_count} completed, {running_count} running/queued")
+                    print(
+                        f"   Status: {completed_count} completed, {running_count} running/queued"
+                    )
 
                     if running_count == 0:
                         print(f"✅ All {workflow_file} workflows completed.")
                         return True
+                else:
+                    # No workflow runs found
+                    no_workflow_check_count += 1
+                    if no_workflow_check_count == 1:
+                        print(
+                            "   No workflow runs found yet, waiting 5 seconds and checking once more..."
+                        )
+                        time.sleep(5)
+                        continue
+                    elif no_workflow_check_count >= 2:
+                        print(
+                            f"⚠️ No workflow runs detected after 2 checks. {workflow_file} may not have been triggered."
+                        )
+                        print("   Continuing with verification...")
+                        return False
 
             print(f"⏳ Still waiting... ({int(time.time() - start_time)}s elapsed)")
             time.sleep(10)
@@ -154,15 +182,22 @@ def _verify_workflow_file(
     workflow_content = _get_file_content(
         ".github/workflows/pr-automation.yml", headers, owner, repo
     )
-    
+
     if not workflow_content:
-        return False, ["Workflow file .github/workflows/pr-automation.yml not found in main branch"]
+        return False, [
+            "Workflow file .github/workflows/pr-automation.yml not found in main branch"
+        ]
 
     print("   ✅ Workflow file exists in main branch")
 
     # Verify required components
     required_events = ["opened", "synchronize", "reopened"]
-    required_jobs = ["code-quality", "testing-suite", "security-scan", "build-validation"]
+    required_jobs = [
+        "code-quality",
+        "testing-suite",
+        "security-scan",
+        "build-validation",
+    ]
 
     if "pull_request:" not in workflow_content:
         errors.append("Workflow missing pull_request trigger")
@@ -196,9 +231,13 @@ def _verify_main_pr_merged(
     pr = _find_pr_by_title(
         "Implement Pull Request Automation Workflow", headers, owner, repo
     )
-    
+
     if not pr:
-        return False, ["Main PR 'Implement Pull Request Automation Workflow' not found"], None
+        return (
+            False,
+            ["Main PR 'Implement Pull Request Automation Workflow' not found"],
+            None,
+        )
 
     pr_number = pr["number"]
     print(f"   Found PR #{pr_number}")
@@ -229,24 +268,24 @@ def _verify_workflow_runs(
     errors = []
 
     pr_number = pr_data["number"]
-    
+
     # Get workflow runs for the PR
     success, runs_response = _get_github_api(
-        f"actions/runs?event=pull_request&per_page=50", headers, owner, repo
+        "actions/runs?event=pull_request&per_page=50", headers, owner, repo
     )
-    
+
     if not success:
         return False, ["Failed to fetch workflow runs"]
 
     pr_runs = []
     pr_head_sha = pr_data.get("head", {}).get("sha")
-    
+
     for run in runs_response.get("workflow_runs", []):
         # Method 1: Check if this run is associated with the PR's head SHA
         if pr_head_sha and run.get("head_sha") == pr_head_sha:
             pr_runs.append(run)
             continue
-            
+
         # Method 2: Check pull_requests field (may be empty for merged PRs)
         for pr in run.get("pull_requests", []):
             if pr.get("number") == pr_number:
@@ -262,18 +301,22 @@ def _verify_workflow_runs(
             )
             if success:
                 pr_runs = branch_runs.get("workflow_runs", [])
-    
+
     if not pr_runs:
-        return False, [f"No workflow runs found for PR #{pr_number} (head_sha: {pr_head_sha})"]
+        return False, [
+            f"No workflow runs found for PR #{pr_number} (head_sha: {pr_head_sha})"
+        ]
 
     print(f"   Found {len(pr_runs)} workflow run(s) for PR #{pr_number}")
 
     # Check the most recent run
     latest_run = pr_runs[0]  # GitHub returns runs in descending order by creation time
     run_id = latest_run["id"]
-    
+
     if latest_run["conclusion"] != "success":
-        errors.append(f"Latest workflow run {run_id} did not succeed (conclusion: {latest_run['conclusion']})")
+        errors.append(
+            f"Latest workflow run {run_id} did not succeed (conclusion: {latest_run['conclusion']})"
+        )
     else:
         print(f"   ✅ Latest workflow run {run_id} succeeded")
 
@@ -281,16 +324,21 @@ def _verify_workflow_runs(
     success, jobs_response = _get_github_api(
         f"actions/runs/{run_id}/jobs", headers, owner, repo
     )
-    
+
     if not success:
         return False, ["Failed to fetch workflow jobs"]
 
     jobs = jobs_response.get("jobs", [])
-    expected_jobs = ["code-quality", "testing-suite", "security-scan", "build-validation"]
-    
+    expected_jobs = [
+        "code-quality",
+        "testing-suite",
+        "security-scan",
+        "build-validation",
+    ]
+
     found_jobs = [job["name"] for job in jobs]
     missing_jobs = [job for job in expected_jobs if job not in found_jobs]
-    
+
     if missing_jobs:
         errors.append(f"Missing jobs: {missing_jobs}. Found: {found_jobs}")
     else:
@@ -309,10 +357,16 @@ def _verify_workflow_runs(
         if len(start_times) >= 4:
             # Check if all jobs started within 2 minutes of each other
             import datetime
-            start_dt = [datetime.datetime.fromisoformat(t.replace('Z', '+00:00')) for t in start_times]
+
+            start_dt = [
+                datetime.datetime.fromisoformat(t.replace("Z", "+00:00"))
+                for t in start_times
+            ]
             time_diff = max(start_dt) - min(start_dt)
             if time_diff.total_seconds() > 120:  # 2 minutes
-                errors.append(f"Jobs did not run in parallel (time span: {time_diff.total_seconds()}s)")
+                errors.append(
+                    f"Jobs did not run in parallel (time span: {time_diff.total_seconds()}s)"
+                )
             else:
                 print("   ✅ Jobs ran in parallel")
         else:
@@ -329,28 +383,28 @@ def _verify_pr_comments(
     errors = []
 
     pr_number = pr_data["number"]
-    
+
     success, comments = _get_github_api(
         f"issues/{pr_number}/comments", headers, owner, repo
     )
-    
+
     if not success:
         return False, ["Failed to fetch PR comments"]
 
     # Filter for GitHub Actions bot comments only
     bot_comments = [
-        comment for comment in comments 
+        comment
+        for comment in comments
         if comment.get("user", {}).get("login") == "github-actions[bot]"
     ]
-    
+
     if not bot_comments:
         return False, ["No comments found from GitHub Actions bot"]
-    
+
     print(f"   Found {len(bot_comments)} comment(s) from GitHub Actions bot")
-    
+
     # Get all bot comment bodies
     bot_comment_bodies = [comment.get("body", "") for comment in bot_comments]
-    all_bot_comments = " ".join(bot_comment_bodies)
 
     # Define required automation reports with their keywords
     required_reports = [
@@ -358,26 +412,26 @@ def _verify_pr_comments(
             "name": "Code Quality Report",
             "main_keywords": ["Code Quality Report"],
             "sub_keywords": ["ESLint", "Prettier"],
-            "found": False
+            "found": False,
         },
         {
-            "name": "Test Coverage Report", 
+            "name": "Test Coverage Report",
             "main_keywords": ["Test Coverage Report"],
             "sub_keywords": [],
-            "found": False
+            "found": False,
         },
         {
             "name": "Security Scan Report",
             "main_keywords": ["Security Scan Report"],
             "sub_keywords": ["Vulnerabilities", "Dependencies"],
-            "found": False
+            "found": False,
         },
         {
             "name": "Build Validation Report",
             "main_keywords": ["Build Validation"],
             "sub_keywords": [],
-            "found": False
-        }
+            "found": False,
+        },
     ]
 
     # Check each bot comment for the required reports
@@ -388,13 +442,17 @@ def _verify_pr_comments(
                 if not report["found"]:  # Only mark as found once
                     report["found"] = True
                     print(f"   ✅ Found {report['name']}")
-                    
+
                     # Verify sub-keywords are present in this specific comment
                     for sub_keyword in report["sub_keywords"]:
                         if sub_keyword not in comment_body:
-                            errors.append(f"Missing sub-keyword '{sub_keyword}' in {report['name']}")
+                            errors.append(
+                                f"Missing sub-keyword '{sub_keyword}' in {report['name']}"
+                            )
                         else:
-                            print(f"   ✅ Found sub-keyword '{sub_keyword}' in {report['name']}")
+                            print(
+                                f"   ✅ Found sub-keyword '{sub_keyword}' in {report['name']}"
+                            )
 
     # Check if all required reports were found
     for report in required_reports:
@@ -406,47 +464,52 @@ def _verify_pr_comments(
     if found_reports != 4:
         errors.append(f"Expected 4 automation reports, but found {found_reports}")
     else:
-        print(f"   ✅ All 4 required automation reports found from GitHub Actions bot")
+        print("   ✅ All 4 required automation reports found from GitHub Actions bot")
 
     return len(errors) == 0, errors
 
 
 def _create_test_pr(
-    title: str, branch: str, content: str, file_path: str,
-    headers: Dict[str, str], owner: str, repo: str
+    title: str,
+    branch: str,
+    content: str,
+    file_path: str,
+    headers: Dict[str, str],
+    owner: str,
+    repo: str,
 ) -> Optional[int]:
     """Create a test PR with specific content designed to fail a check."""
     print(f"   Creating test PR: {title}")
-    
+
     # Create branch
     success, main_ref = _get_github_api("git/ref/heads/main", headers, owner, repo)
     if not success:
-        print(f"   ❌ Failed to get main branch reference")
+        print("   ❌ Failed to get main branch reference")
         return None
-    
+
     main_sha = main_ref["object"]["sha"]
-    
-    branch_data = {
-        "ref": f"refs/heads/{branch}",
-        "sha": main_sha
-    }
-    
+
+    branch_data = {"ref": f"refs/heads/{branch}", "sha": main_sha}
+
     success, _ = _post_github_api("git/refs", headers, owner, repo, branch_data)
     if not success:
         # Branch might already exist, try to delete and recreate
         print(f"   Branch {branch} already exists, trying to delete and recreate...")
         import requests
-        
+
         # Force delete existing branch
-        delete_url = f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}"
+        delete_url = (
+            f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}"
+        )
         delete_response = requests.delete(delete_url, headers=headers)
-        
+
         if delete_response.status_code == 204:
             print(f"   Successfully deleted existing branch {branch}")
             # Wait a moment for deletion to complete
             import time
+
             time.sleep(2)
-            
+
             # Try creating again
             success, _ = _post_github_api("git/refs", headers, owner, repo, branch_data)
             if not success:
@@ -455,54 +518,61 @@ def _create_test_pr(
             else:
                 print(f"   ✅ Successfully created branch {branch} after cleanup")
         else:
-            print(f"   ❌ Failed to delete existing branch {branch}: {delete_response.status_code}")
+            print(
+                f"   ❌ Failed to delete existing branch {branch}: {delete_response.status_code}"
+            )
             return None
-    
+
     # Create or update file
     file_content = base64.b64encode(content.encode()).decode()
-    
+
     file_data = {
         "message": f"Test commit for {title}",
         "content": file_content,
-        "branch": branch
+        "branch": branch,
     }
-    
+
     # Check if file exists in main branch first
-    success, file_info = _get_github_api(f"contents/{file_path}?ref=main", headers, owner, repo)
+    success, file_info = _get_github_api(
+        f"contents/{file_path}?ref=main", headers, owner, repo
+    )
     if success and file_info:
         # File exists, need SHA for update
         file_data["sha"] = file_info["sha"]
         print(f"   File {file_path} exists, updating with SHA")
     else:
         print(f"   Creating new file {file_path}")
-    
+
     # Use PUT method for file creation/update
     url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
     try:
         import requests
+
         response = requests.put(url, headers=headers, json=file_data)
         if response.status_code in [200, 201]:
             print(f"   ✅ Successfully created/updated file {file_path}")
         else:
-            print(f"   ❌ Failed to create/update file {file_path}: {response.status_code} - {response.text}")
+            print(
+                f"   ❌ Failed to create/update file {file_path}: {response.status_code} - {response.text}"
+            )
             return None
     except Exception as e:
         print(f"   ❌ Exception creating file {file_path}: {e}")
         return None
-    
+
     # Create PR
     pr_data = {
         "title": title,
         "head": branch,
         "base": "main",
-        "body": f"Test PR to validate that {title.split(':')[1].strip()} check fails correctly."
+        "body": f"Test PR to validate that {title.split(':')[1].strip()} check fails correctly.",
     }
-    
+
     success, pr_response = _post_github_api("pulls", headers, owner, repo, pr_data)
     if not success:
-        print(f"   ❌ Failed to create PR")
+        print("   ❌ Failed to create PR")
         return None
-    
+
     pr_number = pr_response["number"]
     print(f"   ✅ Created test PR #{pr_number}")
     return pr_number
@@ -530,40 +600,42 @@ def _run_unit_tests(
             "branch": "test-code-quality-fail",
             "file_path": "src/lint-fail-test.js",
             "content": "// This file contains intentional ESLint violations\nvar unused_variable = 'this will trigger unused-vars rule'\nconsole.log('missing semicolon - will trigger semi rule')\nconst   badly_spaced   =   'too many spaces'\nif(true){console.log('missing spaces around braces')}\nfunction unusedFunction() { return 'unused'; }\neeval('alert(\"dangerous eval\")');\nwith (Math) { var x = cos(3 * PI) + sin(LN10) }\nvar a = 1; var a = 2; // redeclared variable",
-            "expected_failure": "code-quality"
+            "expected_failure": "code-quality",
         },
         {
-            "title": "Test: Testing Suite Failure", 
+            "title": "Test: Testing Suite Failure",
             "branch": "test-testing-fail",
             "file_path": "tests/fail-test.test.js",
             "content": "const request = require('supertest');\n\ndescribe('Intentional Test Failures', () => {\n  test('This test should always fail', () => {\n    expect(2 + 2).toBe(5); // Intentionally wrong\n  });\n  \n  test('Another failing test', () => {\n    expect(true).toBe(false); // Intentionally wrong\n  });\n  \n  test('Math failure', () => {\n    expect(Math.max(1, 2, 3)).toBe(1); // Intentionally wrong\n  });\n});",
-            "expected_failure": "testing-suite"
+            "expected_failure": "testing-suite",
         },
         {
             "title": "Test: Security Scan Failure",
-            "branch": "test-security-fail", 
+            "branch": "test-security-fail",
             "file_path": "src/security-fail-test.js",
             "content": "// This file contains patterns that should trigger secret detection\nconst hardcodedPassword = 'admin123password';\nconst fakeApiKey = 'sk_test_' + 'fake123key456here789';\nconst awsLikeKey = 'AKIA' + 'FAKEKEY7EXAMPLE';\nconst dbPassword = 'password' + '=' + 'supersecret123';\nconst tokenPattern = 'token' + '=' + 'ghp_1234567890abcdef';\n\n// These patterns should trigger secret detection\nconsole.log('Password:', hardcodedPassword);\nconsole.log('API Key:', fakeApiKey);\nconsole.log('AWS Key:', awsLikeKey);\nconsole.log('DB Password:', dbPassword);\nconsole.log('Token:', tokenPattern);\n\nmodule.exports = {\n  password: hardcodedPassword,\n  apiKey: fakeApiKey\n};",
-            "expected_failure": "security-scan"
+            "expected_failure": "security-scan",
         },
         {
             "title": "Test: Build Validation Failure",
             "branch": "test-build-fail",
-            "file_path": "src/build-fail-test.js", 
+            "file_path": "src/build-fail-test.js",
             "content": "// This file will cause build/startup failures\nconst express = require('express');\nconst nonExistentModule = require('this-module-does-not-exist-anywhere');\nconst anotherMissing = require('@fake/missing-package');\n\n// This will cause runtime errors during startup\nconst app = express();\n\n// Define a route that will cause issues\napp.get('/test', (req, res) => {\n  // Try to use non-existent modules\n  nonExistentModule.doSomething();\n  anotherMissing.initialize();\n  res.send('This should never work');\n});\n\n// Override the listen method to always fail\nconst originalListen = app.listen;\napp.listen = function(port, callback) {\n  console.log('Attempting to start server...');\n  // This will crash during build validation\n  throw new Error('Intentional build failure for testing');\n};\n\nmodule.exports = app;",
-            "expected_failure": "build-validation"
-        }
+            "expected_failure": "build-validation",
+        },
     ]
 
     for test_case in test_cases:
         pr_number = _create_test_pr(
             test_case["title"],
-            test_case["branch"], 
+            test_case["branch"],
             test_case["content"],
             test_case["file_path"],
-            headers, owner, repo
+            headers,
+            owner,
+            repo,
         )
-        
+
         if pr_number:
             created_prs.append(pr_number)
         else:
@@ -571,23 +643,27 @@ def _run_unit_tests(
 
     if created_prs:
         print(f"   Created {len(created_prs)} test PRs, waiting for workflows...")
-        
+
         # Wait a bit for workflows to start
         time.sleep(5)
-        
+
         # Wait for workflows to complete
-        _wait_for_workflow_completion(headers, owner, repo, "pr-automation.yml", max_wait=300)
-        
+        _wait_for_workflow_completion(
+            headers, owner, repo, "pr-automation.yml", max_wait=300
+        )
+
         # Verify each test PR failed appropriately
         for i, pr_number in enumerate(created_prs):
             test_case = test_cases[i]
-            print(f"   Checking test PR #{pr_number} ({test_case['expected_failure']} failure)...")
-            
+            print(
+                f"   Checking test PR #{pr_number} ({test_case['expected_failure']} failure)..."
+            )
+
             # Get workflow runs for this PR
             success, runs_response = _get_github_api(
-                f"actions/runs?event=pull_request&per_page=20", headers, owner, repo
+                "actions/runs?event=pull_request&per_page=20", headers, owner, repo
             )
-            
+
             if success:
                 pr_runs = []
                 for run in runs_response.get("workflow_runs", []):
@@ -596,18 +672,20 @@ def _run_unit_tests(
                         if pr.get("number") == pr_number:
                             pr_runs.append(run)
                             break
-                    
+
                 # If no runs found via pull_requests, try matching by branch
                 if not pr_runs:
                     branch_name = test_case["branch"]
                     for run in runs_response.get("workflow_runs", []):
                         if run.get("head_branch") == branch_name:
                             pr_runs.append(run)
-                
+
                 if pr_runs:
                     latest_run = pr_runs[0]
                     if latest_run["conclusion"] != "failure":
-                        errors.append(f"Test PR #{pr_number} should have failed but got: {latest_run['conclusion']}")
+                        errors.append(
+                            f"Test PR #{pr_number} should have failed but got: {latest_run['conclusion']}"
+                        )
                     else:
                         print(f"   ✅ Test PR #{pr_number} correctly failed")
                 else:
@@ -620,10 +698,11 @@ def _run_unit_tests(
                 print(f"   ✅ Closed test PR #{pr_number}")
             else:
                 print(f"   ⚠️ Failed to close test PR #{pr_number}")
-            
+
             # Delete test branch
             branch_name = test_cases[i]["branch"]
             import requests
+
             url = f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch_name}"
             response = requests.delete(url, headers=headers)
             if response.status_code == 204:
@@ -695,7 +774,9 @@ def verify() -> bool:
             print("✅ Workflow Runs Verification Passed")
 
         # 4. Verify PR comments
-        comments_ok, comments_errors = _verify_pr_comments(pr_data, headers, owner, repo)
+        comments_ok, comments_errors = _verify_pr_comments(
+            pr_data, headers, owner, repo
+        )
         if not comments_ok:
             all_passed = False
             print("❌ PR Comments Verification Failed:")
@@ -719,7 +800,7 @@ def verify() -> bool:
         print("🎉 All PR Automation Workflow verifications PASSED!")
         print("\n📋 Summary:")
         print("   ✅ Workflow file exists with correct triggers and 4 parallel jobs")
-        print("   ✅ Main PR was merged from pr-automation-workflow to main")  
+        print("   ✅ Main PR was merged from pr-automation-workflow to main")
         print("   ✅ Workflow runs show all 4 jobs executed in parallel and succeeded")
         print("   ✅ PR comments contain required automation reports")
         print("   ✅ Unit tests confirmed workflow correctly fails on problematic code")
