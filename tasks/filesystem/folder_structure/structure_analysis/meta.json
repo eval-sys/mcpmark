@@ -1,0 +1,18 @@
+{
+  "task_id": "structure_analysis",
+  "task_name": "Structure Analysis",
+  "category_id": "folder_structure",
+  "category_name": "Folder Structure",
+  "description": "Perform thorough analysis of complex folder hierarchy to generate a detailed structural summary report with comprehensive file statistics.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-16",
+  "difficulty": "L3",
+  "tags": [
+    "pattern analysis",
+    "data extraction"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

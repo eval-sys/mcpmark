@@ -1,0 +1,19 @@
+{
+  "task_id": "author_folders",
+  "task_name": "Author Folders",
+  "category_id": "papers",
+  "category_name": "Papers",
+  "description": "Analyze academic papers to identify and organize by author, creating separate folders for frequent authors (≥4 papers) and prolific 2025 authors (≥3 papers).",
+  "author": "Xiangyan Liu",
+  "created_at": "2025-08-12",
+  "difficulty": "L3",
+  "tags": [
+    "data extraction",
+    "file organization",
+    "pattern analysis"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

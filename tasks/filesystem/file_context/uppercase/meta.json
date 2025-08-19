@@ -1,0 +1,18 @@
+{
+  "task_id": "uppercase",
+  "task_name": "Uppercase",
+  "category_id": "file_context",
+  "category_name": "File Context",
+  "description": "Convert the content of 10 specified files to uppercase format and calculate the total word count across all processed files.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-19",
+  "difficulty": "L3",
+  "tags": [
+    "content transformation",
+    "data extraction"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

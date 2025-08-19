@@ -1,0 +1,19 @@
+{
+  "task_id": "english_talent",
+  "task_name": "English Talent",
+  "category_id": "student_database",
+  "category_name": "Student Database",
+  "description": "Select qualified students with S/A recommendation grades and TOEFL scores ≥100 for English media operations recruitment opportunities.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-10",
+  "difficulty": "L3",
+  "tags": [
+    "data extraction",
+    "cross-referencing",
+    "pattern analysis"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}
