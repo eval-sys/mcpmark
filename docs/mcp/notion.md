@@ -46,7 +46,7 @@ The verification script will tell you which browser is working properly. The pip
 
 ## 3. Running Notion Tasks
 
-1. Make sure the following service credentials are added in `.mcp_env`.
+1. Configure environment variables: make sure the following service credentials are added in `.mcp_env`.
 ```env
 ## Notion
 SOURCE_NOTION_API_KEY="your-source-notion-api-key"   # For Source Hub (templates)
