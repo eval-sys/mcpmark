@@ -1,15 +1,14 @@
 import asyncio
 import sys
 import re
+import os
 from pathlib import Path
 from playwright.async_api import (
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
 )
 
-# Directory for screenshots
-SCREENSHOT_DIR = Path("/home/liuxiangyan6/eval-sys/mcp-arena/verification_screenshots")
-SCREENSHOT_DIR.mkdir(exist_ok=True)
+BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
 
 def parse_markdown_list_format(text):
@@ -59,7 +58,7 @@ async def check_account_login(page):
     """
     try:
         # Navigate to main page
-        await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
+        await page.goto(f"{BASE_URL}/", wait_until="networkidle")
         
         # Check if already logged in
         user_button = page.locator('button[class*="UserButton"]')
@@ -105,7 +104,7 @@ async def check_submission_exists(page):
     """
     try:
         # Navigate to BuyItForLife forum
-        await page.goto("http://34.143.228.182:9999/f/BuyItForLife", wait_until="networkidle")
+        await page.goto(f"{BASE_URL}/f/BuyItForLife", wait_until="networkidle")
         
         # Look for the post with correct title
         print("Looking for post 'Research Report for BuyItForLife'...", file=sys.stderr)
@@ -185,7 +184,6 @@ async def verify() -> bool:
             account_ok = await check_account_login(page)
             if not account_ok:
                 print("Error: Account 'buyitforlife_researcher' cannot be logged in", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "task2_login_failed.png"))
                 return False
             
             # Step 2: Check submission exists and get content
@@ -194,12 +192,10 @@ async def verify() -> bool:
             
             if not submission_exists:
                 print("Error: Submission not found in BuyItForLife forum", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "task2_submission_not_found.png"))
                 return False
             
             if not extracted_data:
                 print("Error: Could not extract data from submission", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "task2_no_data_extracted.png"))
                 return False
             
             # Step 3: Load expected data from label.txt
@@ -239,7 +235,6 @@ async def verify() -> bool:
             
             if missing_keys:
                 print(f"Error: Missing required keys: {', '.join(missing_keys)}", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "task2_missing_keys.png"))
                 return False
             
             # Compare each field with expected values
@@ -261,14 +256,11 @@ async def verify() -> bool:
                     else:
                         # For text fields, special handling for usernames with underscores
                         if "Author" in key or key == "TopComment_Username":
-                            # Handle cases where underscores might be interpreted as markdown emphasis
-                            # Compare without leading/trailing underscores
                             expected_core = expected_val.strip('_')
                             actual_core = actual_val.strip('_')
                             if expected_core != actual_core:
                                 errors.append(f"{key} mismatch: got '{actual_val}', expected '{expected_val}'")
                         else:
-                            # For other text fields, exact comparison
                             if expected_val != actual_val:
                                 errors.append(f"{key} mismatch: got '{actual_val}', expected '{expected_val}'")
             
@@ -287,11 +279,9 @@ async def verify() -> bool:
                 print("Error: Validation failed with the following issues:", file=sys.stderr)
                 for error in errors:
                     print(f"  - {error}", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "task2_validation_failed.png"))
                 return False
             
             # All checks passed
-            await page.screenshot(path=str(SCREENSHOT_DIR / "task2_verification_success.png"))
             print("\n=== SUCCESS ===", file=sys.stderr)
             print("✓ Account 'buyitforlife_researcher' created and can login", file=sys.stderr)
             print("✓ Submission 'Research Report for BuyItForLife' found in correct forum", file=sys.stderr)
@@ -302,11 +292,9 @@ async def verify() -> bool:
             
         except PlaywrightTimeoutError as e:
             print(f"Error: Timeout occurred - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "task2_timeout_error.png"))
             return False
         except Exception as e:
             print(f"Error: Unexpected error - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "task2_unexpected_error.png"))
             return False
         finally:
             await browser.close()

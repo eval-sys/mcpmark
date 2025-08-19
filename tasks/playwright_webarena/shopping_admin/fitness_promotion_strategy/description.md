@@ -2,7 +2,7 @@ Our marketing team is planning a new promotion for our bestselling fitness produ
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:7780/admin/. If need to login, login with username 'admin' and password 'admin1234'
+1. If need to login, login with username 'admin' and password 'admin1234'
 
 2. Start by checking our current bestsellers:
    - Identify the top 3 bestselling products based on their Price	and Quantity - record their names, prices, and quantities sold

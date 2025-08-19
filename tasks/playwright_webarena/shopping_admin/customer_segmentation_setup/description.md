@@ -2,7 +2,7 @@ Perform customer segmentation setup and analysis in the Magento Admin panel to e
 
 **Task Requirements:**
 
-1. Access the Magento Admin panel to begin customer segmentation setup. Navigate to http://34.143.228.182:7780/admin/. if need to login, login with username 'admin' and password 'admin1234'
+1. Access the Magento Admin panel to begin customer segmentation setup. if need to login, login with username 'admin' and password 'admin1234'
 
 2. Establish baseline metrics for customer groups:
    - Record the exact number shown in "records found" at the top of the grid

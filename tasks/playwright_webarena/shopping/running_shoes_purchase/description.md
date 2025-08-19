@@ -1,4 +1,4 @@
-Find a product on One Stop Market (http://localhost:7770):
+
 
 1. Find running shoes:
    - Price between $50.00-$60.00

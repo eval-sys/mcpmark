@@ -2,7 +2,7 @@ Our company is planning to expand sales operations to New York state and needs a
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:7780/admin/ and log in with username 'admin' and password 'admin1234'
+1. Log in with username 'admin' and password 'admin1234'
 
 2. First, analyze our current sales performance on the dashboard:
    - Check the 'Lifetime Sales' amount displayed

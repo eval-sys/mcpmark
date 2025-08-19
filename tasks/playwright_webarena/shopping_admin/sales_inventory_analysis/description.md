@@ -2,7 +2,7 @@ Perform a comprehensive sales and inventory analysis by extracting specific metr
 
 **Task Requirements:**
 
-1. To access the Magento Admin panel and begin the analysis, navigate to http://34.143.228.182:7780/admin/ and login with username 'admin' and password 'admin1234'
+1. Login with username 'admin' and password 'admin1234'
 
 2. To analyze product inventory and identify key items, check all products:
    - Search for all products containing 'Sprite' in their name - count the exact number of results

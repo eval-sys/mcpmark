@@ -1,12 +1,11 @@
 import asyncio
 import sys
 import re
+import os
 from pathlib import Path
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
-# Directory for screenshots
-SCREENSHOT_DIR = Path("/home/liuxiangyan6/eval-sys/mcp-arena/verification_screenshots")
-SCREENSHOT_DIR.mkdir(exist_ok=True)
+BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
 def normalize_text(text):
     """
@@ -16,7 +15,7 @@ def normalize_text(text):
         return str(text)
     
     # Replace various quote styles with standard quotes
-    text = text.replace(''', "'").replace(''', "'")
+    text = text.replace('\'', "'").replace('\'', "'")
     text = text.replace('"', '"').replace('"', '"')
     text = text.replace('&amp;', '&')
     
@@ -42,7 +41,7 @@ async def verify() -> bool:
             print("="*60)
             print("Step 1: Verifying account login with credentials...", file=sys.stderr)
             print("="*60)
-            await page.goto('http://34.143.228.182:9999/', wait_until='networkidle')
+            await page.goto(f"{BASE_URL}/", wait_until='networkidle')
             
             # First logout if already logged in
             user_button = page.locator('button:has-text("EuroTravelPlanner")')
@@ -83,7 +82,6 @@ async def verify() -> bool:
                 user_button = page.locator('button:has-text("EuroTravelPlanner")')
                 if not await user_button.count():
                     print("❌ ERROR: Login failed with username 'EuroTravelPlanner' and password 'SecureTravel2024!'", file=sys.stderr)
-                    await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
                     verification_passed = False
                 else:
                     print("✓ Account login successful with correct credentials", file=sys.stderr)
@@ -95,7 +93,7 @@ async def verify() -> bool:
             print("="*60)
             
             # Check if forum exists at /f/BudgetEuropeTravel
-            await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel', wait_until='networkidle')
+            await page.goto(f"{BASE_URL}/f/BudgetEuropeTravel", wait_until='networkidle')
             
             # Check if we get 404 or the forum exists
             page_content = await page.content()
@@ -104,13 +102,12 @@ async def verify() -> bool:
 
             if "404" in page_title or "not found" in page_title.lower() or "Page not found" in page_content:
                 print("❌ ERROR: Forum /f/BudgetEuropeTravel does not exist (404)", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "forum_not_found.png"))
                 verification_passed = False
             else:
                 print("✓ Forum /f/BudgetEuropeTravel exists", file=sys.stderr)
                 
                 # Navigate to edit page to check properties
-                await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel/edit', wait_until='networkidle')
+                await page.goto(f"{BASE_URL}/f/BudgetEuropeTravel/edit", wait_until='networkidle')
                 
                 # Check if we can access edit page
                 edit_page_content = await page.content()
@@ -170,14 +167,13 @@ async def verify() -> bool:
             print("="*60)
             
             # Try the wiki URL with /wiki/ path
-            await page.goto('http://34.143.228.182:9999/wiki/europe-travel-budget-guide', wait_until='networkidle')
+            await page.goto(f"{BASE_URL}/wiki/europe-travel-budget-guide", wait_until='networkidle')
             
             wiki_page_content = await page.content()
             wiki_page_title = await page.title()
             
             if "404" in wiki_page_title or "not found" in wiki_page_title.lower() or "Page not found" in wiki_page_content:
                 print("❌ ERROR: Wiki page does not exist at /wiki/europe-travel-budget-guide", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "wiki_not_found.png"))
                 verification_passed = False
             else:
                 print("✓ Wiki page exists at /wiki/europe-travel-budget-guide", file=sys.stderr)
@@ -220,15 +216,13 @@ async def verify() -> bool:
             print("Step 4: Checking for post in forum...", file=sys.stderr)
             print("="*60)
             
-
-            await page.goto('http://34.143.228.182:9999/f/BudgetEuropeTravel', wait_until='networkidle')
+            await page.goto(f"{BASE_URL}/f/BudgetEuropeTravel", wait_until='networkidle')
             
             expected_post_title = "My 14-day Europe trip for under 1000 - Complete itinerary"
             post_link = page.locator(f'a:has-text("{expected_post_title}")')
             
             if not await post_link.count():
                 print(f"❌ ERROR: Post with title '{expected_post_title}' not found in forum", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "post_not_found.png"))
                 verification_passed = False
             else:
                 print(f"✓ Post found with title: '{expected_post_title}'", file=sys.stderr)
@@ -253,7 +247,7 @@ async def verify() -> bool:
             print("="*60)
             
             # Navigate to search results for "travel insurance Europe"
-            await page.goto('http://34.143.228.182:9999/search?q=travel+insurance+Europe', wait_until='networkidle')
+            await page.goto(f"{BASE_URL}/search?q=travel+insurance+Europe", wait_until='networkidle')
             
 
             # Check if we're on search results page
@@ -303,7 +297,7 @@ async def verify() -> bool:
             print("="*60)
             
 
-            await page.goto('http://34.143.228.182:9999/user/EuroTravelPlanner/preferences', wait_until='networkidle')
+            await page.goto(f"{BASE_URL}/user/EuroTravelPlanner/preferences", wait_until='networkidle')
             
             # Check timezone setting
             timezone_correct = False
@@ -364,23 +358,17 @@ async def verify() -> bool:
             print("\n" + "="*60)
             if verification_passed:
                 print("✅ SUCCESS: All verification checks passed!", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "verification_success.png"))
-                print(f"Screenshot saved: {SCREENSHOT_DIR / 'verification_success.png'}", file=sys.stderr)
             else:
                 print("❌ FAILED: One or more verification checks failed!", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "verification_failed.png"))
-                print(f"Screenshot saved: {SCREENSHOT_DIR / 'verification_failed.png'}", file=sys.stderr)
             print("="*60)
             
             return verification_passed
             
         except PlaywrightTimeoutError as e:
             print(f"❌ ERROR: Timeout occurred - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "timeout_error.png"))
             return False
         except Exception as e:
             print(f"❌ ERROR: Unexpected error - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "unexpected_error.png"))
             return False
         finally:
             await browser.close()

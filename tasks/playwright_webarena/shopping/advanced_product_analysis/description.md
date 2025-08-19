@@ -1,4 +1,4 @@
-Complete the following tasks on One Stop Market (http://localhost:7770/):
+
 
 **Task Requirements:**
 

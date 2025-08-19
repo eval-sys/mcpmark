@@ -2,7 +2,7 @@ Create a comprehensive budget travel resource for European travel on the Postmil
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:9999 and register a new account with username "EuroTravelPlanner" and password "SecureTravel2024!"
+1. Register a new account with username "EuroTravelPlanner" and password "SecureTravel2024!"
 
 2. After successful registration and login, search for "Europe travel budget" using the search bar to check for existing content
 

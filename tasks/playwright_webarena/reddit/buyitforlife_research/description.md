@@ -2,7 +2,7 @@ Research durable kitchen appliances on the BuyItForLife forum by extracting info
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:9999 and register a new account with username 'buyitforlife_researcher' and password 'BIFL2024Research!'
+1. Register a new account with username 'buyitforlife_researcher' and password 'BIFL2024Research!'
 
 2. After successful registration, navigate to the BuyItForLife forum
 

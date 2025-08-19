@@ -2,7 +2,7 @@ I'm conducting an AI research analysis and need specific data from this forum pl
 
 **Task Requirements:**
 
-1. Navigate to http://localhost:9999 and Create a new account with the exact 'AIDataAnalyst2025' and password 'SecurePass123!'
+1. Create a new account with the exact 'AIDataAnalyst2025' and password 'SecurePass123!'
 
 2. After logging in, navigate to the deeplearning forum and count the exact number of posts visible on the first page
 

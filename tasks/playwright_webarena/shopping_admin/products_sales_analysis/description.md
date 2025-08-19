@@ -2,7 +2,7 @@ Perform a comprehensive products and sales analysis in the Magento Admin panel t
 
 **Task Requirements:**
 
-1. To access the Magento Admin panel and begin the analysis, navigate to http://34.143.228.182:7780/admin/. if need to login, login with username 'admin' and password 'admin1234'
+1. if need to login, login with username 'admin' and password 'admin1234'
 
 2. Analyze product inventory and catalog details, perform the following:
    - Search for all products containing 'Yoga' in their name - count the exact number of results

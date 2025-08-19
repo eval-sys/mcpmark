@@ -1,4 +1,4 @@
-Find the following products on One Stop Market (http://localhost:7770):
+
 
 1. Search for a `printer capable of reducing blue light` that:
    - Is pink or purple (must be stated in product details, not from image)
