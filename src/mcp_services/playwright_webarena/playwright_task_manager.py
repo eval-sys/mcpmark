@@ -26,7 +26,6 @@ class PlaywrightTaskManager(BaseTaskManager):
             task_class=BaseTask,
             task_organization="directory",
         )
-        self.base_url = base_url
 
     def _create_task_from_files(
         self, category_name: str, task_files_info: Dict[str, Any]
@@ -44,9 +43,7 @@ class PlaywrightTaskManager(BaseTaskManager):
             category=category_name,
             task_id=task_id,
         )
-        # Attach base_url so agents can target the correct environment
-        if self.base_url and hasattr(task, "__dict__"):
-            task.base_url = self.base_url
+        
         return task
 
     def _get_verification_command(self, task: BaseTask) -> List[str]:
@@ -54,6 +51,6 @@ class PlaywrightTaskManager(BaseTaskManager):
 
     def _format_task_instruction(self, base_instruction: str) -> str:
         note = "Use Playwright MCP tools to complete this task."
-        if self.base_url:
-            note += f" Target environment: {self.base_url}"
-        return base_instruction + "\n\n" + note
+        return (base_instruction 
+                + "\n\n" 
+                + note + "\n\nNote: Based on your understanding, solve the task all at once by yourself, don't ask for my opinions on anything.")
