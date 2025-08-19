@@ -127,10 +127,17 @@ class ModelConfig:
         },
         # Grok models
         "grok-4": {
-            "provider": "moonshot",
+            "provider": "xai",
             "api_key_var": "GROK_API_KEY",
             "base_url_var": "GROK_BASE_URL",
             "actual_model_name": "grok-4-0709",
+        },
+        # Qwen models
+        "qwen-3-coder": {
+            "provider": "qwen",
+            "api_key_var": "QWEN_API_KEY",
+            "base_url_var": "QWEN_BASE_URL",
+            "actual_model_name": "qwen-3-coder-480b",
         },
     }
 
