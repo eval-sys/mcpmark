@@ -45,7 +45,7 @@ class BaseStateManager(ABC):
         """
         try:
             logger.info(
-                f"Setting up initial state for {self.service_name} task: {task.name}"
+                f"| Setting up initial state for {self.service_name} task: {task.name}"
             )
 
             # Create initial state
@@ -57,7 +57,7 @@ class BaseStateManager(ABC):
             # Store initial state info in task
             self._store_initial_state_info(task, initial_state_info)
 
-            logger.info(f"✅ Initial state setup completed for {task.name}")
+            logger.info(f"| ✓ Initial state setup completed for {task.name}")
             return True
 
         except Exception as e:
@@ -79,7 +79,7 @@ class BaseStateManager(ABC):
             # Task-specific cleanup
             if task:
                 logger.info(
-                    f"Cleaning up initial state for {self.service_name} task: {task.name}"
+                    f"| ○ Cleaning up initial state for {self.service_name} task: {task.name}"
                 )
                 if not self._cleanup_task_initial_state(task):
                     cleanup_success = False
@@ -89,10 +89,10 @@ class BaseStateManager(ABC):
                 cleanup_success = False
 
             if cleanup_success:
-                logger.info(f"✅ Cleanup completed for {self.service_name}")
+                logger.info(f"| ✓ Cleanup completed for {self.service_name}")
             else:
                 logger.warning(
-                    f"⚠️ Cleanup completed with some failures for {self.service_name}"
+                    f"| Cleanup completed with some failures for {self.service_name}"
                 )
 
             return cleanup_success
@@ -134,6 +134,21 @@ class BaseStateManager(ABC):
             Dictionary containing configuration needed by the agent/MCP server
         """
         return {}
+
+    def set_verification_environment(self, messages_path: str = None) -> None:
+        """
+        Set environment variables needed for verification scripts.
+
+        Args:
+            messages_path: Optional path to messages.json file for verification
+
+        This method can be overridden by service implementations that need
+        to set specific environment variables for their verification scripts.
+        The default implementation sets MCP_MESSAGES if provided.
+        """
+        import os
+        if messages_path:
+            os.environ["MCP_MESSAGES"] = str(messages_path)
 
     def _cleanup_tracked_resources(self) -> bool:
         """Clean up all tracked resources."""

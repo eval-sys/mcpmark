@@ -211,7 +211,7 @@ async def verify() -> bool:
             file=sys.stderr,
         )
 
-    # Browser verification for actual state
+    # Browser verification - only check customer creation (the critical task requirement)
     print("\n=== Starting Browser Verification ===", file=sys.stderr)
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -222,7 +222,7 @@ async def verify() -> bool:
             # Navigate to Magento Admin
             print("Navigating to Magento Admin...", file=sys.stderr)
             await page.goto(
-                "http://34.143.185.85:7780/admin/", wait_until="networkidle"
+                "http://34.143.228.182:7780/admin/", wait_until="networkidle"
             )
 
             # Check if already logged in, if not, login
@@ -240,154 +240,157 @@ async def verify() -> bool:
 
             print("Successfully logged into Magento Admin", file=sys.stderr)
 
-            # 1. Verify Search Terms Report
-            print("Verifying Search Terms Report...", file=sys.stderr)
-            await page.goto(
-                "http://34.143.185.85:7780/admin/search/term/report/",
-                wait_until="networkidle",
-            )
-
-            # Check for search terms table
-            search_terms_table = page.locator("table").first
-            if not await search_terms_table.count():
-                print("Error: Could not find search terms table", file=sys.stderr)
-                await page.screenshot(
-                    path=str(SCREENSHOT_DIR / "search_terms_not_found.png")
-                )
-                return False
-
-            # Verify expected search terms exist
-            expected_terms = ["hollister", "nike", "Joust Bag"]
-            found_terms = 0
-            for term in expected_terms:
-                if await page.locator(f"text={term}").count():
-                    found_terms += 1
-
-            if found_terms < 2:
-                print(
-                    f"Warning: Only found {found_terms} of expected search terms",
-                    file=sys.stderr,
-                )
-            else:
-                print(f"Found {found_terms} expected search terms", file=sys.stderr)
-
-            # 2. Verify Cart Price Rules
-            print("Verifying Cart Price Rules...", file=sys.stderr)
-            await page.goto(
-                "http://34.143.185.85:7780/admin/sales_rule/promo_quote/",
-                wait_until="networkidle",
-            )
-
-            # Look for H20 coupon code
-            h20_coupon = page.locator("text=H20")
-            if not await h20_coupon.count():
-                print("Error: Could not find H20 coupon code", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "coupon_not_found.png"))
-                return False
-
-            # Check for active rules
-            active_rules = page.locator("text=Active")
-            active_count = await active_rules.count()
-            print(f"Found {active_count} active rules", file=sys.stderr)
-
-            # 3. Verify Newsletter Subscribers
-            print("Verifying Newsletter Subscribers...", file=sys.stderr)
-            await page.goto(
-                "http://34.143.185.85:7780/admin/newsletter/subscriber/",
-                wait_until="networkidle",
-            )
-
-            # Apply Subscribed filter
-            if await page.locator('select[name*="status"]').count():
-                await page.select_option('select[name*="status"]', "Subscribed")
-                await page.click('button:has-text("Search")')
-                await page.wait_for_load_state("networkidle")
-
-            # Check for specific emails
-            john_email = await page.locator("text=john.smith.xyz@gmail.com").count() > 0
-            admin_email = await page.locator("text=admin@magento.com").count() > 0
-
-            print(f"john.smith.xyz@gmail.com found: {john_email}", file=sys.stderr)
-            print(f"admin@magento.com found: {admin_email}", file=sys.stderr)
-
-            # 4. Verify Customer Creation
+            # Verify Customer Creation (the only critical check for task completion)
             print("Verifying Customer Creation...", file=sys.stderr)
             await page.goto(
-                "http://34.143.185.85:7780/admin/customer/index/",
+                "http://34.143.228.182:7780/admin/customer/index/",
                 wait_until="networkidle",
             )
 
-            # Check if new customers exist
-            customer1_exists = (
-                await page.locator("text=marketdata1.analysis@magento.com").count() > 0
-            )
-            customer2_exists = (
-                await page.locator("text=analytics1.report@magento.com").count() > 0
-            )
+            # Wait for the customer grid to load
+            try:
+                await page.wait_for_selector("table", timeout=15000)
+            except PlaywrightTimeoutError:
+                print("Table not found, trying to proceed anyway...", file=sys.stderr)
 
-            if customer1_exists and customer2_exists:
-                print("Both new customers found in the system", file=sys.stderr)
-            else:
-                print(
-                    f"Customer 1 (marketdata1.analysis@magento.com): {'Found' if customer1_exists else 'Not Found'}",
-                    file=sys.stderr,
-                )
-                print(
-                    f"Customer 2 (analytics1.report@magento.com): {'Found' if customer2_exists else 'Not Found'}",
-                    file=sys.stderr,
-                )
+            # Define customer requirements
+            customer1_requirements = {
+                "email": "marketdata1.analysis@magento.com",
+                "first_name": "Marketing1",
+                "last_name": "Analy",
+                "group": "General",
+                "website": "Main Website"
+            }
+            
+            customer2_requirements = {
+                "email": "analytics1.report@magento.com", 
+                "first_name": "Analytics1",
+                "last_name": "Report",
+                "group": "Wholesale",
+                "website": "Main Website"
+            }
 
-            # 5. Verify Dashboard Data
-            print("Verifying Dashboard Data...", file=sys.stderr)
-            await page.goto(
-                "http://34.143.185.85:7780/admin/admin/dashboard/",
-                wait_until="networkidle",
-            )
+            async def check_customer_exists(customer_requirements):
+                """Check if a customer exists by looking for their details in the customer grid"""
+                email = customer_requirements["email"]
+                first_name = customer_requirements["first_name"]
+                last_name = customer_requirements["last_name"]
+                group = customer_requirements["group"]
+                
+                # First check if email exists in current page without searching
+                email_found = await page.locator(f"*:has-text('{email}')").count() > 0
+                
+                if not email_found:
+                    # Try searching for the customer
+                    try:
+                        search_box = page.locator('input[placeholder*="Search by keyword"]').first
+                        await search_box.clear()
+                        await search_box.fill(email)
+                        await page.keyboard.press("Enter")
+                        await page.wait_for_load_state("networkidle")
+                        await page.wait_for_timeout(2000)
+                        
+                        # Check again after search
+                        email_found = await page.locator(f"*:has-text('{email}')").count() > 0
+                    except:
+                        pass
+                
+                if not email_found:
+                    return False, f"Email {email} not found"
+                
+                # More precise validation: find the row containing this customer's email
+                # Then check if the required fields are in the same row or nearby context
+                try:
+                    # Find the specific row containing this email
+                    email_cell = page.locator(f"td:has-text('{email}')").first
+                    if await email_cell.count() == 0:
+                        # Fall back to broader search
+                        email_cell = page.locator(f"*:has-text('{email}')").first
+                    
+                    # Get the parent row or container
+                    row = email_cell.locator("xpath=ancestor::tr[1]")
+                    if await row.count() == 0:
+                        # Fall back to getting nearby content
+                        row = email_cell.locator("xpath=..")
+                    
+                    # Get the text content of the row/container
+                    row_text = await row.text_content() if await row.count() > 0 else ""
+                    
+                    # If we can't get a specific row, fall back to broader validation
+                    if not row_text or len(row_text.strip()) < 10:
+                        # Search in nearby cells or elements
+                        nearby_elements = page.locator(f"*:has-text('{email}')").locator("xpath=../following-sibling::* | xpath=../preceding-sibling::*")
+                        nearby_count = await nearby_elements.count()
+                        nearby_text = ""
+                        for i in range(min(nearby_count, 5)):  # Check up to 5 nearby elements
+                            element_text = await nearby_elements.nth(i).text_content()
+                            if element_text:
+                                nearby_text += element_text + " "
+                        row_text = row_text + " " + nearby_text
+                    
+                    # Check if required fields are present in the row/context
+                    required_fields = [first_name, last_name, group]
+                    found_fields = [email]  # Email is already confirmed
+                    missing_fields = []
+                    
+                    for field in required_fields:
+                        if field in row_text:
+                            found_fields.append(field)
+                        else:
+                            missing_fields.append(field)
+                    
+                    if missing_fields:
+                        return False, f"Customer found but missing fields in row context: {', '.join(missing_fields)}. Row text: {row_text[:100]}..."
+                    
+                    return True, f"Customer verified with all required fields: {', '.join(found_fields)}"
+                    
+                except Exception as e:
+                    # Fall back to original simple validation
+                    page_content = await page.content()
+                    required_fields = [first_name, last_name, group, email]
+                    found_fields = []
+                    missing_fields = []
+                    
+                    for field in required_fields:
+                        if field in page_content:
+                            found_fields.append(field)
+                        else:
+                            missing_fields.append(field)
+                    
+                    if missing_fields:
+                        return False, f"Customer found but missing fields (fallback): {', '.join(missing_fields)}"
+                    
+                    return True, f"Customer verified with all required fields (fallback): {', '.join(found_fields)}"
 
-            # Check for bestsellers section
-            bestsellers_exists = await page.locator("text=Bestsellers").count() > 0
-            revenue_exists = await page.locator("text=Revenue").count() > 0
+            # Check both customers
+            customer1_exists, customer1_msg = await check_customer_exists(customer1_requirements)
+            customer2_exists, customer2_msg = await check_customer_exists(customer2_requirements)
 
-            if bestsellers_exists:
-                print("Bestsellers section found on dashboard", file=sys.stderr)
-
-                # Try to find the top product
-                sprite_ball_exists = (
-                    await page.locator("text=Sprite Stasis Ball 65 cm").count() > 0
-                )
-                if sprite_ball_exists:
-                    print(
-                        "✓ Found expected top product: Sprite Stasis Ball 65 cm",
-                        file=sys.stderr,
-                    )
-
-            if revenue_exists:
-                print("Revenue information found on dashboard", file=sys.stderr)
-
-                # Check for $0.00 revenue
-                zero_revenue = await page.locator("text=$0.00").count() > 0
-                if zero_revenue:
-                    print("✓ Revenue shows $0.00 as expected", file=sys.stderr)
-
-            # Take final screenshot
-            await page.screenshot(
-                path=str(SCREENSHOT_DIR / "verification_complete.png")
+            print(
+                f"Customer 1 (marketdata1.analysis@magento.com): {'Found' if customer1_exists else 'Not Found'} - {customer1_msg}",
+                file=sys.stderr,
             )
             print(
-                f"Screenshot saved: {SCREENSHOT_DIR / 'verification_complete.png'}",
+                f"Customer 2 (analytics1.report@magento.com): {'Found' if customer2_exists else 'Not Found'} - {customer2_msg}",
                 file=sys.stderr,
             )
 
-            # Summary of verification
-            print("\n=== Browser Verification Summary ===", file=sys.stderr)
-            print("✓ Magento Admin login successful", file=sys.stderr)
-            print("✓ Search Terms Report accessible", file=sys.stderr)
-            print("✓ Cart Price Rules with coupon codes found", file=sys.stderr)
-            print("✓ Newsletter Subscribers filtering works", file=sys.stderr)
-            print("✓ Customer creation capability verified", file=sys.stderr)
-            print("✓ Dashboard data accessible", file=sys.stderr)
+            # If customers are not found, take screenshot for debugging
+            if not (customer1_exists and customer2_exists):
+                print("Taking screenshot for debugging...", file=sys.stderr)
+                await page.screenshot(path=str(SCREENSHOT_DIR / "customers_debug.png"))
+                
+                # Also try to log the page content to understand the structure
+                page_content = await page.content()
+                debug_file = SCREENSHOT_DIR / "customer_page_debug.html"
+                with open(debug_file, "w") as f:
+                    f.write(page_content)
+                print(f"Page content saved to: {debug_file}", file=sys.stderr)
+                
+                print("Error: Required customers were not found in the system", file=sys.stderr)
+                return False
 
-            # Basic validation passed
+            print("✓ Both required customers found in the system", file=sys.stderr)
             return True
 
         except PlaywrightTimeoutError as e:

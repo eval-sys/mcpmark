@@ -190,17 +190,15 @@ class BaseTaskManager(ABC):
     def execute_task(self, task: BaseTask, agent_result: Dict[str, Any]) -> TaskResult:
         """Execute task verification (template method)."""
         start_time = time.time()
-        logger.info(f"- Verifying {self.mcp_service.title()} task: {task.name}")
+        logger.info(f"| Verifying task ({self.mcp_service.title()}): {task.name}")
 
         try:
             # Check for any pre-execution conditions
             pre_check_result = self._pre_execution_check(task)
             if not pre_check_result["success"]:
-                execution_time = time.time() - start_time
                 return TaskResult(
                     task_name=task.name,
                     success=False,
-                    execution_time=execution_time,
                     error_message=pre_check_result["error"],
                     category=task.category,
                     task_id=task.task_id,
@@ -208,52 +206,49 @@ class BaseTaskManager(ABC):
 
             # If agent execution failed, return the failure
             if not agent_result.get("success", False):
-                execution_time = time.time() - start_time
                 error_message = agent_result.get("error", "Agent execution failed")
 
                 # Standardize MCP network errors
                 error_message = self._standardize_error_message(error_message)
 
                 # Log the agent failure so users can distinguish it from verification errors
-                logger.error(f"✗ Agent execution failed for task: {task.name}")
-                logger.error(f"⚠️ Error: {error_message}")
+                logger.error(f"| ✗ Agent execution failed for task")
+                logger.error(f"| ⚠️ Error: {error_message}")
                 logger.warning(
-                    f"- Skipping verification for task: {task.name} due to agent failure"
+                    f"| - Skipping verification for task: {task.name} due to agent failure"
                 )
 
                 return TaskResult(
                     task_name=task.name,
                     success=False,
-                    execution_time=execution_time,
                     error_message=error_message,
                     category=task.category,
                     task_id=task.task_id,
                 )
 
             # Run verification using service-specific command
-            logger.info(f"- Running verification for task: {task.name}")
             verify_result = self.run_verification(task)
 
             # Process results
             success = verify_result.returncode == 0
+            print(verify_result.stdout)
             error_message = (
                 verify_result.stderr if not success and verify_result.stderr else None
             )
-            execution_time = time.time() - start_time
 
             # Post-execution cleanup or tracking
             self._post_execution_hook(task, success)
 
             if success:
-                logger.info(f"✓ Verification passed for task: {task.name}")
+                logger.info(f"| Verification Result: \033[92m✓ PASSED\033[0m")
             else:
-                logger.error(f"✗ Verification failed for task: {task.name}")
-                logger.error(f"⚠️ Error: {error_message}")
+                logger.error(f"| Verification Result: \033[91m✗ FAILED\033[0m")
+                if error_message:
+                    logger.error(f"| Error: {error_message}")
 
             return TaskResult(
                 task_name=task.name,
                 success=success,
-                execution_time=execution_time,
                 error_message=error_message,
                 model_output=agent_result.get("output", ""),
                 category=task.category,
@@ -263,12 +258,10 @@ class BaseTaskManager(ABC):
             )
 
         except Exception as e:
-            execution_time = time.time() - start_time
             logger.error(f"Task verification failed: {e}", exc_info=True)
             return TaskResult(
                 task_name=task.name,
                 success=False,
-                execution_time=execution_time,
                 error_message=str(e),
                 category=task.category,
                 task_id=task.task_id,
@@ -284,7 +277,7 @@ class BaseTaskManager(ABC):
             self._get_verification_command(task),
             # capture_output=True,
             text=True,
-            timeout=90,
+            timeout=300,
         )
 
     # =========================================================================
@@ -328,6 +321,7 @@ class BaseTaskManager(ABC):
             category_dir.is_dir()
             and not category_dir.name.startswith(".")
             and category_dir.name != "utils"
+            and category_dir.name != "__pycache__"
         )
 
     def _find_task_files(self, category_dir: Path) -> List[Dict[str, Any]]:
@@ -378,9 +372,12 @@ class BaseTaskManager(ABC):
         """Read and return the task instruction content."""
         return task.get_task_instruction()
 
-    def _format_task_instruction(self, instruction_content: str) -> str:
-        """Format the task instruction (default: no formatting)."""
-        return instruction_content
+    def _format_task_instruction(self, base_instruction: str) -> str:
+        """Format task instruction with Notion-specific additions."""
+        return (
+            base_instruction
+            + "\n\nNote: Based on your understanding, solve the task all at once by yourself, don't ask for my opinions on anything."
+        )
 
     def _get_verification_command(self, task: BaseTask) -> List[str]:
         """Get the command to run task verification (default implementation)."""

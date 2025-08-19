@@ -41,7 +41,7 @@ class DockerConfig:
 
     @property
     def base_url(self) -> str:
-        return f"http://34.143.185.85:{self.host_port}"
+        return f"http://34.143.228.182:{self.host_port}"
 
 
 class PlaywrightStateManager(BaseStateManager):
@@ -186,7 +186,7 @@ class PlaywrightStateManager(BaseStateManager):
 
         # Determine host and port from URL for port checks
         parsed = urlparse(base_url)
-        host = parsed.hostname or "34.143.185.85"
+        host = parsed.hostname or "34.143.228.182"
         port = parsed.port or self.config.host_port
 
         # First wait for port to open to avoid long HTTP errors
@@ -208,7 +208,7 @@ class PlaywrightStateManager(BaseStateManager):
         """Run Magento-specific steps for shopping_admin container.
         Uses EXTERNAL_IP env var if provided; waits a bit for services to start.
         """
-        external_ip = os.getenv("EXTERNAL_IP", "34.143.185.85")
+        external_ip = os.getenv("EXTERNAL_IP", "34.143.228.182")
         try:
             wait_seconds = int(os.getenv("SHOPPING_ADMIN_SETUP_WAIT", "120"))
         except ValueError:

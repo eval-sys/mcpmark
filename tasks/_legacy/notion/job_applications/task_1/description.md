@@ -1,1 +1,0 @@
-Navigate to the job application page and add a new text property `Type` to the `Applications` database. Then, populate this property based on company names: assign `A` to pages where the company is `24S` and leave other pages empty.

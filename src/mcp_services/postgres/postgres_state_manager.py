@@ -6,8 +6,12 @@ Manages database state for PostgreSQL tasks including schema setup,
 test data creation, and cleanup.
 """
 
+import os
+import subprocess
+import sys
 import psycopg2
 from psycopg2 import sql
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 from src.base.state_manager import BaseStateManager, InitialStateInfo
@@ -24,8 +28,8 @@ class PostgresStateManager(BaseStateManager):
         self,
         host: str = "localhost",
         port: int = 5432,
-        database: str = None,
-        username: str = None,
+        database: str = "postgres",
+        username: str = "postgres",
         password: str = None,
     ):
         """Initialize PostgreSQL state manager.
@@ -92,8 +96,8 @@ class PostgresStateManager(BaseStateManager):
             self.created_databases.append(db_name)
             self.track_resource("database", db_name, {"task": task.name})
 
-            # Set up initial schema/data based on task category
-            # self._setup_task_specific_data(db_name, task)
+            # Run prepare_environment.py if it exists
+            self._run_prepare_environment(db_name, task)
 
             return InitialStateInfo(
                 state_id=db_name,
@@ -219,6 +223,55 @@ class PostgresStateManager(BaseStateManager):
                 )
         finally:
             conn.close()
+
+    def _run_prepare_environment(self, db_name: str, task: BaseTask):
+        """Run prepare_environment.py script if it exists in the task directory."""
+        # Find the task directory containing prepare_environment.py
+        task_dir = task.task_instruction_path.parent
+        prepare_script = task_dir / "prepare_environment.py"
+
+        if not prepare_script.exists():
+            logger.debug(f"No prepare_environment.py found for task {task.name}")
+            return
+
+        logger.info(f"Running prepare_environment.py for task {task.name}")
+
+        # Set up environment variables for the script
+        env = os.environ.copy()
+        env.update({
+            "POSTGRES_HOST": str(self.host),
+            "POSTGRES_PORT": str(self.port),
+            "POSTGRES_DATABASE": db_name,
+            "POSTGRES_USERNAME": self.username,
+            "POSTGRES_PASSWORD": self.password or "",
+        })
+
+        try:
+            # Run the prepare_environment.py script
+            result = subprocess.run(
+                [sys.executable, str(prepare_script)],
+                cwd=str(task_dir),  # Run from task directory to access data/ folder
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+            )
+
+            if result.returncode == 0:
+                logger.info(f"✅ Environment preparation completed for {task.name}")
+                if result.stdout.strip():
+                    logger.debug(f"prepare_environment.py output: {result.stdout}")
+            else:
+                logger.error(f"❌ Environment preparation failed for {task.name}")
+                logger.error(f"Error output: {result.stderr}")
+                raise RuntimeError(f"prepare_environment.py failed with exit code {result.returncode}")
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"❌ Environment preparation timed out for {task.name}")
+            raise RuntimeError("prepare_environment.py execution timed out")
+        except Exception as e:
+            logger.error(f"❌ Failed to run prepare_environment.py for {task.name}: {e}")
+            raise
 
     def _setup_task_specific_data(self, db_name: str, task: BaseTask):
         """Set up task-specific schema and data."""

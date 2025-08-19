@@ -2,34 +2,34 @@ Perform a comprehensive products and sales analysis in the Magento Admin panel t
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.185.85:7780/admin/. if need to login, login with username 'admin' and password 'admin1234'
+1. To access the Magento Admin panel and begin the analysis, navigate to http://34.143.228.182:7780/admin/. if need to login, login with username 'admin' and password 'admin1234'
 
-2. Go to Catalog > Products and perform the following:
+2. Analyze product inventory and catalog details, perform the following:
    - Search for all products containing 'Yoga' in their name - count the exact number of results
    - Clear the search and find the product with SKU 'WH11' - record its exact price
    - Apply a filter to show only products with Quantity = 0.0000 - count how many products match
 
-3. Navigate to the Dashboard and from the Bestsellers table:
-   - Identify the product at position #3 (third row) - record the product name and quantity sold
-   - Find 'Quest Lumaflex™ Band' in the table - record its exact quantity sold
+3. To identify top-selling products and revenue metrics, navigate to the Dashboard and from the Bestsellers table:
+   - Identify the product with lowest price and lowest quantity - record the product name and quantity sold
+   - Find the second cheapest product in the table - record its exact quantity sold
    - Note the total Revenue amount displayed in the dashboard
 
-4. Go to Customers > All Customers:
+4. Father all customers' information and demographics:
    - Find customer 'Sarah Miller' - record her exact email address
    - Count the total number of customers shown in the grid
 
-5. Navigate to Sales > Orders:
+5. Review order status and customer purchase history, go to orders of sales:
    - Count the total number of orders with 'Pending' status
    - Find the order ID of Grace Nguyen's order with the completed status and the most expensive price (starting with "000")
 
-6. Compile all your findings and output them in the following exact format:
+6. To provide a comprehensive report of all gathered data, compile all your findings and output them in the following exact format:
 
 ```
 <answer>
 YogaProducts|count
 WH11Price|price
 ZeroQuantityProducts|count
-Position3Product|name:quantity
+LowestProduct|name:quantity
 QuestLumaflexQuantity|quantity
 DashboardRevenue|amount
 SarahMillerEmail|email
@@ -45,7 +45,7 @@ GraceNguyenOrderID|orderid
 YogaProducts|XX
 WH11Price|$XX.XX
 ZeroQuantityProducts|XX
-Position3Product|Product Name Here:XX
+LowestProduct|Product Name Here:XX
 QuestLumaflexQuantity|XX
 DashboardRevenue|$XX.XX
 SarahMillerEmail|email@example.com
@@ -54,18 +54,3 @@ PendingOrders|X
 GraceNguyenOrderID|00000XXXX
 </answer>
 ```
-
-**Success Criteria:**
-- Successfully logged into Magento Admin with admin/admin123
-- Searched for 'Yoga' products and counted results accurately
-- Found product with SKU 'WH11' and extracted correct price
-- Filtered products by zero quantity and counted results
-- Identified product at position #3 in Bestsellers with quantity
-- Found Quest Lumaflex™ Band quantity in Bestsellers
-- Extracted Dashboard revenue amount
-- Located Sarah Miller and extracted email address
-- Counted total customers in grid
-- Counted orders with Pending status
-- Found Grace Nguyen's order ID
-- Output answer in exact format with 11 data lines
-- Answer wrapped in <answer> tags

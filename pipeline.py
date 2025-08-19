@@ -32,9 +32,9 @@ def main():
     # Main configuration
     parser.add_argument(
         "--mcp",
-        default="notion",
+        default="filesystem",
         choices=supported_mcp_services,
-        help="MCP service to use (default: notion)",
+        help="MCP service to use (default: filesystem)",
     )
     parser.add_argument(
         "--models",
@@ -54,7 +54,7 @@ def main():
 
     # Execution configuration
     parser.add_argument(
-        "--timeout", type=int, default=300, help="Timeout in seconds for each task"
+        "--timeout", type=int, default=1000, help="Timeout in seconds for each task"
     )
 
     # Output configuration
@@ -76,7 +76,6 @@ def main():
     # Generate default exp-name if not provided
     if args.exp_name is None:
         args.exp_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        logger.info(f"Using default experiment name: {args.exp_name}")
 
     # Parse models (no validation - allow unsupported models)
     model_list = [m.strip() for m in args.models.split(",") if m.strip()]
@@ -90,9 +89,9 @@ def main():
             f"Using unsupported models: {', '.join(unsupported_models)}. Will use OPENAI_BASE_URL and OPENAI_API_KEY from environment."
         )
 
-    logger.info(
-        f"Running evaluation for {len(model_list)} model(s): {', '.join(model_list)}"
-    )
+    logger.info("MCPMark Evaluation")
+    logger.info(f"Experiment: {args.exp_name} | {len(model_list)} Model(s): {', '.join(model_list)}")
+
 
     # Run evaluation for each model
     for i, model in enumerate(model_list, 1):
@@ -111,7 +110,7 @@ def main():
 
         pipeline.run_evaluation(args.tasks)
         logger.info(
-            f"✓ Evaluation completed for {model}. Results saved in: {pipeline.base_experiment_dir}"
+            f"📁 Results: {pipeline.base_experiment_dir}"
         )
 
     logger.info(f"\n{'=' * 60}")

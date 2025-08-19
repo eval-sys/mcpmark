@@ -8,7 +8,7 @@ This module provides utilities for saving evaluation results in a structured for
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -26,22 +26,26 @@ class TaskResult:
     Attributes:
         task_name: The full name of the task (e.g., "category/task_1").
         success: Whether the task completed successfully.
-        execution_time: Time taken to execute the task in seconds.
         category: The task category.
         task_id: The task identifier (number or slug).
         error_message: Error message if the task failed.
         model_output: Agent conversation trajectory (messages).
+        token_usage: Token usage statistics.
+        turn_count: Number of turns taken during task execution.
+        agent_execution_time: Time for Step 2 (agent execution) in seconds.
+        task_execution_time: Total time for Steps 1-4 in seconds.
     """
 
     task_name: str
     success: bool
-    execution_time: float  # in seconds
     category: Optional[str] = None
     task_id: Optional[str] = None
     error_message: Optional[str] = None
     model_output: Optional[Any] = None  # Agent conversation trajectory
     token_usage: Optional[Dict[str, int]] = None  # Token usage statistics
     turn_count: Optional[int] = None  # Number of turns taken during task execution
+    agent_execution_time: float = 0.0  # Time for Step 2 (agent execution) in seconds
+    task_execution_time: float = 0.0  # Total time for Steps 1-4 in seconds
 
     @property
     def status(self) -> str:
@@ -55,8 +59,6 @@ class EvaluationReport:
 
     model_name: str
     model_config: Dict[str, Any]
-    start_time: datetime
-    end_time: datetime
     total_tasks: int
     successful_tasks: int
     failed_tasks: int
@@ -119,9 +121,16 @@ class EvaluationReport:
         return self.total_tokens / self.total_tasks
 
     @property
-    def execution_time(self) -> timedelta:
-        """Calculates the total execution time."""
-        return self.end_time - self.start_time
+    def total_task_execution_time(self) -> float:
+        """Calculates the total task execution time from sum of all task execution times."""
+        # Use sum of individual task execution times instead of pipeline wall clock time
+        # This ensures resume functionality shows correct total time
+        return sum(task.task_execution_time for task in self.task_results)
+    
+    @property
+    def total_agent_execution_time(self) -> float:
+        """Calculates the total agent execution time (Step 2) across all tasks."""
+        return sum(task.agent_execution_time for task in self.task_results)
 
     def get_category_stats(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -138,6 +147,7 @@ class EvaluationReport:
                     "failed": 0,
                     "success_rate": 0.0,
                     "avg_execution_time": 0.0,
+                    "avg_agent_execution_time": 0.0,
                     "total_input_tokens": 0,
                     "total_output_tokens": 0,
                     "total_tokens": 0,
@@ -179,8 +189,12 @@ class EvaluationReport:
                     for r in self.task_results
                     if (r.category or "Uncategorized") == category
                 ]
-                total_time = sum(r.execution_time for r in category_results)
+                total_time = sum(r.task_execution_time for r in category_results)
                 stats["avg_execution_time"] = total_time / len(category_results)
+                
+                # Add agent execution time stats
+                total_agent_time = sum(r.agent_execution_time for r in category_results)
+                stats["avg_agent_execution_time"] = total_agent_time / len(category_results)
 
                 # Calculate average tokens and turns
                 stats["avg_input_tokens"] = stats["total_input_tokens"] / stats["total"]
@@ -224,9 +238,11 @@ class ResultsReporter:
         meta_data = {
             "task_name": task_result.task_name,
             "model": model_config.get("model_name", "unknown"),
-            "model_config": model_config,
+            "mcp": model_config.get("mcp_service", "unknown"),
+            "timeout": model_config.get("timeout", 300),
             "time": {"start": start_time.isoformat(), "end": end_time.isoformat()},
-            "execution_time": task_result.execution_time,
+            "agent_execution_time": task_result.agent_execution_time,
+            "task_execution_time": task_result.task_execution_time,
             "execution_result": {
                 "success": task_result.success,
                 "error_message": task_result.error_message,
@@ -255,9 +271,12 @@ class ResultsReporter:
             "successful_tasks": report.successful_tasks,
             "failed_tasks": report.failed_tasks,
             "success_rate": round(report.success_rate, 2),
-            "total_execution_time": report.execution_time.total_seconds(),
-            "average_execution_time": report.execution_time.total_seconds()
-            / report.total_tasks
+            "total_task_execution_time": report.total_task_execution_time,
+            "average_task_execution_time": report.total_task_execution_time / report.total_tasks
+            if report.total_tasks > 0
+            else 0,
+            "total_agent_execution_time": report.total_agent_execution_time,
+            "average_agent_execution_time": report.total_agent_execution_time / report.total_tasks
             if report.total_tasks > 0
             else 0,
             "token_usage": {

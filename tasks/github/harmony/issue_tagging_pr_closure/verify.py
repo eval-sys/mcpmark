@@ -175,11 +175,11 @@ def verify() -> bool:
     load_dotenv(".mcp_env")
 
     # Get GitHub token and org
-    github_token = os.environ.get("GITHUB_TOKEN")
+    github_token = os.environ.get("MCP_GITHUB_TOKEN")
     github_org = os.environ.get("GITHUB_EVAL_ORG")
 
     if not github_token:
-        print("Error: GITHUB_TOKEN environment variable not set", file=sys.stderr)
+        print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
 
     if not github_org:

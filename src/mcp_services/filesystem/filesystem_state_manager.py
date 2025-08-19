@@ -8,6 +8,7 @@ It manages test directories, file creation/cleanup, and environment isolation.
 
 import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -26,6 +27,18 @@ class FilesystemStateManager(BaseStateManager):
     and cleaning up after task completion.
     """
 
+    def _get_project_root(self) -> Path:
+        """Find project root by looking for marker files."""
+        current = Path(__file__).resolve()
+
+        # Look for project root markers
+        for parent in current.parents:
+            if (parent / "pyproject.toml").exists() or (parent / "pipeline.py").exists():
+                return parent
+
+        # Fallback to old method if markers not found
+        return Path(__file__).parent / "../../../"
+
     def __init__(self, test_root: Optional[Path] = None, cleanup_on_exit: bool = False):
         """
         Initialize filesystem state manager.
@@ -40,9 +53,9 @@ class FilesystemStateManager(BaseStateManager):
         if test_root:
             self.test_root = Path(test_root)
         else:
-            # Default to persistent test environment using relative path
-            script_dir = Path(__file__).parent
-            self.test_root = script_dir / "../../../test_environments/desktop"
+            # Default to persistent test environment
+            project_root = self._get_project_root()
+            self.test_root = (project_root / "test_environments/desktop").resolve()
 
         self.cleanup_on_exit = cleanup_on_exit
         self.current_task_dir: Optional[Path] = None
@@ -113,13 +126,12 @@ class FilesystemStateManager(BaseStateManager):
                     return False
 
             # Use the backup directory as the working directory instead of the original
-            print(f"self.test_root: {self.test_root}")
             self.current_task_dir = (
                 self.backup_dir
             )  # Use backup directory for operations
 
             logger.info(
-                f"Using backup environment for operations: {self.current_task_dir}"
+                f"| ✓ Using the backup environment for operations"
             )
 
             # Store the test directory path in the task object for use by task manager
@@ -146,24 +158,32 @@ class FilesystemStateManager(BaseStateManager):
         base_test_root = os.getenv("FILESYSTEM_TEST_ROOT")
         if not base_test_root:
             # Fallback to default path
-            script_dir = Path(__file__).parent
-            base_test_root = str(script_dir / "../../../test_environments")
+            project_root = self._get_project_root()
+            base_test_root = str(project_root / "test_environments")
 
         base_test_path = Path(base_test_root)
 
-        # Always use the desktop directory which contains the actual test data
-        # The tasks expect files that are located in the desktop test environment
-        self.test_root = base_test_path / task.category
-        logger.info(
-            f"Setting test root to desktop directory (contains test data): {self.test_root}"
-        )
+        # If task has a category, append it to the base path
+        if task.category:
+            self.test_root = base_test_path / task.category
+            # Store the current task category for URL selection
+            self._current_task_category = task.category
+            logger.info(f"| ✓ Setting test root to category-specific directory: {self.test_root}")
+        else:
+            # Use the base test environments directory
+            self.test_root = base_test_path
+            # For base directory, use 'desktop' as default category
+            self._current_task_category = 'desktop'
+            logger.info(f"| Setting test root to base directory: {self.test_root}")
 
-        # Ensure the directory exists
+        # Ensure the directory exists by downloading and extracting if needed
         if not self.test_root.exists():
-            logger.error(f"Test directory does not exist: {self.test_root}")
-            raise FileNotFoundError(
-                f"Test environment not found at {self.test_root}. Please ensure test data is properly set up."
-            )
+            logger.warning(f"Test directory does not exist: {self.test_root}")
+            if not self._download_and_extract_test_environment():
+                logger.error(f"Failed to download and extract test environment for: {self.test_root}")
+                raise RuntimeError(f"Test environment not available: {self.test_root}")
+            logger.info(f"Downloaded and extracted test environment: {self.test_root}")
+
 
     def clean_up(self, task: Optional[BaseTask] = None, **kwargs) -> bool:
         """
@@ -186,7 +206,7 @@ class FilesystemStateManager(BaseStateManager):
                 try:
                     shutil.rmtree(self.backup_dir)
                     logger.info(
-                        f"✅ Cleaned up backup directory for task {task.name if task else 'unknown'}"
+                        f"| ✓ Cleaned up backup directory for task {task.name if task else 'unknown'}"
                     )
                     self.backup_dir = None
                 except Exception as e:
@@ -288,10 +308,8 @@ class FilesystemStateManager(BaseStateManager):
         """
         try:
             # Create backup directory with task-specific name
-            script_dir = Path(__file__).parent
-
-            backup_root = script_dir / "../../../.mcpmark_backups"
-            print("backup_root: ", backup_root)
+            project_root = self._get_project_root()
+            backup_root = (project_root / ".mcpmark_backups").resolve()
             backup_root.mkdir(exist_ok=True)
 
             task_id = f"{task.service}_{task.category}_{task.task_id}"
@@ -302,10 +320,9 @@ class FilesystemStateManager(BaseStateManager):
                 shutil.rmtree(self.backup_dir)
 
             # Create fresh backup by copying entire test environment
-            print("self.test_root: ", self.test_root)
             shutil.copytree(self.test_root, self.backup_dir)
 
-            logger.info(f"✅ Created backup for task {task.name}: {self.backup_dir}")
+            logger.info(f"| ✓ Created backup for task {task.name}: {self.backup_dir}")
             return True
 
         except Exception as e:
@@ -410,3 +427,125 @@ class FilesystemStateManager(BaseStateManager):
                     logger.error(f"Failed to clean up {resource_path}: {e}")
                     return False
         return True
+
+    def _download_and_extract_test_environment(self) -> bool:
+        """
+        Download and extract test environment using wget and unzip commands.
+        
+        This approach preserves original file timestamps and is simpler than Python zipfile.
+
+        Returns:
+            bool: True if download and extraction successful
+        """
+        try:
+            import subprocess
+            import sys
+            
+            # Define URL mapping for different test environment categories
+            url_mapping = {
+                'desktop': 'https://storage.mcpmark.ai/filesystem/desktop.zip',
+                'file_context': 'https://storage.mcpmark.ai/filesystem/file_context.zip',
+                'file_property': 'https://storage.mcpmark.ai/filesystem/file_property.zip',
+                'folder_structure': 'https://storage.mcpmark.ai/filesystem/folder_structure.zip',
+                'papers': 'https://storage.mcpmark.ai/filesystem/papers.zip',
+                'student_database': 'https://storage.mcpmark.ai/filesystem/student_database.zip',
+                'threestudio': 'https://storage.mcpmark.ai/filesystem/threestudio.zip',
+                'votenet': 'https://storage.mcpmark.ai/filesystem/votenet.zip',
+                'legal_document': 'https://storage.mcpmark.ai/filesystem/legal_document.zip',
+                'desktop_template': 'https://storage.mcpmark.ai/filesystem/desktop_template.zip'
+            }
+
+            # Get the category from the current task context
+            category = getattr(self, '_current_task_category', None)
+            if not category:
+                logger.error("| No task category available for URL selection")
+                return False
+
+            # Select the appropriate URL based on category
+            if category in url_mapping:
+                test_env_url = url_mapping[category]
+                logger.info(f"| ○ Selected URL for category '{category}': {test_env_url}")
+            else:
+                logger.error(f"| No URL mapping found for category: {category}")
+                return False
+
+            # Allow override via environment variable
+            test_env_url = os.getenv('TEST_ENVIRONMENT_URL', test_env_url)
+
+            logger.info(f"| ○ Downloading test environment from: {test_env_url}")
+
+            # Create a temporary directory for the download
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                zip_path = temp_path / "test_environment.zip"
+
+                # Step 1: Download using wget
+                logger.info("| ○ Downloading test environment zip file...")
+                try:
+                    # Use wget if available, otherwise fall back to curl
+                    if sys.platform == "win32":
+                        # Windows: try wget, fall back to curl
+                        try:
+                            result = subprocess.run(
+                                ["wget", "-O", str(zip_path), test_env_url],
+                                capture_output=True, text=True, check=True
+                            )
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            # Fall back to curl
+                            result = subprocess.run(
+                                ["curl", "-L", "-o", str(zip_path), test_env_url],
+                                capture_output=True, text=True, check=True
+                            )
+                    else:
+                        # Unix-like systems: try wget, fall back to curl
+                        try:
+                            result = subprocess.run(
+                                ["wget", "-O", str(zip_path), test_env_url],
+                                capture_output=True, text=True, check=True
+                            )
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            # Fall back to curl
+                            result = subprocess.run(
+                                ["curl", "-L", "-o", str(zip_path), test_env_url],
+                                capture_output=True, text=True, check=True
+                            )
+                    
+                    logger.info("| ✓ Download completed successfully")
+                except Exception as e:
+                    logger.error(f"| Download failed: {e}")
+                    return False
+
+                # Step 2: Extract using unzip
+                logger.info("| ○ Extracting test environment...")
+                try:
+                    # Extract to parent directory to maintain expected structure
+                    result = subprocess.run(
+                        ["unzip", "-o", str(zip_path), "-d", str(self.test_root.parent)],
+                        capture_output=True, text=True, check=True
+                    )
+                    logger.info("| ✓ Extraction completed successfully")
+                except Exception as e:
+                    logger.error(f"| Extraction failed: {e}")
+                    return False
+
+                # Step 3: Remove __MACOSX folder if it exists
+                logger.info("| ○ Cleaning up macOS metadata...")
+                macosx_path = self.test_root.parent / "__MACOSX"
+                if macosx_path.exists():
+                    try:
+                        shutil.rmtree(macosx_path)
+                        logger.info("| ✓ Removed __MACOSX folder")
+                    except Exception as e:
+                        logger.warning(f"| Failed to remove __MACOSX folder: {e}")
+
+                # Verify the extracted directory exists
+                if not self.test_root.exists():
+                    logger.error(f"| Extracted directory not found at expected path: {self.test_root}")
+                    return False
+
+                logger.info(f"| ✓ Successfully downloaded and extracted test environment to: {self.test_root}")
+                return True
+
+        except Exception as e:
+            logger.error(f"| Failed to download and extract test environment: {e}")
+            return False

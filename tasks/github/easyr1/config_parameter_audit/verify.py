@@ -13,7 +13,8 @@ def _get_github_api(
     endpoint: str, headers: Dict[str, str]
 ) -> Tuple[bool, Optional[Dict]]:
     """Make a GET request to GitHub API and return (success, response)."""
-    url = f"https://api.github.com/repos/mcpleague-eval-xiangyan/EasyR1/{endpoint}"
+    github_org = os.environ.get("GITHUB_EVAL_ORG")
+    url = f"https://api.github.com/repos/{github_org}/EasyR1/{endpoint}"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -242,9 +243,9 @@ def verify() -> bool:
     Programmatically verify that the deep commit analysis meets the requirements.
     """
     # Get GitHub token
-    github_token = os.environ.get("GITHUB_TOKEN")
+    github_token = os.environ.get("MCP_GITHUB_TOKEN")
     if not github_token:
-        print("Error: GITHUB_TOKEN environment variable not set", file=sys.stderr)
+        print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
         return False
 
     headers = {

@@ -2,30 +2,30 @@ Perform comprehensive search and filtering operations in the Magento Admin panel
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.185.85:7780/admin/. Login with username 'admin' and password 'admin1234'
+1. To access the Magento Admin panel and begin the analysis, navigate to http://34.143.228.182:7780/admin/. Login with username 'admin' and password 'admin1234'
 
-2. Navigate to Marketing > SEO & Search > Search Terms and perform complex filtering:
+2. To analyze search behavior and term effectiveness, check the Search Terms of Marketing and perform complex filtering:
    - Search for all terms containing 'tank' in their name - count the exact number of results
    - Clear filters and find terms with exactly 0 results - count how many such terms exist
    - Apply a filter to show only terms with more than 10 uses - record the term with highest uses and its count (You need to see how many there are and record them all.)
    - Find the search term that has results between 20-30 - record its name and exact result count
 
-3. Navigate to Reports > Marketing > Search Terms Report:
+3. To gather detailed marketing insights from search data, go to Search Terms in Reports:
    - Apply filter for terms with more than 15 hits - count total filtered results
    - Find the term with ID between 10-15 that has the most results - record term name and result count (You need to see how many there are and record them all.)
    - Filter to show only terms from "Default Store View" - count total results
 
-4. From the Dashboard, perform targeted searches:
+4. To examine real-time search trends and top performers, from the Dashboard, perform targeted searches:
    - In the 'Top Search Terms' table, find the term with exactly 1 result - record its name and uses
    - In the 'Last Search Terms' table, identify the term with the both the highest number of results and uses - record name and the number of results
    - In the 'Bestsellers' tab, find the product at position #3 - record name and quantity
 
-5. Navigate to Marketing > SEO & Search > Search Terms (main grid):
+5. To identify patterns in search usage and results, navigate to Search Terms (main grid) in step 2:
    - Sort by 'Uses' column (descending) - record the top term and its uses count
    - Sort by 'Results' column (ascending) - record the first non-zero result term and its count
    - Count total number of unique search terms in the system
 
-6. Compile all findings and output in the following exact format:
+6. To provide a comprehensive report of all gathered data, compile all findings and output in the following exact format:
 
 ```
 <answer>

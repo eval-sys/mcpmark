@@ -133,7 +133,7 @@ async def verify() -> bool:
     """
     Verifies that the customer segmentation setup task has been completed correctly.
     First checks the model's answer against the expected label,
-    then optionally verifies the actual state in the Magento Admin.
+    then verifies the actual state in the Magento Admin.
     """
     # Get the label file path
     label_path = Path(__file__).parent / "label.txt"
@@ -184,7 +184,7 @@ async def verify() -> bool:
             # Navigate to Magento Admin
             print("Navigating to Magento Admin...", file=sys.stderr)
             await page.goto(
-                "http://34.143.185.85:7780/admin/", wait_until="networkidle"
+                "http://34.143.228.182:7780/admin/", wait_until="networkidle"
             )
 
             # Check if already logged in, if not, login
@@ -205,7 +205,7 @@ async def verify() -> bool:
             # 1. Verify Customer Groups
             print("\nVerifying Customer Groups...", file=sys.stderr)
             await page.goto(
-                "http://34.143.185.85:7780/admin/customer/group/",
+                "http://34.143.228.182:7780/admin/customer/group/",
                 wait_until="networkidle",
             )
             await page.wait_for_timeout(2000)  # Wait for grid to load
@@ -254,7 +254,7 @@ async def verify() -> bool:
             # 2. Verify Customer
             print("\nVerifying Customer Isabella Romano...", file=sys.stderr)
             await page.goto(
-                "http://34.143.185.85:7780/admin/customer/index/",
+                "http://34.143.228.182:7780/admin/customer/index/",
                 wait_until="networkidle",
             )
             await page.wait_for_timeout(3000)  # Wait for grid to load
@@ -283,15 +283,66 @@ async def verify() -> bool:
                             )
                         else:
                             print(
-                                f"Warning: Expected {expected_final} customers, found {customers_count}",
+                                f"✗ Customer count mismatch: Expected {expected_final} customers, found {customers_count}",
                                 file=sys.stderr,
                             )
+                            await page.screenshot(path=str(SCREENSHOT_DIR / "customer_count_mismatch.png"))
+                            return False
 
-            # Check if Isabella Romano exists without searching (to avoid timeout)
-            # Just check if the email appears on the page
+            # Wait for the customer grid to load properly
+            await page.wait_for_timeout(5000)
+            
+            # Check if Isabella Romano exists - first wait for grid to load
+            grid_loaded = False
+            for i in range(3):
+                # Look for grid container and wait for it to populate
+                grid_container = page.locator(".admin__data-grid-outer-wrap, .data-grid, table").first
+                if await grid_container.count() > 0:
+                    # Check if there are customer rows loaded
+                    customer_rows = page.locator("td[data-column='email'], td:has-text('@')")
+                    if await customer_rows.count() > 0:
+                        grid_loaded = True
+                        break
+                await page.wait_for_timeout(2000)
+            
+            if not grid_loaded:
+                print("✗ Customer grid failed to load properly", file=sys.stderr)
+                await page.screenshot(path=str(SCREENSHOT_DIR / "grid_load_failed.png"))
+                return False
+            
+            # Now check if Isabella Romano exists in the loaded grid
             isabella_exists = (
                 await page.locator("text=isabella.romano@premium.eu").count() > 0
             )
+            
+            if not isabella_exists:
+                # Try searching for the customer to be more thorough
+                try:
+                    search_box = page.locator('input[placeholder*="Search by keyword"], input[name="search"], [data-role="search"]').first
+                    if await search_box.count() > 0:
+                        await search_box.clear()
+                        await search_box.fill("isabella.romano@premium.eu")
+                        await page.keyboard.press("Enter")
+                        await page.wait_for_load_state("networkidle")
+                        await page.wait_for_timeout(3000)
+                        
+                        # Check again after search
+                        isabella_exists = (
+                            await page.locator("text=isabella.romano@premium.eu").count() > 0
+                        )
+                        
+                        # Also check for "No records found" message
+                        no_records = await page.locator("text=We couldn't find any records., text=No records found").count() > 0
+                        if no_records:
+                            print(
+                                "✗ Customer 'isabella.romano@premium.eu' not found - search returned no results",
+                                file=sys.stderr,
+                            )
+                            await page.screenshot(path=str(SCREENSHOT_DIR / "customer_not_found.png"))
+                            return False
+                except Exception as e:
+                    print(f"✗ Search failed: {str(e)}", file=sys.stderr)
+            
             if isabella_exists:
                 print(
                     "✓ Found customer with email 'isabella.romano@premium.eu'",
@@ -299,14 +350,16 @@ async def verify() -> bool:
                 )
             else:
                 print(
-                    "Note: Customer 'isabella.romano@premium.eu' not visible on current page",
+                    "✗ Customer 'isabella.romano@premium.eu' not found",
                     file=sys.stderr,
                 )
+                await page.screenshot(path=str(SCREENSHOT_DIR / "customer_not_found.png"))
+                return False
 
             # 3. Verify Dashboard Last Orders
             print("\nVerifying Dashboard Last Orders...", file=sys.stderr)
             await page.goto(
-                "http://34.143.185.85:7780/admin/admin/dashboard/",
+                "http://34.143.228.182:7780/admin/admin/dashboard/",
                 wait_until="networkidle",
             )
             await page.wait_for_timeout(2000)
@@ -345,9 +398,11 @@ async def verify() -> bool:
                                 )
                             else:
                                 print(
-                                    f"Warning: Expected '{expected_answer['LastOrderCustomer']}' but actual is '{first_customer}'",
+                                    f"✗ Last Order Customer mismatch: Expected '{expected_answer['LastOrderCustomer']}' but actual is '{first_customer}'",
                                     file=sys.stderr,
                                 )
+                                await page.screenshot(path=str(SCREENSHOT_DIR / "last_order_mismatch.png"))
+                                return False
             else:
                 print(
                     "Warning: 'Last Orders' section not found on dashboard",
@@ -363,13 +418,14 @@ async def verify() -> bool:
                 file=sys.stderr,
             )
 
-            # Summary of verification
+            # Summary of verification - only print if we reach this point (all checks passed)
             print("\n=== Browser Verification Summary ===", file=sys.stderr)
             print("✓ Magento Admin login successful", file=sys.stderr)
             print(
                 "✓ Customer group 'Premium Europe' exists with correct tax class",
                 file=sys.stderr,
             )
+            print("✓ Customer 'isabella.romano@premium.eu' found in system", file=sys.stderr)
             print("✓ Customer counts verified", file=sys.stderr)
             print("✓ Dashboard Last Orders section accessible", file=sys.stderr)
 

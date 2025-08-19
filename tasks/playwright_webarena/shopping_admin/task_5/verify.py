@@ -47,27 +47,60 @@ def parse_answer_format(text):
     Returns a dictionary with the parsed values.
     """
     if not text:
+        print("ERROR: No text provided to parse", file=sys.stderr)
         return None
 
     # Look for <answer>...</answer> pattern
     match = re.search(r"<answer>(.*?)</answer>", text, re.IGNORECASE | re.DOTALL)
     if not match:
+        print("ERROR: No <answer>...</answer> tags found in the response", file=sys.stderr)
+        print("Response text preview (first 200 chars):", text[:200], file=sys.stderr)
         return None
 
     answer_content = match.group(1).strip()
+    print(f"Found answer content with {len(answer_content)} characters", file=sys.stderr)
 
     # Parse each line
     result = {}
     lines = answer_content.split("\n")
+    
+    # Expected keys for this task
+    expected_keys = [
+        "SpriteProducts", "Quantity100Products", "WS12Info", "PendingOrders",
+        "GraceOrderID", "HighestOrderInfo", "CheapProduct", "OvernightDufflePrice",
+        "HollisterPosition", "CostelloCustomers", "SarahMillerInfo", 
+        "PaidInvoices", "Invoice002BillTo"
+    ]
 
     if len(lines) != 13:
-        print(f"Error: Expected 13 lines in answer, got {len(lines)}", file=sys.stderr)
+        print(f"ERROR: Expected 13 lines in answer, got {len(lines)}", file=sys.stderr)
+        print(f"Lines found: {lines}", file=sys.stderr)
         return None
 
-    for line in lines:
-        if "|" in line:
-            key, value = line.split("|", 1)
-            result[key.strip()] = value.strip()
+    for i, line in enumerate(lines, 1):
+        if "|" not in line:
+            print(f"ERROR: Line {i} does not contain pipe separator '|': '{line}'", file=sys.stderr)
+            return None
+        
+        parts = line.split("|", 1)
+        if len(parts) != 2:
+            print(f"ERROR: Line {i} could not be split into key|value: '{line}'", file=sys.stderr)
+            return None
+            
+        key, value = parts
+        result[key.strip()] = value.strip()
+    
+    # Check if all expected keys are present
+    missing_keys = set(expected_keys) - set(result.keys())
+    if missing_keys:
+        print(f"ERROR: Missing expected keys: {missing_keys}", file=sys.stderr)
+        print(f"Keys found: {list(result.keys())}", file=sys.stderr)
+        return None
+    
+    # Check for unexpected keys
+    extra_keys = set(result.keys()) - set(expected_keys)
+    if extra_keys:
+        print(f"WARNING: Unexpected keys found: {extra_keys}", file=sys.stderr)
 
     return result
 
@@ -245,42 +278,56 @@ async def verify() -> bool:
     First checks the model's answer against the expected label,
     then optionally verifies the actual state in the Magento Admin.
     """
+    print("\n" + "="*60, file=sys.stderr)
+    print("Starting verification of Task 5", file=sys.stderr)
+    print("="*60, file=sys.stderr)
+    
     # Get the label file path
     label_path = Path(__file__).parent / "label.txt"
 
     # Load expected answer
+    print("\n--- Loading Expected Answer ---", file=sys.stderr)
     expected_answer = load_expected_answer(label_path)
     if not expected_answer:
-        print("Error: Could not load expected answer from label.txt", file=sys.stderr)
+        print("FATAL ERROR: Could not load expected answer from label.txt", file=sys.stderr)
         return False
+    print(f"Successfully loaded {len(expected_answer)} expected values", file=sys.stderr)
 
     # Get model's response from MCP_MESSAGES
+    print("\n--- Loading Model Response ---", file=sys.stderr)
     model_response = get_model_response()
-    if model_response:
-        print("Found model response, parsing answer format...", file=sys.stderr)
-        model_answer = parse_answer_format(model_response)
-
-        if model_answer:
-            print("\n=== Model Answer Parsed ===", file=sys.stderr)
-            for key, value in model_answer.items():
-                print(f"{key}: {value}", file=sys.stderr)
-
-            # Compare answers
-            answer_match = compare_answers(model_answer, expected_answer)
-            if not answer_match:
-                print("\nModel answer does not match expected answer", file=sys.stderr)
-                return False
-            print("\n✓ Model answer matches expected answer", file=sys.stderr)
-            return True
-        else:
-            print(
-                "Warning: Could not parse answer format from model response",
-                file=sys.stderr,
-            )
-            return False
-    else:
-        print("No model response found", file=sys.stderr)
+    if not model_response:
+        print("FATAL ERROR: No model response found in MCP_MESSAGES", file=sys.stderr)
         return False
+    
+    print(f"Found model response ({len(model_response)} characters)", file=sys.stderr)
+    
+    print("\n--- Parsing Answer Format ---", file=sys.stderr)
+    model_answer = parse_answer_format(model_response)
+    
+    if not model_answer:
+        print("\nFATAL ERROR: Could not parse answer format from model response", file=sys.stderr)
+        print("Verification FAILED", file=sys.stderr)
+        return False
+    
+    print("\n=== Model Answer Successfully Parsed ===", file=sys.stderr)
+    for key, value in model_answer.items():
+        print(f"  {key}: {value}", file=sys.stderr)
+
+    # Compare answers
+    print("\n--- Comparing Answers ---", file=sys.stderr)
+    answer_match = compare_answers(model_answer, expected_answer)
+    
+    if not answer_match:
+        print("\n" + "="*60, file=sys.stderr)
+        print("VERIFICATION FAILED: Model answer does not match expected answer", file=sys.stderr)
+        print("="*60, file=sys.stderr)
+        return False
+    
+    print("\n" + "="*60, file=sys.stderr)
+    print("✓ VERIFICATION PASSED: Model answer matches expected answer", file=sys.stderr)
+    print("="*60, file=sys.stderr)
+    return True
 
 
 def main():

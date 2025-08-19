@@ -35,7 +35,7 @@ class GitHubLoginHelper(BaseLoginHelper):
             state_path: Path to save authentication state
         """
         self.token = token
-        self.state_path = state_path or Path.home() / ".mcpbench" / "github_auth.json"
+        self.state_path = state_path or Path.home() / ".mcpmark" / "github_auth.json"
 
         # Ensure state directory exists
         self.state_path.parent.mkdir(parents=True, exist_ok=True)

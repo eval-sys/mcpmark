@@ -23,8 +23,8 @@ class PostgresLoginHelper(BaseLoginHelper):
         self,
         host: str = "localhost",
         port: int = 5432,
-        database: str = None,
-        username: str = None,
+        database: str = "postgres",
+        username: str = "postgres",
         password: str = None,
         state_path: Optional[Path] = None,
     ):

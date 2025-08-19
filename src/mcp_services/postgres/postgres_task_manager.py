@@ -58,9 +58,7 @@ class PostgresTaskManager(BaseTaskManager):
             task_verification_path=task_files_info["verification_path"],
             service="postgres",
             category=category_name,
-            task_id=task_files_info["task_name"].split("_")[
-                -1
-            ],  # keep compatibility with BaseTask
+            task_id=task_files_info["task_name"],
             task_name=task_files_info["task_name"],
         )
 
@@ -89,7 +87,7 @@ class PostgresTaskManager(BaseTaskManager):
             self._get_verification_command(task),
             capture_output=True,
             text=True,
-            timeout=90,
+            timeout=300,
             env=env,
         )
 

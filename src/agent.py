@@ -119,7 +119,11 @@ class MCPAgent:
 
     def _create_model_provider(self) -> ModelProvider:
         """Create and return a model provider for the specified model."""
-        client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
+        client = AsyncOpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            default_headers={ "App-Code": "LobeHub", 'HTTP-Referer': 'https://lobehub.com', 'X-Title': 'LobeHub' }
+        )
         agent_model_name = self.model_name  # Capture the model name from the agent
 
         class CustomModelProvider(ModelProvider):
@@ -146,6 +150,15 @@ class MCPAgent:
         """Create and return an MCP server instance for the current service using self.service_config."""
 
         cfg = self.service_config  # shorthand
+
+        # Services that use npx or pipx and need startup delay
+        NPX_BASED_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena"]
+        PIPX_BASED_SERVICES = ["postgres"]
+        
+        # Add startup delay for npx-based and pipx-based services to ensure proper initialization
+        if self.mcp_service in NPX_BASED_SERVICES or self.mcp_service in PIPX_BASED_SERVICES:
+            logger.debug(f"Adding startup delay for service: {self.mcp_service}")
+            await asyncio.sleep(5)
 
         if self.mcp_service == "notion":
             notion_key = cfg.get("notion_key")
@@ -349,6 +362,10 @@ class MCPAgent:
 
                 # Process streaming events
                 event_count = 0
+                # Prefix each assistant output line with '| '
+                line_prefix = "| "
+                at_line_start = True
+                last_event_type = None  # Track the previous event type
                 async for event in result.stream_events():
                     event_count += 1
                     logger.debug(f"Event {event_count}: {event}")
@@ -360,22 +377,44 @@ class MCPAgent:
                             if hasattr(event, "data") and isinstance(
                                 event.data, ResponseTextDeltaEvent
                             ):
-                                delta_text = event.data.delta
-                                print(delta_text, end="", flush=True)
+                                delta_text = event.data.delta or ""
+                                # Stream with line prefix, handling chunked newlines
+                                for chunk in delta_text.splitlines(True):  # keepends=True
+                                    if at_line_start:
+                                        print(line_prefix, end="", flush=True)
+                                    print(chunk, end="", flush=True)
+                                    at_line_start = chunk.endswith("\n")
+
+                            last_event_type = "text_output"
 
                         elif event.type == "run_item_stream_event":
                             if (
                                 hasattr(event, "item")
                                 and getattr(event.item, "type", "") == "tool_call_item"
                             ):
+                                if last_event_type == "text_output":
+                                    # Add newline if text wasn't already on a new line
+                                    if not at_line_start:
+                                        print("\n", end="", flush=True)
+                                        at_line_start = True
+
                                 tool_name = getattr(
                                     getattr(event.item, "raw_item", None),
                                     "name",
                                     "Unknown",
                                 )
+
+                                arguments = getattr(getattr(event.item, "raw_item", None), 'arguments', None)
+
+                                if isinstance(arguments, str):
+                                    display_arguments = arguments[:140] + "..." if len(arguments) > 140 else arguments
+                                else:
+                                    display_arguments = arguments
                                 logger.info(
-                                    f"\n-- Calling {self.mcp_service.title()} Tool: {tool_name}..."
+                                    f"| \033[1m{tool_name}\033[0m \033[2;37m{display_arguments}\033[0m"
                                 )
+
+                                last_event_type = "tool_call"
 
                 # Extract token usage from raw responses
                 token_usage = {}
@@ -395,15 +434,26 @@ class MCPAgent:
                         "total_tokens": total_tokens,
                     }
 
-                    logger.info(
-                        f"\nToken usage - Input: {total_input_tokens}, "
-                        f"Output: {total_output_tokens}, Total: {total_tokens}"
-                    )
-
                 # Extract turn count
                 turn_count = getattr(result, "current_turn", None)
-                if turn_count is not None:
-                    logger.info(f"Turn count: {turn_count}")
+
+                # Pretty usage block (prefixed lines)
+                if token_usage:
+                    total_input_tokens = token_usage.get("input_tokens", 0)
+                    total_output_tokens = token_usage.get("output_tokens", 0)
+                    total_tokens = token_usage.get("total_tokens", 0)
+
+                    lines = [
+                        "\n| ────────────────────────────────────────────────",
+                        "| \033[1mToken usage\033[0m",
+                        "|",
+                        f"| Total: {total_tokens:,} | Input: {total_input_tokens:,} | Output: {total_output_tokens:,}",
+                    ]
+                    if turn_count is not None:
+                        lines.append("| ────────────────────────────────────────────────")
+                        lines.append(f"| \033[1mTurns\033[0m: {turn_count}")
+                        lines.append("| ────────────────────────────────────────────────")
+                    logger.info("\n".join(lines))
 
                 # Extract conversation output
                 conversation_output = result.to_input_list()
@@ -436,7 +486,7 @@ class MCPAgent:
             self._usage_stats["failed_executions"] += 1
             self._usage_stats["total_execution_time"] += execution_time
 
-            logger.error(f"Agent execution failed: {e}", exc_info=True)
+            logger.error(f"| Agent execution failed: {e}", exc_info=True)
             return {
                 "success": False,
                 "output": "",
@@ -463,6 +513,7 @@ class MCPAgent:
             - execution_time: execution time in seconds
             - error: error message if failed
         """
+
         for attempt in range(1, self.max_retries + 1):
             # Merge default config with any overrides supplied at call time
 
@@ -489,8 +540,8 @@ class MCPAgent:
             if is_retryable_error(result["error"]) and attempt < self.max_retries:
                 wait_seconds = get_retry_delay(attempt)
                 logger.warning(
-                    f"[Retry] Attempt {attempt}/{self.max_retries} failed. "
-                    f"Waiting {wait_seconds}s before retrying: {error_msg}"
+                    f"| [Retry] Attempt {attempt}/{self.max_retries} failed. "
+                    f"| Waiting {wait_seconds}s before retrying: {error_msg}"
                 )
                 await asyncio.sleep(wait_seconds)
                 continue  # Retry

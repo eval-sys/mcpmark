@@ -33,7 +33,7 @@ class FilesystemLoginHelper(BaseLoginHelper):
         """
         super().__init__()
         self.state_path = (
-            state_path or Path.home() / ".mcpbench" / "filesystem_state.json"
+            state_path or Path.home() / ".mcpmark" / "filesystem_state.json"
         )
         logger.info("Initialized FilesystemLoginHelper (no auth required)")
 

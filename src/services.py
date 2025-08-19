@@ -73,10 +73,11 @@ SERVICES = {
     },
     "github": {
         "config_schema": {
-            "api_key": {
-                "env_var": "GITHUB_TOKEN",
+            "github_tokens": {
+                "env_var": "GITHUB_TOKENS",
                 "required": True,
-                "description": "GitHub personal access token",
+                "description": "GitHub personal access token(s) - comma-separated for round-robin",
+                "transform": "list",  # Will split by comma
             },
             # Evaluation organisation / user that hosts ephemeral test repositories
             "eval_org": {
@@ -94,12 +95,12 @@ SERVICES = {
         },
         "config_mapping": {
             "state_manager": {
-                "github_token": "api_key",
-                # Map evaluation org / account
+                "github_token": "github_tokens",
                 "eval_org": "eval_org",
             },
             "login_helper": {
-                "token": "api_key",
+                # Login helper needs a single token, we'll use the first one
+                "token": "github_tokens",
             },
         },
         "mcp_server": None,
@@ -220,17 +221,20 @@ SERVICES = {
             },
             "database": {
                 "env_var": "POSTGRES_DATABASE",
-                "required": True,
+                "default": "postgres",
+                "required": False,
                 "description": "PostgreSQL database name",
             },
             "username": {
                 "env_var": "POSTGRES_USERNAME",
-                "required": True,
+                "default": "postgres",
+                "required": False,
                 "description": "PostgreSQL username",
             },
             "password": {
                 "env_var": "POSTGRES_PASSWORD",
-                "required": True,
+                "default": "123456",
+                "required": False,
                 "description": "PostgreSQL password",
             },
         },
@@ -303,7 +307,7 @@ SERVICES = {
             },
             "base_url": {
                 "env_var": "PLAYWRIGHT_WEBARENA_BASE_URL",
-                "default": "http://34.143.185.85:7780/admin",
+                "default": "http://34.143.228.182:7780/admin",
                 "required": False,
                 "description": "Base URL for WebArena environment",
             },

@@ -52,13 +52,13 @@ XAI_API_KEY="your-xai-api-key"
 ```
 
 #### 3. Run Quick Example in MCPMark
-Suppose you are running the employee query task with gemini-2.5-flash, and name your experiment as mcpmark_quickstart, you can use the following command
+Suppose you are running the employee query task with gemini-2.5-flash, and name your experiment as mcpmark_quickstart, you can use the following command to test the `size_classification` task in `file_property`, which categorizes files by their sizes.
 
 ```bash
 python -m pipeline 
 --exp-name mcpmark_quickstart
 --mcp filesystem
---tasks file_context/file_merging
+--tasks file_property/size_classification
 --models gemini-2.5-flash
 ```
 

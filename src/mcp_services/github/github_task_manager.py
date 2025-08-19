@@ -91,13 +91,6 @@ class GitHubTaskManager(BaseTaskManager):
         """Get the verification command for GitHub tasks."""
         return [sys.executable, str(task.task_verification_path)]
 
-    def _format_task_instruction(self, base_instruction: str) -> str:
-        """Format task instruction with GitHub-specific additions."""
-        return (
-            base_instruction
-            + "\n\nNote: Use GitHub tools to complete this task. Work systematically and verify your actions."
-        )
-
     def get_task_instruction(self, task: GitHubTask) -> str:
         """Return task instruction prefixed with repository context.
 
@@ -127,10 +120,8 @@ class GitHubTaskManager(BaseTaskManager):
         else:
             prefix = "Please execute the following task:"
 
-        # Compose final instruction (prefix + original + guidance note)
-        formatted_instruction = (
-            f"{prefix}\n\n"
-            f"{base_instruction.strip()}\n\n"
-            "Note: Use GitHub tools to complete this task. Work systematically and verify your actions."
-        )
-        return formatted_instruction
+        # Compose instruction with prefix
+        instruction_with_prefix = f"{prefix}\n\n{base_instruction.strip()}"
+        
+        # Apply the common formatting suffix from base class
+        return self._format_task_instruction(instruction_with_prefix)

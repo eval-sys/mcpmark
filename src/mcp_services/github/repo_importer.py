@@ -494,7 +494,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--target-owner",
         "-o",
-        default="mcpleague-eval",
+        default="mcpmark-eval",
         help="User or organisation that will own the new repository",
     )
     args = parser.parse_args()
