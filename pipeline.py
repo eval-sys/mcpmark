@@ -54,7 +54,7 @@ def main():
     parser.add_argument(
         "--k",
         type=int,
-        default=1,
+        default=4,
         help="Number of evaluation runs for pass@k metrics (default: 1)",
     )
 
