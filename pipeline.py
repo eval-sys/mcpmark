@@ -51,10 +51,16 @@ def main():
         default=None,
         help="Experiment name; results are saved under results/<exp-name>/ (default: YYYY-MM-DD-HH-MM-SS)",
     )
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=1,
+        help="Number of evaluation runs for pass@k metrics (default: 1)",
+    )
 
     # Execution configuration
     parser.add_argument(
-        "--timeout", type=int, default=1000, help="Timeout in seconds for each task"
+        "--timeout", type=int, default=3600, help="Timeout in seconds for each task"
     )
 
     # Output configuration
@@ -68,6 +74,10 @@ def main():
     # Load arguments and environment variables
     args = parser.parse_args()
     load_dotenv(dotenv_path=".mcp_env", override=False)
+
+    # Validate k parameter and exp-name requirement
+    if args.k > 1 and args.exp_name is None:
+        parser.error("--exp-name is required when k > 1")
 
     # Generate default exp-name if not provided
     if args.exp_name is None:
@@ -87,30 +97,54 @@ def main():
 
     logger.info("MCPMark Evaluation")
     logger.info(f"Experiment: {args.exp_name} | {len(model_list)} Model(s): {', '.join(model_list)}")
+    if args.k > 1:
+        logger.info(f"Running {args.k} evaluation runs for pass@k metrics")
 
+    # Run k evaluation runs
+    for run_idx in range(1, args.k + 1):
+        if args.k > 1:
+            logger.info(f"\n{'=' * 80}")
+            logger.info(f"Starting Run {run_idx}/{args.k}")
+            logger.info(f"{'=' * 80}\n")
+            
+            # For k-runs, create run-N subdirectory
+            run_exp_name = f"run-{run_idx}"
+            run_output_dir = args.output_dir / args.exp_name
+        else:
+            # For single run (k=1), maintain backward compatibility
+            # Use run-1 subdirectory for consistency
+            run_exp_name = "run-1"
+            run_output_dir = args.output_dir / args.exp_name
 
-    # Run evaluation for each model
-    for i, model in enumerate(model_list, 1):
-        logger.info(f"\n{'=' * 60}")
-        logger.info(f"Starting evaluation {i}/{len(model_list)}: {model}")
-        logger.info(f"{'=' * 60}\n")
+        # Run evaluation for each model
+        for i, model in enumerate(model_list, 1):
+            logger.info(f"\n{'=' * 60}")
+            if args.k > 1:
+                logger.info(f"Run {run_idx}/{args.k} | Model {i}/{len(model_list)}: {model}")
+            else:
+                logger.info(f"Starting evaluation {i}/{len(model_list)}: {model}")
+            logger.info(f"{'=' * 60}\n")
 
-        # Initialize and run the evaluation pipeline for this model
-        pipeline = MCPEvaluator(
-            mcp_service=args.mcp,
-            model=model,
-            timeout=args.timeout,
-            exp_name=args.exp_name,
-            output_dir=args.output_dir,
-        )
+            # Initialize and run the evaluation pipeline for this model
+            pipeline = MCPEvaluator(
+                mcp_service=args.mcp,
+                model=model,
+                timeout=args.timeout,
+                exp_name=run_exp_name,
+                output_dir=run_output_dir,
+            )
 
-        pipeline.run_evaluation(args.tasks)
-        logger.info(
-            f"📁 Results: {pipeline.base_experiment_dir}"
-        )
+            pipeline.run_evaluation(args.tasks)
+            logger.info(
+                f"📁 Results: {pipeline.base_experiment_dir}"
+            )
 
     logger.info(f"\n{'=' * 60}")
-    logger.info(f"✓ All evaluations completed for {len(model_list)} model(s)")
+    if args.k > 1:
+        logger.info(f"✓ All {args.k} runs completed for {len(model_list)} model(s)")
+        logger.info(f"Run aggregate_results.py to compute pass@k metrics")
+    else:
+        logger.info(f"✓ All evaluations completed for {len(model_list)} model(s)")
     logger.info(f"{'=' * 60}")
 
 
