@@ -1,0 +1,15 @@
+{
+    "task_id": "holiday_baking_competition",
+    "task_name": "Holiday Baking Competition",
+    "category_id": "shopping",
+    "category_name": "Shopping",
+    "description": "Research and select baking supplies for holiday competition preparation.",
+    "author": "Yaoqi Ye",
+    "created_at": "2025-08-17",
+    "difficulty": "L3",
+    "tags": [],
+    "mcp": [
+        "playwright"
+    ],
+    "metadata": {}
+}

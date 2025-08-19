@@ -1,0 +1,15 @@
+{
+    "task_id": "nba_statistics_analysis",
+    "task_name": "NBA Statistics Analysis",
+    "category_id": "reddit",
+    "category_name": "Reddit",
+    "description": "Collect and analyze NBA statistics and discussions from basketball forums.",
+    "author": "Fanqing Meng",
+    "created_at": "2025-08-12",
+    "difficulty": "L3",
+    "tags": [],
+    "mcp": [
+        "playwright"
+    ],
+    "metadata": {}
+}

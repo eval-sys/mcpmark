@@ -1,0 +1,15 @@
+{
+    "task_id": "ai_data_analyst",
+    "task_name": "AI Data Analyst",
+    "category_id": "reddit",
+    "category_name": "Reddit",
+    "description": "Gather specific data from AI discussions and community engagement on a forum platform.",
+    "author": "Fanqing Meng",
+    "created_at": "2025-08-12",
+    "difficulty": "L3",
+    "tags": [],
+    "mcp": [
+        "playwright"
+    ],
+    "metadata": {}
+}

@@ -1,0 +1,15 @@
+{
+    "task_id": "cloudflare_turnstile_challenge",
+    "task_name": "Cloudflare Turnstile Challenge",
+    "category_id": "eval_web",
+    "category_name": "Eval Web",
+    "description": "Navigate and solve Cloudflare Turnstile security challenges.",
+    "author": "Xinyuan Zhang",
+    "created_at": "2025-07-27",
+    "difficulty": "L3",
+    "tags": [],
+    "mcp": [
+        "playwright"
+    ],
+    "metadata": {}
+}

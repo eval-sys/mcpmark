@@ -1,0 +1,15 @@
+{
+    "task_id": "multi_category_budget_analysis",
+    "task_name": "Multi Category Budget Analysis",
+    "category_id": "shopping",
+    "category_name": "Shopping",
+    "description": "Analyze and optimize budget allocation across multiple product categories.",
+    "author": "Yaoqi Ye",
+    "created_at": "2025-08-17",
+    "difficulty": "L3",
+    "tags": [],
+    "mcp": [
+        "playwright"
+    ],
+    "metadata": {}
+}
