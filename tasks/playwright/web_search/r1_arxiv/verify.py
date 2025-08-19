@@ -141,11 +141,8 @@ def compare_content(extracted: str, expected: str) -> Dict[str, Any]:
 
 def verify_task(work_dir: Path) -> bool:
     """Verify the AI agent found the correct Introduction content"""
-    print("| Verifying Playwright Web Search Task - DeepSeek R1 Introduction")
-    print("| " + "=" * 70)
 
     # Load expected content
-    print("| Loading expected content...")
     expected_content = load_expected_content()
 
     if not expected_content:

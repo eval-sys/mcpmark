@@ -140,7 +140,7 @@ class BaseTaskManager(ABC):
         if "/" in task_filter:
             try:
                 category, task_part = task_filter.split("/", 1)
-                
+
                 # First try to match by task_id (could be numeric or string)
                 for task in all_tasks:
                     if task.category == category:
@@ -220,11 +220,8 @@ class BaseTaskManager(ABC):
                 logger.debug(f"| DEBUG: Standardized error_message = {error_message}")
 
                 # Log the agent failure so users can distinguish it from verification errors
-                logger.error(f"| ✗ Agent execution failed for task")
-                logger.error(f"| ⚠️ Error: {error_message}")
-                logger.warning(
-                    f"| - Skipping verification for task: {task.name} due to agent failure"
-                )
+                logger.error(f"| Verification Result: \033[91m✗ FAILED\033[0m")
+                logger.error(f"| Agent execution failed: {error_message}")
 
                 return TaskResult(
                     task_name=task.name,

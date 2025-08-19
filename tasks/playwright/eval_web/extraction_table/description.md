@@ -14,18 +14,16 @@ Use Playwright MCP tools to extract all data from the specified website and pres
    - Replies
 4. Organize the extracted data into CSV format
 5. Ensure data completeness and accuracy
-6. Output ONLY the complete CSV formatted data (no additional text or explanations)
+6. Output ONLY the complete CSV formatted data (no additional text or explanations or format wrapper)
 
 ## CSV Data Example:
 
-```csv
 Title, Rating, Likes, Views, Replies
 SEO Optimization, "4.6", 756, 10123, 72
 Vue 3 Composition API, "4.5", 743, 9876, 67
 Advanced TypeScript Types Guide, "4.9", 924, 15432, 102
 Node.js Performance Optimization, "4.2", 567, 8765, 45
 Frontend Engineering Best Practices, "4.7", 812, 11234, 78
-```
 
 ## Notes:
 
