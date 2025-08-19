@@ -1,0 +1,18 @@
+{
+  "task_id": "timeline_extraction",
+  "task_name": "Timeline Extraction",
+  "category_id": "desktop",
+  "category_name": "Desktop",
+  "description": "Extract temporal event information from various desktop files and compile a comprehensive chronological timeline of activities and milestones.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-12",
+  "difficulty": "L3",
+  "tags": [
+    "data extraction",
+    "pattern analysis"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

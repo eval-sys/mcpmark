@@ -2,7 +2,7 @@ I need you to perform a comprehensive analysis of Large Language Model discussio
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:9999 and register a new account with username 'llm_analyst_2024' and password 'LLMExpert2024!'
+1. Register a new account with username 'llm_analyst_2024' and password 'LLMExpert2024!'
 
 2. After successful registration, navigate to the MachineLearning forum and analyze posts about Large Language Models:
    - Count all posts on the first page that contain 'GPT', 'ChatGPT', or 'LLM' in their titles

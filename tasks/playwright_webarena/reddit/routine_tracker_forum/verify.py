@@ -1,11 +1,14 @@
 import asyncio
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 from playwright.async_api import (
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
 )
+
+BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
 
 async def verify() -> bool:
@@ -20,7 +23,7 @@ async def verify() -> bool:
         try:
             # Step 1: Check if account can be logged in
             print("Step 1: Verifying account login...", file=sys.stderr)
-            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
+            await page.goto(f"{BASE_URL}/", wait_until="networkidle")
 
             # Check if already logged in
             user_button = page.locator('button:has-text("RoutineTracker2025")')
@@ -53,7 +56,7 @@ async def verify() -> bool:
             # Step 2: Check if the post exists in LifeProTips forum with correct content
             print("Step 2: Verifying post in LifeProTips forum...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:9999/f/LifeProTips", wait_until="networkidle"
+                f"{BASE_URL}/f/LifeProTips", wait_until="networkidle"
             )
 
             # Check for the created post
@@ -88,7 +91,7 @@ async def verify() -> bool:
             print("Step 3: Verifying upvotes on posts...", file=sys.stderr)
             
             # Check first post upvote
-            search_url1 = "http://34.143.228.182:9999/search?q=LPT%3A+Use+your+calendar+as+your+to-do+list.+Assigning+dedicated+time+to+tasks+increases+the+likelyhood+of+you+acting+upon+it."
+            search_url1 = f"{BASE_URL}/search?q=LPT%3A+Use+your+calendar+as+your+to-do+list.+Assigning+dedicated+time+to+tasks+increases+the+likelyhood+of+you+acting+upon+it."
             await page.goto(search_url1, wait_until="networkidle")
             
             # Find the post and check its upvote count
@@ -114,7 +117,7 @@ async def verify() -> bool:
                 return False
 
             # Check second post upvote
-            search_url2 = "http://34.143.228.182:9999/search?q=LPT%3A+clean+your+stovetop+after+using+the+oven.+The+heat+loosens+grime+for+easy+removal"
+            search_url2 = f"{BASE_URL}/search?q=LPT%3A+clean+your+stovetop+after+using+the+oven.+The+heat+loosens+grime+for+easy+removal"
             await page.goto(search_url2, wait_until="networkidle")
             
             posts = await page.locator("article").all()

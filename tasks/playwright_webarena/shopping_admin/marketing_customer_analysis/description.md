@@ -3,7 +3,7 @@ Perform a comprehensive marketing and customer analysis workflow in the Magento 
 **Task Requirements:**
 
 1. First, we need to access the system to begin our comprehensive analysis:
-   Navigate to http://34.143.228.182:7780/admin/. if need to login, login with username 'admin' and password 'admin1234'
+   if need to login, login with username 'admin' and password 'admin1234'
 
 2. Let's start by analyzing customer search behavior to understand what customers are looking for:
    Go to Search Terms in Reports and analyze the search data:

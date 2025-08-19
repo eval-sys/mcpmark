@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
-import os
 
 import requests
 
@@ -41,7 +40,7 @@ class DockerConfig:
 
     @property
     def base_url(self) -> str:
-        return f"http://34.143.228.182:{self.host_port}"
+        return f"http://localhost:{self.host_port}"
 
 
 class PlaywrightStateManager(BaseStateManager):
@@ -52,6 +51,28 @@ class PlaywrightStateManager(BaseStateManager):
       run container and wait until HTTP endpoint is ready.
     - Cleanup: stop and remove the container.
     """
+    
+    # Category-specific Docker configurations
+    CATEGORY_CONFIGS = {
+        "reddit": {
+            "image_name": "postmill-populated-exposed-withimg",
+            "container_name": "forum",
+            "host_port": 9999,
+            "readiness_path": "/"
+        },
+        "shopping": {
+            "image_name": "shopping_final_0712",
+            "container_name": "shopping",
+            "host_port": 7770,
+            "readiness_path": "/"
+        },
+        "shopping_admin": {
+            "image_name": "shopping_admin_final_0719",
+            "container_name": "shopping_admin",
+            "host_port": 7780,
+            "readiness_path": "/admin"
+        }
+    }
 
     def __init__(
         self,
@@ -104,7 +125,7 @@ class PlaywrightStateManager(BaseStateManager):
     def _run_cmd(
         self, args: list[str], *, check: bool = False
     ) -> subprocess.CompletedProcess:
-        logger.debug("Running command: %s", " ".join(args))
+        logger.debug("| Running command: %s", " ".join(args))
         return subprocess.run(
             args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=check
         )
@@ -126,23 +147,23 @@ class PlaywrightStateManager(BaseStateManager):
             else:
                 repo, tag = repo_tag, "latest"
             if repo == target_repo and tag == target_tag:
-                logger.debug("Found Docker image %s:%s", repo, tag)
+                logger.debug("| Found Docker image %s:%s", repo, tag)
                 return True
-        logger.debug("Docker image not found: %s:%s", target_repo, target_tag)
+        logger.debug("| Docker image not found: %s:%s", target_repo, target_tag)
         return False
 
     def _load_image_from_tar_if_needed(self) -> None:
         if self.config.image_tar_path and not self._image_exists(
             self.config.image_name
         ):
-            logger.info("Loading Docker image from tar: %s", self.config.image_tar_path)
+            logger.info("| Loading Docker image from tar: %s", self.config.image_tar_path)
             result = self._run_cmd(
                 ["docker", "load", "--input", str(self.config.image_tar_path)]
             )
             if result.returncode != 0:
-                logger.error("Failed to load Docker image: %s", result.stderr.strip())
+                logger.error("| Failed to load Docker image: %s", result.stderr.strip())
                 raise RuntimeError(f"docker load failed: {result.stderr}")
-            logger.info("Docker image loaded")
+            logger.info("| Docker image loaded")
 
     def _stop_and_remove_container(self, name: str) -> None:
         # Stop (ignore errors if not running)
@@ -155,7 +176,7 @@ class PlaywrightStateManager(BaseStateManager):
             ["docker", "ps", "--filter", f"name=^{name}$", "--format", "{{.Names}}"]
         )
         running = any(line.strip() == name for line in result.stdout.splitlines())
-        logger.debug("Container '%s' running: %s", name, running)
+        logger.debug("| Container '%s' running: %s", name, running)
         return running
 
     def _port_open(self, host: str, port: int) -> bool:
@@ -186,7 +207,7 @@ class PlaywrightStateManager(BaseStateManager):
 
         # Determine host and port from URL for port checks
         parsed = urlparse(base_url)
-        host = parsed.hostname or "34.143.228.182"
+        host = parsed.hostname or "localhost"
         port = parsed.port or self.config.host_port
 
         # First wait for port to open to avoid long HTTP errors
@@ -197,34 +218,60 @@ class PlaywrightStateManager(BaseStateManager):
 
         while time.time() < deadline:
             if self._http_ready(url):
-                logger.info("WebArena HTTP endpoint ready: %s", url)
+                logger.info("| WebArena HTTP endpoint ready: %s", url)
                 return True
             time.sleep(self.config.readiness_poll_interval_seconds)
 
-        logger.error("Timed out waiting for WebArena at %s", url)
+        logger.error("| Timed out waiting for WebArena at %s", url)
+        return False
+
+    def _wait_for_mysql_ready(self, max_wait_seconds: int = 120) -> bool:
+        """Wait for MySQL to be ready in the container."""
+        deadline = time.time() + max_wait_seconds
+        while time.time() < deadline:
+            result = self._run_cmd([
+                "docker", "exec", self.config.container_name,
+                "mysql", "-u", "magentouser", "-pMyPassword",
+                "magentodb", "-e", "SELECT 1;"
+            ])
+            if result.returncode == 0:
+                logger.info("| MySQL is ready in container %s", self.config.container_name)
+                return True
+            time.sleep(2)
+        logger.warning("| MySQL not ready after %d seconds", max_wait_seconds)
+        return False
+
+    def _wait_for_magento_ready(self, max_wait_seconds: int = 180) -> bool:
+        """Wait for Magento to be fully initialized."""
+        deadline = time.time() + max_wait_seconds
+        while time.time() < deadline:
+            # Check if Magento's setup is complete by trying to access config
+            result = self._run_cmd([
+                "docker", "exec", self.config.container_name,
+                "/var/www/magento2/bin/magento", "config:show", "web/unsecure/base_url"
+            ])
+            if result.returncode == 0:
+                logger.info("| Magento is ready in container %s", self.config.container_name)
+                return True
+            time.sleep(5)
+        logger.warning("| Magento not ready after %d seconds", max_wait_seconds)
         return False
 
     def _configure_shopping_post_start(self) -> None:
         """Run Magento-specific steps for shopping container.
-        Uses EXTERNAL_IP env var if provided; waits a bit for services to start.
+        Waits for services to be ready before configuring.
         """
-        external_ip = os.getenv("EXTERNAL_IP", "34.143.228.182")
-        try:
-            # Shopping container needs more time to initialize (2-3 minutes)
-            wait_seconds = int(os.getenv("SHOPPING_SETUP_WAIT", "200"))
-        except ValueError:
-            wait_seconds = 200
-
-        logger.info(
-            "Running shopping post-start setup using external IP %s (wait %s s)",
-            external_ip,
-            wait_seconds,
-        )
-
-        if wait_seconds > 0:
-            time.sleep(wait_seconds)
-
-        base_url = f"http://{external_ip}:{self.config.host_port}"
+        logger.info("| Running shopping post-start setup")
+        
+        # Wait for MySQL to be ready first
+        if not self._wait_for_mysql_ready():
+            logger.warning("| MySQL not ready, attempting configuration anyway")
+        
+        # Wait for Magento to be ready
+        if not self._wait_for_magento_ready():
+            logger.warning("| Magento not ready, attempting configuration anyway")
+        
+        base_url = f"http://localhost:{self.config.host_port}"
 
         cmds = [
             [
@@ -260,13 +307,13 @@ class PlaywrightStateManager(BaseStateManager):
             result = self._run_cmd(cmd)
             if result.returncode != 0:
                 logger.warning(
-                    "shopping setup step failed (%s): %s",
+                    "| Shopping setup step failed (%s): %s",
                     " ".join(cmd),
                     result.stderr.strip(),
                 )
             else:
                 logger.debug(
-                    "shopping setup step ok (%s): %s",
+                    "| Shopping setup step ok (%s): %s",
                     " ".join(cmd),
                     result.stdout.strip(),
                 )
@@ -274,24 +321,19 @@ class PlaywrightStateManager(BaseStateManager):
 
     def _configure_shopping_admin_post_start(self) -> None:
         """Run Magento-specific steps for shopping_admin container.
-        Uses EXTERNAL_IP env var if provided; waits a bit for services to start.
+        Waits for services to be ready before configuring.
         """
-        external_ip = os.getenv("EXTERNAL_IP", "34.143.228.182")
-        try:
-            wait_seconds = int(os.getenv("SHOPPING_ADMIN_SETUP_WAIT", "120"))
-        except ValueError:
-            wait_seconds = 60
-
-        logger.info(
-            "Running shopping_admin post-start setup using external IP %s (wait %s s)",
-            external_ip,
-            wait_seconds,
-        )
-
-        if wait_seconds > 0:
-            time.sleep(wait_seconds)
-
-        base_url = f"http://{external_ip}:{self.config.host_port}"
+        logger.info("| Running shopping_admin post-start setup")
+        
+        # Wait for MySQL to be ready first
+        if not self._wait_for_mysql_ready():
+            logger.warning("| MySQL not ready, attempting configuration anyway")
+        
+        # Wait for Magento to be ready
+        if not self._wait_for_magento_ready():
+            logger.warning("| Magento not ready, attempting configuration anyway")
+        
+        base_url = f"http://localhost:{self.config.host_port}"
 
         cmds = [
             [
@@ -345,13 +387,13 @@ class PlaywrightStateManager(BaseStateManager):
             result = self._run_cmd(cmd)
             if result.returncode != 0:
                 logger.warning(
-                    "shopping_admin setup step failed (%s): %s",
+                    "| Shopping_admin setup step failed (%s): %s",
                     " ".join(cmd),
                     result.stderr.strip(),
                 )
             else:
                 logger.debug(
-                    "shopping_admin setup step ok (%s): %s",
+                    "| Shopping_admin setup step ok (%s): %s",
                     " ".join(cmd),
                     result.stdout.strip(),
                 )
@@ -360,6 +402,17 @@ class PlaywrightStateManager(BaseStateManager):
 
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
         try:
+            # Dynamically update config based on task category
+            if hasattr(task, 'category') and task.category in self.CATEGORY_CONFIGS:
+                category_config = self.CATEGORY_CONFIGS[task.category]
+                logger.info(f"| Using category-specific config for '{task.category}': {category_config}")
+                
+                # Update the config with category-specific values
+                self.config.image_name = category_config["image_name"]
+                self.config.container_name = category_config["container_name"]
+                self.config.host_port = category_config["host_port"]
+                self.config.readiness_path = category_config["readiness_path"]
+            
             # Ensure image exists (load from tar if configured)
             self._load_image_from_tar_if_needed()
 
@@ -377,14 +430,14 @@ class PlaywrightStateManager(BaseStateManager):
                 "-d",
                 self.config.image_name,
             ]
-            print("docker run command: ", run_cmd)
+            print("| Docker run command: ", run_cmd)
             result = self._run_cmd(run_cmd)
             if result.returncode != 0:
-                logger.error("Failed to start container: %s", result.stderr.strip())
+                logger.error("| Failed to start container: %s", result.stderr.strip())
                 return None
             container_id = result.stdout.strip()
             logger.info(
-                "Started container %s (%s)", self.config.container_name, container_id
+                "| Started container %s (%s)", self.config.container_name, container_id
             )
 
             # Special handling for shopping and shopping_admin
@@ -427,7 +480,7 @@ class PlaywrightStateManager(BaseStateManager):
                 },
             )
         except Exception as exc:
-            logger.error("Failed to create WebArena initial state: %s", exc)
+            logger.error("| Failed to create WebArena initial state: %s", exc)
             return None
 
     def _store_initial_state_info(
@@ -440,10 +493,10 @@ class PlaywrightStateManager(BaseStateManager):
 
     def _cleanup_task_initial_state(self, task: BaseTask) -> bool:
         if self.skip_cleanup:
-            logger.info("Skipping container cleanup (skip_cleanup=True)")
-            logger.info("Container is still running at: %s", self._get_entry_url())
+            logger.info("| Skipping container cleanup (skip_cleanup=True)")
+            logger.info("| Container is still running at: %s", self._get_entry_url())
             logger.info(
-                "To manually stop: docker stop %s && docker rm %s",
+                "| To manually stop: docker stop %s && docker rm %s",
                 self.config.container_name,
                 self.config.container_name,
             )
@@ -453,13 +506,13 @@ class PlaywrightStateManager(BaseStateManager):
             self._stop_and_remove_container(self.config.container_name)
             return True
         except Exception as exc:
-            logger.error("Failed to cleanup container for %s: %s", task.name, exc)
+            logger.error("| Failed to cleanup container for %s: %s", task.name, exc)
             return False
 
     def _cleanup_single_resource(self, resource: Dict[str, Any]) -> bool:
         if self.skip_cleanup:
             logger.info(
-                "Skipping resource cleanup for %s (skip_cleanup=True)",
+                "| Skipping resource cleanup for %s (skip_cleanup=True)",
                 resource.get("id"),
             )
             return True
@@ -469,11 +522,11 @@ class PlaywrightStateManager(BaseStateManager):
                 self._stop_and_remove_container(resource["id"])
                 return True
             logger.warning(
-                "Unknown resource type for cleanup: %s", resource.get("type")
+                "| Unknown resource type for cleanup: %s", resource.get("type")
             )
             return False
         except Exception as exc:
-            logger.error("Resource cleanup failed: %s", exc)
+            logger.error("| Resource cleanup failed: %s", exc)
             return False
 
     def get_service_config_for_agent(self) -> dict:
@@ -494,7 +547,7 @@ class PlaywrightStateManager(BaseStateManager):
 
     def close_all(self) -> None:
         if self.skip_cleanup:
-            logger.info("Skipping container cleanup in close_all (skip_cleanup=True)")
+            logger.info("| Skipping container cleanup in close_all (skip_cleanup=True)")
             return
 
         try:

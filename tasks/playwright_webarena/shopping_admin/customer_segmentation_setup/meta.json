@@ -8,7 +8,8 @@
     "created_at": "2025-08-17",
     "difficulty": "L3",
     "tags": [
-        "content submission"
+        "content submission",
+        "inventory management"
     ],
     "mcp": [
         "playwright"

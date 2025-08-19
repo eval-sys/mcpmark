@@ -2,7 +2,7 @@ I'm conducting research on NBA player discussions in online sports communities. 
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:9999 and register a new account with username 'NBA_DataAnalyst_2024' and password 'Research#2024!'
+1. Register a new account with username 'NBA_DataAnalyst_2024' and password 'Research#2024!'
 
 2. Navigate to the sports forum and search for posts containing 'NBA' in their titles:
    - Collect data from the 5 NBA-related posts with the most comments

@@ -2,7 +2,7 @@ I need you to analyze wonderful movie discussions on Postmill and create a summa
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:9999 and register a new account with username 'movie_reviewer_2024' and password 'movie_reviewer_2024'
+1. Register a new account with username 'movie_reviewer_2024' and password 'movie_reviewer_2024'
 
 2. After successful registration, navigate to the movies forum and analyze the posts on the first page:
    - Count all posts that have 4-digit years in their titles

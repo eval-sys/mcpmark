@@ -5,10 +5,10 @@ Complete the following tasks on One Stop Market (http://localhost:7770):
 1. In Chocolate subcategory, sort by price (ascending):
    - Record price and SKU of first 3 products
 
-2. Search for 'tablet' with price range $100.00-$200.00:
-   - Sort by price (ascending)
+2. Search for 'tabletop' with price range $100.00-$200.00:
+   - Find the cheapest tabletop that has the highest review rating with at least 3 reviews.
    - Record search results count
-   - Record price of cheapest tablet
+   - Record price of required tabletop
 
 3. In "Computers & Accessories" subcategory with price filter $0.00-$9,999.99:
    - Sort by price (ascending)
@@ -21,13 +21,13 @@ Complete the following tasks on One Stop Market (http://localhost:7770):
    - Count total items on comparison page
 
 5. In cart:
-   - Add first chocolate product (from step 1) with "Peanut flavor" if available
+   - Add the cheapest chocolate product (from step 1) with "Peanut flavor" if available
    - Add cheapest computer accessory (from step 3)
    - Record cart subtotal and item count
 
 6. Calculate:
    - Sum of 3 chocolate product prices
-   - Price difference: cheapest tablet minus cheapest computer accessory
+   - Price difference: cheapest tabletop minus cheapest computer accessory
    - Whether sum of 3 comparison items < $60
 
 **Output Format:**
@@ -35,14 +35,15 @@ Complete the following tasks on One Stop Market (http://localhost:7770):
 ```
 <answer>
 chocolate_products|Price1:SKU1;Price2:SKU2;Price3:SKU3
-chocolate_sum|total
-tablet_search_count|count
-cheapest_tablet|price
-cheapest_computer_accessory|price
-price_difference|amount
-comparison_count|count
-cart_subtotal|amount
-cart_item_count|count
+chocolate_sum|Total
+tabletop_search_count|Count
+tabletop_product|Price:SKU
+tabletop_reviews|NumbersOfReviews:Rating
+cheapest_computer_accessory|Price
+price_difference|Amount
+comparison_count|Count
+cart_subtotal|Amount
+cart_item_count|Count
 under_60_budget|YES/NO
 </answer>
 ```

@@ -8,9 +8,8 @@
     "created_at": "2025-08-12",
     "difficulty": "L3",
     "tags": [
-        "data extraction",
-        "content submission",
-        "user interaction"
+        "user interaction",
+        "content submission"
     ],
     "mcp": [
         "playwright"

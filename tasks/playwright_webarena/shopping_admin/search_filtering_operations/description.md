@@ -2,7 +2,7 @@ Perform comprehensive search and filtering operations in the Magento Admin panel
 
 **Task Requirements:**
 
-1. To access the Magento Admin panel and begin the analysis, navigate to http://34.143.228.182:7780/admin/. Login with username 'admin' and password 'admin1234'
+1. Login with username 'admin' and password 'admin1234'
 
 2. To analyze search behavior and term effectiveness, check the Search Terms of Marketing and perform complex filtering:
    - Search for all terms containing 'tank' in their name - count the exact number of results

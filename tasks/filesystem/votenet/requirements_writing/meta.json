@@ -1,0 +1,18 @@
+{
+  "task_id": "requirements_writing",
+  "task_name": "Requirements Writing",
+  "category_id": "votenet",
+  "category_name": "VoteNet",
+  "description": "Generate a complete requirements.txt file containing all necessary Python dependencies for running the VoteNet codebase successfully.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-13",
+  "difficulty": "L3",
+  "tags": [
+    "code exploration",
+    "cross-referencing"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

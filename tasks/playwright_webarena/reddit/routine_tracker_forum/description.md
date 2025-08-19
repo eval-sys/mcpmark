@@ -2,7 +2,7 @@ Create a daily routine tracking system on the Postmill forum platform by setting
 
 **Task Requirements:**
 
-1. Navigate to http://34.143.228.182:9999 and Create a new account with the exact username "RoutineTracker2025" and password "DailyRoutine123!"
+1. Create a new account with the exact username "RoutineTracker2025" and password "DailyRoutine123!"
 
 2. Locate the following specific post:
    - Title: "LPT: Use your calendar as your to-do list. Assigning dedicated time to tasks increases the likelyhood of you acting upon it."

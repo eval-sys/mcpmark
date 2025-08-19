@@ -9,9 +9,8 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-# Directory for screenshots
-SCREENSHOT_DIR = Path("/home/liuxiangyan6/eval-sys/mcp-arena/verification_screenshots")
-SCREENSHOT_DIR.mkdir(exist_ok=True)
+# 从环境变量读取 base_url（shopping_admin 会注入 http://localhost:7780/admin），默认回退到本地
+BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:7780/admin").rstrip("/")
 
 
 def get_model_response():
@@ -222,7 +221,7 @@ async def verify() -> bool:
             # Navigate to Magento Admin
             print("Navigating to Magento Admin...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:7780/admin/", wait_until="networkidle"
+                f"{BASE_URL}/", wait_until="networkidle"
             )
 
             # Check if already logged in, if not, login
@@ -235,7 +234,6 @@ async def verify() -> bool:
 
                 if "dashboard" not in page.url.lower():
                     print("Error: Login failed", file=sys.stderr)
-                    await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
                     return False
 
             print("Successfully logged into Magento Admin", file=sys.stderr)
@@ -243,7 +241,7 @@ async def verify() -> bool:
             # Verify Customer Creation (the only critical check for task completion)
             print("Verifying Customer Creation...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:7780/admin/customer/index/",
+                f"{BASE_URL}/customer/index/",
                 wait_until="networkidle",
             )
 
@@ -375,18 +373,7 @@ async def verify() -> bool:
                 file=sys.stderr,
             )
 
-            # If customers are not found, take screenshot for debugging
             if not (customer1_exists and customer2_exists):
-                print("Taking screenshot for debugging...", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "customers_debug.png"))
-                
-                # Also try to log the page content to understand the structure
-                page_content = await page.content()
-                debug_file = SCREENSHOT_DIR / "customer_page_debug.html"
-                with open(debug_file, "w") as f:
-                    f.write(page_content)
-                print(f"Page content saved to: {debug_file}", file=sys.stderr)
-                
                 print("Error: Required customers were not found in the system", file=sys.stderr)
                 return False
 
@@ -395,11 +382,9 @@ async def verify() -> bool:
 
         except PlaywrightTimeoutError as e:
             print(f"Error: Timeout occurred - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "timeout_error.png"))
             return False
         except Exception as e:
             print(f"Error: Unexpected error - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "unexpected_error.png"))
             return False
         finally:
             await browser.close()

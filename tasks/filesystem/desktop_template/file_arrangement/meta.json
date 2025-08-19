@@ -1,0 +1,17 @@
+{
+  "task_id": "file_arrangement",
+  "task_name": "File Arrangement",
+  "category_id": "desktop_template",
+  "category_name": "Desktop Template",
+  "description": "Classify and organize desktop files into appropriate categories following specified classification rules and naming convention standards.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-08-14",
+  "difficulty": "L3",
+  "tags": [
+    "file organization"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "metadata": {}
+}

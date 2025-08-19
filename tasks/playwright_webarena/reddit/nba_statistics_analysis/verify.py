@@ -1,15 +1,15 @@
 import asyncio
 import sys
 import re
+import os
 from pathlib import Path
 from playwright.async_api import (
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
 )
 
-# Directory for screenshots
-SCREENSHOT_DIR = Path("/home/liuxiangyan6/eval-sys/mcp-arena/verification_screenshots")
-SCREENSHOT_DIR.mkdir(exist_ok=True)
+# 从环境变量读取 base_url，默认回退到本地
+BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
 
 def parse_key_value_format(text):
@@ -76,7 +76,7 @@ async def verify() -> bool:
         try:
             # Navigate to the main page
             print("Navigating to forum...", file=sys.stderr)
-            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
+            await page.goto(f"{BASE_URL}/", wait_until="networkidle")
 
             # Check if logged in as NBA_DataAnalyst_2024
             user_button = page.locator('button:has-text("NBA_DataAnalyst_2024")')
@@ -98,7 +98,6 @@ async def verify() -> bool:
                     print(
                         "Error: Login failed for NBA_DataAnalyst_2024", file=sys.stderr
                     )
-                    await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
                     return False
 
                 print("Successfully logged in as NBA_DataAnalyst_2024", file=sys.stderr)
@@ -108,7 +107,7 @@ async def verify() -> bool:
             # Navigate to sports forum to check submission
             print("Navigating to sports forum to check submission...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:9999/f/sports", wait_until="networkidle"
+                f"{BASE_URL}/f/sports", wait_until="networkidle"
             )
 
             # Look for the submission with our specific title
@@ -125,21 +124,11 @@ async def verify() -> bool:
                     "Error: Could not find submission with required title",
                     file=sys.stderr,
                 )
-                await page.screenshot(
-                    path=str(SCREENSHOT_DIR / "submission_not_found.png")
-                )
                 return False
 
             # Click on the submission to view its content
             await post_link.first.click()
             await page.wait_for_load_state("networkidle")
-
-            # Take screenshot of the submission
-            await page.screenshot(path=str(SCREENSHOT_DIR / "submission_page.png"))
-            print(
-                f"Screenshot saved: {SCREENSHOT_DIR / 'submission_page.png'}",
-                file=sys.stderr,
-            )
 
             # Extract the submission body content
             # Try multiple possible selectors for the post body
@@ -168,9 +157,6 @@ async def verify() -> bool:
                 print(
                     "Error: Could not find submission body with required format",
                     file=sys.stderr,
-                )
-                await page.screenshot(
-                    path=str(SCREENSHOT_DIR / "content_not_found.png")
                 )
                 return False
 
@@ -300,13 +286,6 @@ async def verify() -> bool:
                     print(f"  - {error}", file=sys.stderr)
                 return False
 
-            # Take final success screenshot
-            await page.screenshot(path=str(SCREENSHOT_DIR / "verification_success.png"))
-            print(
-                f"Screenshot saved: {SCREENSHOT_DIR / 'verification_success.png'}",
-                file=sys.stderr,
-            )
-
             # All checks passed
             print("Success: NBA analysis task completed successfully.")
             print("- Account NBA_DataAnalyst_2024 verified")
@@ -325,11 +304,9 @@ async def verify() -> bool:
 
         except PlaywrightTimeoutError as e:
             print(f"Error: Timeout occurred - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "timeout_error.png"))
             return False
         except Exception as e:
             print(f"Error: Unexpected error - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "unexpected_error.png"))
             return False
         finally:
             await browser.close()

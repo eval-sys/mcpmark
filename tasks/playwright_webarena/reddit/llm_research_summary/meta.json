@@ -10,8 +10,8 @@
     "tags": [
         "data extraction",
         "search aggregation",
-        "user interaction",
-        "content submission"
+        "content submission",
+        "user interaction"
     ],
     "mcp": [
         "playwright"

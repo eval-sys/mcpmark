@@ -9,9 +9,8 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-# Directory for screenshots
-SCREENSHOT_DIR = Path("/home/liuxiangyan6/eval-sys/mcp-arena/verification_screenshots")
-SCREENSHOT_DIR.mkdir(exist_ok=True)
+# 从环境变量读取 base_url（shopping_admin 会注入 http://localhost:7780/admin），默认回退到本地
+BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:7780/admin").rstrip("/")
 
 
 def get_model_response():
@@ -184,7 +183,7 @@ async def verify() -> bool:
             # Navigate to Magento Admin
             print("Navigating to Magento Admin...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:7780/admin/", wait_until="networkidle"
+                f"{BASE_URL}/", wait_until="networkidle"
             )
 
             # Check if already logged in, if not, login
@@ -197,7 +196,6 @@ async def verify() -> bool:
 
                 if "dashboard" not in page.url.lower():
                     print("Error: Login failed", file=sys.stderr)
-                    await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
                     return False
 
             print("Successfully logged into Magento Admin", file=sys.stderr)
@@ -205,7 +203,7 @@ async def verify() -> bool:
             # 1. Verify Customer Groups
             print("\nVerifying Customer Groups...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:7780/admin/customer/group/",
+                f"{BASE_URL}/customer/group/",
                 wait_until="networkidle",
             )
             await page.wait_for_timeout(2000)  # Wait for grid to load
@@ -234,7 +232,6 @@ async def verify() -> bool:
                         )
             else:
                 print("✗ 'Premium Europe' customer group not found", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "customer_groups.png"))
                 return False
 
             # Check total groups count
@@ -254,7 +251,7 @@ async def verify() -> bool:
             # 2. Verify Customer
             print("\nVerifying Customer Isabella Romano...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:7780/admin/customer/index/",
+                f"{BASE_URL}/customer/index/",
                 wait_until="networkidle",
             )
             await page.wait_for_timeout(3000)  # Wait for grid to load
@@ -286,7 +283,6 @@ async def verify() -> bool:
                                 f"✗ Customer count mismatch: Expected {expected_final} customers, found {customers_count}",
                                 file=sys.stderr,
                             )
-                            await page.screenshot(path=str(SCREENSHOT_DIR / "customer_count_mismatch.png"))
                             return False
 
             # Wait for the customer grid to load properly
@@ -307,7 +303,6 @@ async def verify() -> bool:
             
             if not grid_loaded:
                 print("✗ Customer grid failed to load properly", file=sys.stderr)
-                await page.screenshot(path=str(SCREENSHOT_DIR / "grid_load_failed.png"))
                 return False
             
             # Now check if Isabella Romano exists in the loaded grid
@@ -338,7 +333,6 @@ async def verify() -> bool:
                                 "✗ Customer 'isabella.romano@premium.eu' not found - search returned no results",
                                 file=sys.stderr,
                             )
-                            await page.screenshot(path=str(SCREENSHOT_DIR / "customer_not_found.png"))
                             return False
                 except Exception as e:
                     print(f"✗ Search failed: {str(e)}", file=sys.stderr)
@@ -353,13 +347,12 @@ async def verify() -> bool:
                     "✗ Customer 'isabella.romano@premium.eu' not found",
                     file=sys.stderr,
                 )
-                await page.screenshot(path=str(SCREENSHOT_DIR / "customer_not_found.png"))
                 return False
 
             # 3. Verify Dashboard Last Orders
             print("\nVerifying Dashboard Last Orders...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:7780/admin/admin/dashboard/",
+                f"{BASE_URL}/admin/dashboard/",
                 wait_until="networkidle",
             )
             await page.wait_for_timeout(2000)
@@ -378,45 +371,35 @@ async def verify() -> bool:
                     .first
                 )
                 if await orders_table.count() > 0:
-                    # Get the first row in tbody
-                    first_row = orders_table.locator("tbody tr").first
-                    if await first_row.count() > 0:
-                        first_customer = await first_row.locator(
+                    # Get the last row in tbody
+                    last_row = orders_table.locator("tbody tr").last
+                    if await last_row.count() > 0:
+                        last_customer = await last_row.locator(
                             "td"
                         ).first.inner_text()
                         print(
-                            f"✓ First customer in Last Orders: {first_customer}",
+                            f"✓ Last customer in Last Orders: {last_customer}",
                             file=sys.stderr,
                         )
 
                         # Verify against expected answer if available
                         if expected_answer and "LastOrderCustomer" in expected_answer:
-                            if first_customer == expected_answer["LastOrderCustomer"]:
+                            if last_customer == expected_answer["LastOrderCustomer"]:
                                 print(
-                                    f"✓ Last Order Customer matches expected: {first_customer}",
+                                    f"✓ Last Order Customer matches expected: {last_customer}",
                                     file=sys.stderr,
                                 )
                             else:
                                 print(
-                                    f"✗ Last Order Customer mismatch: Expected '{expected_answer['LastOrderCustomer']}' but actual is '{first_customer}'",
+                                    f"✗ Last Order Customer mismatch: Expected '{expected_answer['LastOrderCustomer']}' but actual is '{last_customer}'",
                                     file=sys.stderr,
                                 )
-                                await page.screenshot(path=str(SCREENSHOT_DIR / "last_order_mismatch.png"))
                                 return False
             else:
                 print(
                     "Warning: 'Last Orders' section not found on dashboard",
                     file=sys.stderr,
                 )
-
-            # Take final screenshot
-            await page.screenshot(
-                path=str(SCREENSHOT_DIR / "verification_complete.png")
-            )
-            print(
-                f"\nScreenshot saved: {SCREENSHOT_DIR / 'verification_complete.png'}",
-                file=sys.stderr,
-            )
 
             # Summary of verification - only print if we reach this point (all checks passed)
             print("\n=== Browser Verification Summary ===", file=sys.stderr)
@@ -433,11 +416,9 @@ async def verify() -> bool:
 
         except PlaywrightTimeoutError as e:
             print(f"Error: Timeout occurred - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "timeout_error.png"))
             return False
         except Exception as e:
             print(f"Error: Unexpected error - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "unexpected_error.png"))
             return False
         finally:
             await browser.close()

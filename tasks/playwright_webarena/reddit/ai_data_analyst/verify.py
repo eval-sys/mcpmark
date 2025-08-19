@@ -1,15 +1,15 @@
 import asyncio
 import sys
 import re
+import os
 from pathlib import Path
 from playwright.async_api import (
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
 )
 
-# Directory for screenshots
-SCREENSHOT_DIR = Path("/home/liuxiangyan6/eval-sys/mcp-arena/verification_screenshots")
-SCREENSHOT_DIR.mkdir(exist_ok=True)
+# 从环境变量读取 base_url，默认回退到本地
+BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
 
 def parse_key_value_format(text):
@@ -78,7 +78,7 @@ async def verify() -> bool:
         try:
             # Navigate to the main page
             print("Navigating to forum...", file=sys.stderr)
-            await page.goto("http://34.143.228.182:9999/", wait_until="networkidle")
+            await page.goto(f"{BASE_URL}/", wait_until="networkidle")
 
             # Step 1: Check if account was created correctly by trying to login
             print("Step 1: Verifying account creation...", file=sys.stderr)
@@ -104,7 +104,6 @@ async def verify() -> bool:
                 if not await user_button.count():
                     print("FAILED: Account AIDataAnalyst2025 with password SecurePass123! cannot be logged in", file=sys.stderr)
                     print("This means the account was not created correctly", file=sys.stderr)
-                    await page.screenshot(path=str(SCREENSHOT_DIR / "login_failed.png"))
                     return False
 
                 print("PASSED: Successfully logged in as AIDataAnalyst2025", file=sys.stderr)
@@ -115,7 +114,7 @@ async def verify() -> bool:
             print("\nStep 2: Verifying submission creation...", file=sys.stderr)
             print("Navigating to MachineLearning forum...", file=sys.stderr)
             await page.goto(
-                "http://34.143.228.182:9999/f/MachineLearning", wait_until="networkidle"
+                f"{BASE_URL}/f/MachineLearning", wait_until="networkidle"
             )
 
             # Look for the post with title "MachineLearning_Extraction"
@@ -130,9 +129,6 @@ async def verify() -> bool:
                     "FAILED: Could not find submission with title 'MachineLearning_Extraction' in MachineLearning forum",
                     file=sys.stderr,
                 )
-                await page.screenshot(
-                    path=str(SCREENSHOT_DIR / "submission_not_found.png")
-                )
                 return False
             
             print("PASSED: Found submission 'MachineLearning_Extraction' in MachineLearning forum", file=sys.stderr)
@@ -143,13 +139,6 @@ async def verify() -> bool:
             # Click on the submission to view its content
             await post_link.first.click()
             await page.wait_for_load_state("networkidle")
-
-            # Take screenshot of the submission
-            await page.screenshot(path=str(SCREENSHOT_DIR / "submission_page.png"))
-            print(
-                f"Screenshot saved: {SCREENSHOT_DIR / 'submission_page.png'}",
-                file=sys.stderr,
-            )
 
             # Extract the submission body content
             # Try multiple possible selectors for the post body
@@ -182,9 +171,6 @@ async def verify() -> bool:
                 print(
                     "Expected body to contain 'Deeplearning_Post_Count' in pipe-separated format",
                     file=sys.stderr,
-                )
-                await page.screenshot(
-                    path=str(SCREENSHOT_DIR / "content_not_found.png")
                 )
                 return False
 
@@ -221,7 +207,7 @@ async def verify() -> bool:
 
             if missing_keys:
                 print(
-                    f"FAILED: Missing required keys in submission: {', '.join(missing_keys)}",
+                    "FAILED: Missing required keys in submission: {', '.join(missing_keys)}",
                     file=sys.stderr,
                 )
                 print(
@@ -306,13 +292,6 @@ async def verify() -> bool:
                             print(f"  {key}: {expected_data[key]}", file=sys.stderr)
                 return False
 
-            # Take final success screenshot
-            await page.screenshot(path=str(SCREENSHOT_DIR / "verification_success.png"))
-            print(
-                f"Screenshot saved: {SCREENSHOT_DIR / 'verification_success.png'}",
-                file=sys.stderr,
-            )
-
             # All checks passed
             print("\n=== VERIFICATION SUCCESSFUL ===")
             print("✓ Step 1: Account AIDataAnalyst2025 can login with password SecurePass123!")
@@ -330,11 +309,9 @@ async def verify() -> bool:
 
         except PlaywrightTimeoutError as e:
             print(f"Error: Timeout occurred - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "timeout_error.png"))
             return False
         except Exception as e:
             print(f"Error: Unexpected error - {str(e)}", file=sys.stderr)
-            await page.screenshot(path=str(SCREENSHOT_DIR / "unexpected_error.png"))
             return False
         finally:
             await browser.close()

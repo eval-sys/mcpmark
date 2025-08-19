@@ -59,8 +59,8 @@ def parse_answer_format(text):
     result = {}
     lines = answer_content.split("\n")
 
-    if len(lines) != 10:
-        print(f"Error: Expected 10 lines in answer, got {len(lines)}", file=sys.stderr)
+    if len(lines) != 11:
+        print(f"Error: Expected 11 lines in answer, got {len(lines)}", file=sys.stderr)
         return None
 
     for line in lines:
@@ -126,7 +126,31 @@ def compare_answers(model_answer, expected_answer):
                         elif exp_parts[0] != mod_parts[0] or exp_parts[1] != mod_parts[1]:
                             mismatches.append(f"{key}: product {i+1} mismatch - expected '{exp}', got '{mod}'")
 
-        elif key in ["chocolate_sum", "price_difference", "cart_subtotal", "cheapest_tablet", "cheapest_computer_accessory"]:
+        elif key == "tabletop_product":
+            # Parse and compare tabletop product with price:SKU format
+            exp_parts = expected_value.strip().split(":")
+            mod_parts = model_value.strip().split(":")
+            if len(exp_parts) != 2 or len(mod_parts) != 2:
+                mismatches.append(f"{key}: format error - expected 'price:SKU', got '{model_value}'")
+            else:
+                # Check price format (should start with $)
+                if not mod_parts[0].startswith("$"):
+                    mismatches.append(f"{key}: price format error - expected '$XX.XX' format, got '{mod_parts[0]}'")
+                elif exp_parts[0] != mod_parts[0] or exp_parts[1] != mod_parts[1]:
+                    mismatches.append(f"{key}: mismatch - expected '{expected_value}', got '{model_value}'")
+        
+        elif key == "tabletop_reviews":
+            # Parse and compare tabletop reviews with NumberOfReviews:Rating format
+            exp_parts = expected_value.strip().split(":")
+            mod_parts = model_value.strip().split(":")
+            if len(exp_parts) != 2 or len(mod_parts) != 2:
+                mismatches.append(f"{key}: format error - expected 'NumberOfReviews:Rating', got '{model_value}'")
+            else:
+                # Check if both parts match
+                if exp_parts[0] != mod_parts[0] or exp_parts[1] != mod_parts[1]:
+                    mismatches.append(f"{key}: mismatch - expected '{expected_value}', got '{model_value}'")
+
+        elif key in ["chocolate_sum", "price_difference", "cart_subtotal", "cheapest_computer_accessory"]:
             # For price fields, only support $XX.XX format
             # Check if model value has correct format
             if not model_value.startswith("$"):
@@ -146,6 +170,13 @@ def compare_answers(model_answer, expected_answer):
             # Compare YES/NO value (case-insensitive)
             if expected_value.upper() != model_value.upper():
                 mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+
+        elif key in ["tabletop_search_count", "comparison_count", "cart_item_count"]:
+            # Numeric fields - exact match
+            if model_value != expected_value:
+                mismatches.append(
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
+                )
 
         else:
             # Exact match for other fields
