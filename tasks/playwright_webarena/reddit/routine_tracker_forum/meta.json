@@ -3,11 +3,15 @@
     "task_name": "Routine Tracker Forum",
     "category_id": "reddit",
     "category_name": "Reddit",
-    "description": "Track and compile daily routines and productivity tips from community forums.",
+    "description": "Establish productivity community by creating account, setting up routine tracking forum, implementing daily habit systems, and engaging members with structured productivity challenges and resources.",
     "author": "Fanqing Meng",
     "created_at": "2025-08-12",
     "difficulty": "L3",
-    "tags": [],
+    "tags": [
+        "data extraction",
+        "content submission",
+        "user interaction"
+    ],
     "mcp": [
         "playwright"
     ],

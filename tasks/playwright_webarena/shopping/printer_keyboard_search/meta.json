@@ -3,11 +3,17 @@
     "task_name": "Printer Keyboard Search",
     "category_id": "shopping",
     "category_name": "Shopping",
-    "description": "Search and compare printer and keyboard products based on specific criteria.",
+    "description": "Search and evaluate office equipment by comparing printer specifications, keyboard ergonomics, analyzing user reviews, tracking prices, and generating detailed purchase recommendations report.",
     "author": "Yaoqi Ye",
     "created_at": "2025-08-17",
     "difficulty": "L3",
-    "tags": [],
+    "tags": [
+        "data extraction",
+        "search aggregation",
+        "content submission",
+        "comparative analysis",
+        "inventory management"
+    ],
     "mcp": [
         "playwright"
     ],

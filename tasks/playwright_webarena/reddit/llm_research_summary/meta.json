@@ -3,11 +3,16 @@
     "task_name": "LLM Research Summary",
     "category_id": "reddit",
     "category_name": "Reddit",
-    "description": "Compile and summarize recent LLM research discussions and developments from forums.",
+    "description": "Aggregate and analyze LLM research discussions across multiple forums, collect trending topics, compile technical insights, and create comprehensive summary post with community engagement.",
     "author": "Fanqing Meng",
     "created_at": "2025-08-12",
     "difficulty": "L3",
-    "tags": [],
+    "tags": [
+        "data extraction",
+        "search aggregation",
+        "user interaction",
+        "content submission"
+    ],
     "mcp": [
         "playwright"
     ],

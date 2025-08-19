@@ -3,11 +3,15 @@
     "task_name": "AI Data Analyst",
     "category_id": "reddit",
     "category_name": "Reddit",
-    "description": "Gather specific data from AI discussions and community engagement on a forum platform.",
+    "description": "Create account on forum platform, collect AI/ML discussion metrics including post counts, vote data, and analyze community engagement patterns through systematic data extraction.",
     "author": "Fanqing Meng",
     "created_at": "2025-08-12",
     "difficulty": "L3",
-    "tags": [],
+    "tags": [
+        "data extraction",
+        "user interaction",
+        "content submission"
+    ],
     "mcp": [
         "playwright"
     ],

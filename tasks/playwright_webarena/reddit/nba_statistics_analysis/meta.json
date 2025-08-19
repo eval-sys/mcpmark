@@ -3,11 +3,15 @@
     "task_name": "NBA Statistics Analysis",
     "category_id": "reddit",
     "category_name": "Reddit",
-    "description": "Collect and analyze NBA statistics and discussions from basketball forums.",
+    "description": "Create sports analytics account, collect NBA player statistics from forum discussions, analyze basketball performance metrics, and compile comprehensive statistical report with community insights.",
     "author": "Fanqing Meng",
     "created_at": "2025-08-12",
     "difficulty": "L3",
-    "tags": [],
+    "tags": [
+        "data extraction",
+        "content submission",
+        "user interaction"
+    ],
     "mcp": [
         "playwright"
     ],

@@ -3,11 +3,13 @@
     "task_name": "Extraction Table",
     "category_id": "eval_web",
     "category_name": "Eval Web",
-    "description": "Extract and process data from web tables.",
+    "description": "Extract structured data from complex web tables, parse multi-level headers, handle dynamic content loading, transform data formats, and export comprehensive datasets.",
     "author": "Wenbin Xu",
     "created_at": "2025-08-18",
     "difficulty": "L3",
-    "tags": [],
+    "tags": [
+        "data extraction"
+    ],
     "mcp": [
         "playwright"
     ],

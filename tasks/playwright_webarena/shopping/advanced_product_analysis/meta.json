@@ -3,11 +3,15 @@
     "task_name": "Advanced Product Analysis",
     "category_id": "shopping",
     "category_name": "Shopping",
-    "description": "Perform advanced analysis on product features, reviews, and pricing.",
+    "description": "Perform comprehensive product analysis including feature comparisons, price tracking, review aggregation, customer sentiment analysis, and generate detailed recommendation reports for informed purchasing decisions.",
     "author": "Yaoqi Ye",
     "created_at": "2025-08-17",
     "difficulty": "L3",
-    "tags": [],
+    "tags": [
+        "data extraction",
+        "content submission",
+        "comparative analysis"
+    ],
     "mcp": [
         "playwright"
     ],
