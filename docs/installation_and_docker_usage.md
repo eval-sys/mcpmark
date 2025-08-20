@@ -75,6 +75,7 @@ The benchmark script:
 ### Manual Docker Commands
 
 #### For Non-Postgres Services
+Suppose Notion is the service:
 ```bash
 # Build the image first
 ./build-docker.sh
@@ -85,7 +86,7 @@ docker run --rm \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
   -v $(pwd)/notion_state.json:/app/notion_state.json:ro \
   evalsysorg/mcpmark:latest \
-  python3 -m pipeline --mcp notion --models o3 --exp-name test --tasks all
+  python3 -m pipeline --mcp notion --models MODEL --exp-name EXPNAME --tasks all
 ```
 
 #### For Postgres Service
@@ -108,7 +109,7 @@ docker run --rm \
   -v $(pwd)/results:/app/results \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
   evalsysorg/mcpmark:latest \
-  python3 -m pipeline --mcp postgres --models o3 --exp-name pg-test --tasks all
+  python3 -m pipeline --mcp postgres --models MODEL --exp-name EXPNAME --tasks all
 
 # Stop and remove postgres when done
 docker stop mcp-postgres && docker rm mcp-postgres
