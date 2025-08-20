@@ -178,7 +178,7 @@ class MCPEvaluator:
         """
         # Track overall task start time
         task_start_time = time.time()
-        
+
         # Stage 1: Set up the initial state for the task
         setup_start_time = time.time()
         logger.info(
@@ -200,9 +200,7 @@ class MCPEvaluator:
                 task_execution_time=task_total_time,
             )
         display_time = self._format_duration(setup_time)
-        logger.info(
-            f"└─ Completed in {display_time}\n"
-        )
+        logger.info(f"└─ Completed in {display_time}\n")
 
         # Stage 2: Execute the task using the agent
         logger.info(
@@ -214,14 +212,19 @@ class MCPEvaluator:
         # Get task instruction from task manager
         task_instruction = self.task_manager.get_task_instruction(task)
 
+        # ---------- Prepare task_output_dir and tool call log file ----------
+        task_output_dir = self._get_task_output_dir(task)
+        task_output_dir.mkdir(parents=True, exist_ok=True)
+        execution_log_path = task_output_dir / "execution.log"
+
         # Execute with agent
-        agent_result = self.agent.execute_sync(task_instruction)
+        agent_result = self.agent.execute_sync(
+            task_instruction, str(execution_log_path)
+        )
 
         agent_execution_time = time.time() - execute_start_time
 
         # ---------- Write messages.json to task_output_dir ----------
-        task_output_dir = self._get_task_output_dir(task)
-        task_output_dir.mkdir(parents=True, exist_ok=True)
         messages_path = task_output_dir / "messages.json"
         self.results_reporter.save_messages_json(
             agent_result.get("output", []), messages_path
@@ -229,9 +232,7 @@ class MCPEvaluator:
 
         # Set service-specific environment variables for verification scripts
         self.state_manager.set_verification_environment(str(messages_path))
-        logger.info(
-            f"└─ Completed in {self._format_duration(agent_execution_time)}\n"
-        )
+        logger.info(f"└─ Completed in {self._format_duration(agent_execution_time)}\n")
 
         # Stage 3: Verify
         logger.info(
@@ -243,13 +244,11 @@ class MCPEvaluator:
         finally:
             # Clean up environment variables
             import os
+
             os.environ.pop("MCP_MESSAGES", None)
             os.environ.pop("MCP_GITHUB_TOKEN", None)
         verify_time = time.time() - verify_start_time
-        logger.info(
-            f"└─ Completed in {self._format_duration(verify_time)}\n"
-        )
-
+        logger.info(f"└─ Completed in {self._format_duration(verify_time)}\n")
 
         # Stage 4: Clean up
         logger.info(
@@ -258,13 +257,11 @@ class MCPEvaluator:
         cleanup_start_time = time.time()
         self.state_manager.clean_up(task)
         cleanup_time = time.time() - cleanup_start_time
-        logger.info(
-            f"└─ Completed in {self._format_duration(cleanup_time)}\n"
-        )
+        logger.info(f"└─ Completed in {self._format_duration(cleanup_time)}\n")
 
         # Calculate total task execution time
         task_total_time = time.time() - task_start_time
-        
+
         # Add timing information to the result
         result.agent_execution_time = agent_execution_time
         result.task_execution_time = task_total_time
@@ -408,8 +405,6 @@ class MCPEvaluator:
         logger.info(
             f"✓ Tasks passed: {aggregated_report.successful_tasks}/{aggregated_report.total_tasks} ({aggregated_report.success_rate:.1f}%)"
         )
-        logger.info(
-            f"⏱ Total time: {aggregated_report.total_task_execution_time:.1f}s"
-        )
+        logger.info(f"⏱ Total time: {aggregated_report.total_task_execution_time:.1f}s")
 
         return aggregated_report

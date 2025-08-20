@@ -140,7 +140,7 @@ class BaseTaskManager(ABC):
         if "/" in task_filter:
             try:
                 category, task_part = task_filter.split("/", 1)
-                
+
                 # First try to match by task_id (could be numeric or string)
                 for task in all_tasks:
                     if task.category == category:
@@ -148,7 +148,10 @@ class BaseTaskManager(ABC):
                         if str(task.task_id) == task_part:
                             return [task]
                         # Also check if it's a task_N format and matches
-                        if task_part.startswith("task_") and str(task.task_id) == task_part.split("_", 1)[1]:
+                        if (
+                            task_part.startswith("task_")
+                            and str(task.task_id) == task_part.split("_", 1)[1]
+                        ):
                             return [task]
             except (ValueError, IndexError):
                 pass
@@ -276,6 +279,9 @@ class BaseTaskManager(ABC):
                 error_message=str(e),
                 category=task.category,
                 task_id=task.task_id,
+                model_output=agent_result.get("output", ""),
+                token_usage=agent_result.get("token_usage", {}),
+                turn_count=agent_result.get("turn_count", 0),
             )
 
     def run_verification(self, task: BaseTask) -> subprocess.CompletedProcess:
