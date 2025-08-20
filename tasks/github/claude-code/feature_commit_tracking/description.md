@@ -1,4 +1,4 @@
-I need you to research the development history of the mcpleague-eval/claude-code repository across multiple branches and commits, then create a comprehensive feature tracking document and submit it as a new file to the repository.
+I need you to research the development history of the repository across multiple branches and commits, then create a comprehensive feature tracking document and submit it as a new file to the repository.
 
 **Step 1: Multi-Branch Feature Investigation**
 Research and identify the exact commit SHAs where these specific features were introduced by analyzing commits across different branches:

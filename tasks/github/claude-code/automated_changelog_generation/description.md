@@ -1,4 +1,4 @@
-I need you to analyze all recently closed issues and open pull requests in the mcpleague-eval/claude-code repository, then generate comprehensive documentation and organize them properly.
+I need you to analyze all recently closed issues and open pull requests in the repository, then generate comprehensive documentation and organize them properly.
 
 **Step 1: Create Documentation Branch**
 Create a new branch called 'docs/changelog-and-migration' from the main branch.

@@ -1,4 +1,4 @@
-I need you to analyze the collaboration patterns between human developers and Claude (the AI assistant) in the mcpleague-eval/claude-code repository by examining all available commit history, then create a comprehensive analysis report and submit it as a new file to the repository.
+I need you to analyze the collaboration patterns between human developers and Claude (the AI assistant) in the repository by examining all available commit history, then create a comprehensive analysis report and submit it as a new file to the repository.
 
 **Step 1: Commit History Analysis**
 Analyze ALL commits in the repository to identify:

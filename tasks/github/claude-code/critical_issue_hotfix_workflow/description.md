@@ -1,4 +1,4 @@
-I need you to implement a comprehensive critical issue hotfix workflow for the mcpleague-eval/claude-code repository that demonstrates advanced PR management, selective merging, and issue resolution tracking.
+I need you to implement a comprehensive critical issue hotfix workflow for the repository that demonstrates advanced PR management, selective merging, and issue resolution tracking.
 
 **Step 1: Create Critical Bug Tracking Issue**
 Create a new issue with:

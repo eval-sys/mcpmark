@@ -117,8 +117,13 @@ def verify() -> bool:
 
     # 1. Check that CI infrastructure file exists in main (extracted from conflicted PR)
     print("1. Checking CI infrastructure was added to main...")
-    if not _check_ci_file_exists(".github/workflows/CI.yml", headers, github_org):
-        print("Error: .github/workflows/CI.yml not found in main", file=sys.stderr)
+    # Check for both CI.yml and ci.yml (case-insensitive)
+    ci_exists = _check_ci_file_exists(".github/workflows/CI.yml", headers, github_org)
+    if not ci_exists:
+        ci_exists = _check_ci_file_exists(".github/workflows/ci.yml", headers, github_org)
+    
+    if not ci_exists:
+        print("Error: Neither .github/workflows/CI.yml nor .github/workflows/ci.yml found in main", file=sys.stderr)
         return False
 
     # 2. Find infrastructure PR with required title and body content
