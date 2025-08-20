@@ -51,7 +51,7 @@ class BaseStateManager(ABC):
             # Create initial state
             initial_state_info = self._create_initial_state(task)
             if not initial_state_info:
-                logger.error(f"Failed to create initial state for {task.name}")
+                logger.error(f"| Failed to create initial state for {task.name}")
                 return False
 
             # Store initial state info in task
@@ -61,7 +61,7 @@ class BaseStateManager(ABC):
             return True
 
         except Exception as e:
-            logger.error(f"Setup failed for {task.name}: {e}")
+            logger.error(f"| Setup failed for {task.name}: {e}")
             return False
 
     def clean_up(self, task: BaseTask = None) -> bool:

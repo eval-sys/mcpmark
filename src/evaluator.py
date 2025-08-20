@@ -188,7 +188,7 @@ class MCPEvaluator:
         setup_time = time.time() - setup_start_time
 
         if not setup_success:
-            logger.error(f"State setup failed for task: {task.name}")
+            logger.error(f"| State setup failed for task: {task.name}")
             task_total_time = time.time() - task_start_time
             return TaskResult(
                 task_name=task.name,

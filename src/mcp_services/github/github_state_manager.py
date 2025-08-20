@@ -160,7 +160,7 @@ class GitHubStateManager(BaseStateManager):
                 return
             except subprocess.CalledProcessError as err:
                 logger.warning(
-                    "[push] Mirror push failed – falling back: %s",
+                    "| [push] Mirror push failed – falling back: %s",
                     err.stderr.decode(errors="ignore"),
                 )
 
@@ -239,11 +239,11 @@ class GitHubStateManager(BaseStateManager):
             raise RuntimeError(f"Failed to create repo: {resp.status_code} {resp.text}")
 
         html_url = resp.json()["html_url"]
-        logger.info("[import] Target repository created: %s", html_url)
+        logger.info("| [import] Target repository created: %s", html_url)
 
         # Immediately disable GitHub Actions for ALL repositories to prevent any accidental triggers
         # We'll re-enable it later only for mcpmark-cicd
-        logger.info("[import] Disabling GitHub Actions immediately after repo creation...")
+        logger.info("| [import] Disabling GitHub Actions immediately after repo creation...")
         self._disable_github_actions(owner, repo_name)
 
         # ------------------------------------------------------------------
@@ -251,7 +251,7 @@ class GitHubStateManager(BaseStateManager):
         # ------------------------------------------------------------------
         repo_path = template_dir / "repo"
 
-        logger.info("[import] Pushing git history …")
+        logger.info("| [import] Pushing git history …")
         _push_repo(repo_path, owner, repo_name, needed_refs)
 
         # Remove .github directory after pushing with a new commit
@@ -259,7 +259,7 @@ class GitHubStateManager(BaseStateManager):
 
         github_dir = repo_path / ".github"
         if github_dir.exists():
-            logger.info("[import] Removing .github directory after push …")
+            logger.info("| [import] Removing .github directory after push …")
             shutil.rmtree(github_dir)
             # Commit the deletion
             subprocess.run(
@@ -345,7 +345,7 @@ class GitHubStateManager(BaseStateManager):
         # Issues
         issues_data = json.loads((template_dir / "issues.json").read_text())
         created_issues = 0
-        logger.info("[phase] Re-creating issues …")
+        logger.info("| [phase] Re-creating issues …")
         for itm in issues_data:
             new_no = _create_issue(itm)
             if new_no:
@@ -355,11 +355,11 @@ class GitHubStateManager(BaseStateManager):
                         new_no, f"*Original author: @{c['user']}*\n\n{c['body']}"
                     )
         logger.info(
-            "[phase] Created %d out of %d issues", created_issues, len(issues_data)
+            "| [phase] Created %d out of %d issues", created_issues, len(issues_data)
         )
 
         # Pull requests
-        logger.info("[phase] Re-creating pull requests …")
+        logger.info("| [phase] Re-creating pull requests …")
         created_prs = 0
         skipped_prs = 0
         for pr in pulls_data:
@@ -377,19 +377,19 @@ class GitHubStateManager(BaseStateManager):
                     )
             else:
                 skipped_prs += 1
-        logger.info("[phase] Created %d PRs, skipped %d PRs", created_prs, skipped_prs)
+        logger.info("| [phase] Created %d PRs, skipped %d PRs", created_prs, skipped_prs)
 
         # Re-enable GitHub Actions ONLY for mcpmark-cicd repository
         # All other repos remain disabled (as set immediately after creation)
         if "mcpmark-cicd" in template_dir.name:
-            logger.info("[import] Re-enabling GitHub Actions for CI/CD repository…")
+            logger.info("| [import] Re-enabling GitHub Actions for CI/CD repository…")
             self._enable_github_actions(owner, repo_name)
 
         # Disable notifications to prevent email spam
-        logger.info("[import] Disabling repository notifications …")
+        logger.info("| [import] Disabling repository notifications …")
         self._disable_repository_notifications(owner, repo_name)
 
-        logger.info("[import] Repository import complete: %s", html_url)
+        logger.info("| [import] Repository import complete: %s", html_url)
         return html_url
 
     # ---------------------------------------------------------------------
@@ -406,7 +406,7 @@ class GitHubStateManager(BaseStateManager):
         3. Creating issues or PRs if needed
         """
         try:
-            logger.info(f"Setting up GitHub state for task: {task.name}")
+            logger.info(f"| Setting up GitHub state for task: {task.name}")
 
             template_name = self.select_initial_state_for_task(task.category)
             if template_name is None:
@@ -416,10 +416,10 @@ class GitHubStateManager(BaseStateManager):
 
             template_dir = (self.templates_root / template_name).resolve()
             if not template_dir.exists():
-                logger.error("Template directory %s not found", template_dir)
+                logger.error("| Template directory %s not found", template_dir)
                 return None
 
-            logger.info(f"Importing repository template from {template_dir} …")
+            logger.info(f"| Importing repository template from {template_dir} …")
             owner = self.eval_org if self.eval_org else self._get_authenticated_user()
 
             if "mcpmark-cicd" in template_name:
@@ -444,7 +444,7 @@ class GitHubStateManager(BaseStateManager):
             )
 
         except Exception as e:
-            logger.error(f"GitHub setup failed for {task.name}: {e}")
+            logger.error(f"| GitHub setup failed for {task.name}: {e}")
             return None
 
     # ---------------------------------------------------------------------
@@ -470,10 +470,10 @@ class GitHubStateManager(BaseStateManager):
         for owner, repo_name in self._repos_to_cleanup:
             try:
                 self._delete_repository(owner, repo_name)
-                logger.info("Deleted repository: %s/%s", owner, repo_name)
+                logger.info("| Deleted repository: %s/%s", owner, repo_name)
             except Exception as err:
                 logger.error(
-                    "Failed to delete repository %s/%s: %s", owner, repo_name, err
+                    "| Failed to delete repository %s/%s: %s", owner, repo_name, err
                 )
                 success = False
 
@@ -491,13 +491,13 @@ class GitHubStateManager(BaseStateManager):
 
         if response.status_code not in [200, 204]:
             logger.warning(
-                f"Failed to delete repository {owner}/{repo_name}: {response.text}"
+                f"| Failed to delete repository {owner}/{repo_name}: {response.text}"
             )
             raise Exception(
-                f"Failed to delete repository {owner}/{repo_name}: {response.status_code} {response.text}"
+                f"| Failed to delete repository {owner}/{repo_name}: {response.status_code} {response.text}"
             )
         else:
-            logger.info(f"Successfully deleted repository {owner}/{repo_name}")
+            logger.info(f"| Successfully deleted repository {owner}/{repo_name}")
 
     # ---------------------------------------------------------------------
     # Helper utilities (organisation vs user)
@@ -534,7 +534,7 @@ class GitHubStateManager(BaseStateManager):
         })
         # Update backward compatibility attribute
         self.github_token = next_token
-        logger.debug(f"Rotated to next token in pool")
+        logger.debug(f"| Rotated to next token in pool")
 
     # ---------------------------------------------------------------------
     # Generic request helper with rate-limit (403) retry handling
@@ -573,7 +573,7 @@ class GitHubStateManager(BaseStateManager):
             # First, try rotating tokens if we have multiple
             if self.token_pool.pool_size > 1 and tokens_tried < self.token_pool.pool_size:
                 logger.warning(
-                    "GitHub API rate limit encountered. Rotating to next token (tried %d/%d tokens)",
+                    "| GitHub API rate limit encountered. Rotating to next token (tried %d/%d tokens)",
                     tokens_tried + 1,
                     self.token_pool.pool_size
                 )
@@ -588,7 +588,7 @@ class GitHubStateManager(BaseStateManager):
                 )
 
             logger.warning(
-                "All tokens rate limited (attempt %d/%d). Sleeping %d seconds before retrying …",
+                "| All tokens rate limited (attempt %d/%d). Sleeping %d seconds before retrying …",
                 attempt + 1,
                 max_retries + 1,
                 sleep_seconds,
@@ -620,7 +620,7 @@ class GitHubStateManager(BaseStateManager):
             raise ValueError(f"Invalid GitHub URL format: {repo_url}")
 
         except Exception as e:
-            logger.error(f"Failed to extract repo info from URL {repo_url}: {e}")
+            logger.error(f"| Failed to extract repo info from URL {repo_url}: {e}")
             raise
 
     def get_service_config_for_agent(self) -> dict:
@@ -660,7 +660,7 @@ class GitHubStateManager(BaseStateManager):
         # Set GitHub-specific token
         current_token = self.token_pool.get_current_token()
         os.environ["MCP_GITHUB_TOKEN"] = current_token
-        logger.info("Set MCP_GITHUB_TOKEN for verification scripts")
+        logger.info("| Set MCP_GITHUB_TOKEN for verification scripts")
 
     def _enable_github_actions(self, owner: str, repo_name: str):
         """Enable GitHub Actions for the repository using REST API."""
@@ -675,17 +675,17 @@ class GitHubStateManager(BaseStateManager):
 
             if response.status_code in [200, 204]:
                 logger.info(
-                    "Successfully enabled GitHub Actions for %s/%s", owner, repo_name
+                    "| Successfully enabled GitHub Actions for %s/%s", owner, repo_name
                 )
             else:
                 logger.warning(
-                    "Failed to enable GitHub Actions: %s %s",
+                    "| Failed to enable GitHub Actions: %s %s",
                     response.status_code,
                     response.text,
                 )
 
         except Exception as e:
-            logger.error("Failed to enable GitHub Actions: %s", e)
+            logger.error("| Failed to enable GitHub Actions: %s", e)
 
     def _disable_github_actions(self, owner: str, repo_name: str):
         """Disable GitHub Actions for the repository using REST API."""
@@ -700,17 +700,17 @@ class GitHubStateManager(BaseStateManager):
 
             if response.status_code in [200, 204]:
                 logger.info(
-                    "Successfully disabled GitHub Actions for %s/%s", owner, repo_name
+                    "| Successfully disabled GitHub Actions for %s/%s", owner, repo_name
                 )
             else:
                 logger.warning(
-                    "Failed to disable GitHub Actions: %s %s",
+                    "| Failed to disable GitHub Actions: %s %s",
                     response.status_code,
                     response.text,
                 )
 
         except Exception as e:
-            logger.error("Failed to disable GitHub Actions: %s", e)
+            logger.error("| Failed to disable GitHub Actions: %s", e)
 
     def _disable_repository_notifications(self, owner: str, repo_name: str):
         """Disable repository notifications to prevent email spam."""
@@ -723,21 +723,21 @@ class GitHubStateManager(BaseStateManager):
 
             if response.status_code in [200, 201]:
                 logger.info(
-                    "Successfully disabled notifications for %s/%s", owner, repo_name
+                    "| Successfully disabled notifications for %s/%s", owner, repo_name
                 )
             elif response.status_code == 403:
                 # This is expected if the token doesn't have notifications scope
                 logger.debug(
-                    "Cannot disable notifications for %s/%s (token lacks notifications scope - this is OK)",
+                    "| Cannot disable notifications for %s/%s (token lacks notifications scope - this is OK)",
                     owner,
                     repo_name,
                 )
             else:
                 logger.warning(
-                    "Failed to disable repository notifications: %s %s",
+                    "| Failed to disable repository notifications: %s %s",
                     response.status_code,
                     response.text,
                 )
 
         except Exception as e:
-            logger.error("Failed to disable repository notifications: %s", e)
+            logger.error("| Failed to disable repository notifications: %s", e)
