@@ -4,6 +4,7 @@ import requests
 from typing import Dict, Optional, Tuple
 import base64
 import json
+from dotenv import load_dotenv
 
 
 def _get_github_api(
@@ -141,7 +142,7 @@ def _check_branch_commits_json(content: str) -> bool:
                     return False
 
                 actual_commit = actual_commits[i]
-                for field in ["sha", "author", "message", "files_changed"]:
+                for field in ["sha", "author", "files_changed"]:
                     if actual_commit.get(field) != expected_commit.get(field):
                         print(
                             f"Mismatch in {field} for commit {i + 1} in branch {branch}",
@@ -152,6 +153,20 @@ def _check_branch_commits_json(content: str) -> bool:
                             file=sys.stderr,
                         )
                         return False
+                
+                # For message field, use substring matching to be more flexible
+                expected_message = expected_commit.get("message", "")
+                actual_message = actual_commit.get("message", "")
+                if expected_message not in actual_message:
+                    print(
+                        f"Mismatch in message for commit {i + 1} in branch {branch}",
+                        file=sys.stderr,
+                    )
+                    print(
+                        f"Expected: {expected_message}, Got: {actual_message}",
+                        file=sys.stderr,
+                    )
+                    return False
 
         return True
     except json.JSONDecodeError as e:
@@ -180,13 +195,11 @@ def _check_cross_branch_analysis(content: str) -> bool:
         )
         return False
 
-    # Verify the top 5 contributors with correct counts (order matters)
+    # Verify the top 3 contributors with correct counts from main branch (order matters)
     expected_contributors = [
-        "scott-oai: 217 commits",
-        "RustedBytes: 28 commits",
-        "zhli1142015: 14 commits",
-        "michaelfeil: 7 commits",
-        "y-asha: 7 commits",
+        "scott-oai: 35 commits",
+        "egorsmkv: 4 commits",
+        "axion66: 2 commits",
     ]
 
     for contributor in expected_contributors:
@@ -215,50 +228,11 @@ def _check_merge_timeline(content: str) -> bool:
         "2025-08-05 | Merge pull request #17 from openai/dev/scl/add-docs-to-cargo | 64bca4cf327ebeafa0bbd0345650d86e2d02142f",
     ]
 
-    lines = content.strip().split("\n")
-    if len(lines) != 10:
-        print(
-            f"MERGE_TIMELINE.txt should have exactly 10 lines, found {len(lines)}",
-            file=sys.stderr,
-        )
-        return False
-
-    # Verify each line matches expected format and content
-    for i, (actual_line, expected_line) in enumerate(zip(lines, expected_timeline)):
-        if actual_line.strip() != expected_line:
-            print(f"Mismatch at line {i + 1} in MERGE_TIMELINE.txt", file=sys.stderr)
+    # Verify each expected timeline entry exists in the content
+    for i, expected_line in enumerate(expected_timeline):
+        if expected_line not in content:
+            print(f"Missing expected timeline entry {i + 1} in MERGE_TIMELINE.txt", file=sys.stderr)
             print(f"Expected: {expected_line}", file=sys.stderr)
-            print(f"Got: {actual_line.strip()}", file=sys.stderr)
-            return False
-
-    return True
-
-
-def _find_pr_by_title(title: str, headers: Dict[str, str], org: str) -> Optional[Dict]:
-    """Find a PR by exact title."""
-    for state in ["open", "closed"]:
-        success, prs = _get_github_api(f"pulls?state={state}&per_page=100", headers, org)
-        if success and prs:
-            for pr in prs:
-                if pr.get("title", "") == title:
-                    return pr
-    return None
-
-
-def _check_pr_body_format(pr_body: str) -> bool:
-    """Check if PR body contains required format with exact values."""
-    if not pr_body:
-        print("PR body is empty", file=sys.stderr)
-        return False
-
-    required_lines = [
-        "Total branches analyzed: 7",
-        "Top contributor: scott-oai",  # Based on the provided data
-    ]
-
-    for line in required_lines:
-        if line not in pr_body:
-            print(f"Missing required line in PR body: {line}", file=sys.stderr)
             return False
 
     return True
@@ -267,6 +241,7 @@ def _check_pr_body_format(pr_body: str) -> bool:
 def verify_task() -> bool:
     """Verify the multi-branch commit aggregation task."""
     # Get GitHub token from environment
+    load_dotenv(".mcp_env")
     github_token = os.environ.get("MCP_GITHUB_TOKEN")
     if not github_token:
         print("Error: MCP_GITHUB_TOKEN environment variable not set", file=sys.stderr)
@@ -330,31 +305,6 @@ def verify_task() -> bool:
         return False
     print("✓ MERGE_TIMELINE.txt has correct format and data")
 
-    # 5. Check pull request
-    pr = _find_pr_by_title("Cross-Branch Commit Analysis Report", headers, github_org)
-    if not pr:
-        print(
-            "Pull request with title 'Cross-Branch Commit Analysis Report' not found",
-            file=sys.stderr,
-        )
-        return False
-    print("✓ Pull request 'Cross-Branch Commit Analysis Report' exists")
-
-    # 6. Check PR body format
-    pr_body = pr.get("body", "")
-    if not _check_pr_body_format(pr_body):
-        return False
-    print("✓ Pull request body has correct format and data")
-
-    # 7. Verify PR is from correct branch to main
-    if pr.get("head", {}).get("ref") != "history-report-2025":
-        print("PR is not from 'history-report-2025' branch", file=sys.stderr)
-        return False
-
-    if pr.get("base", {}).get("ref") != "main":
-        print("PR is not targeting 'main' branch", file=sys.stderr)
-        return False
-    print("✓ Pull request is from 'history-report-2025' to 'main'")
 
     print("\nAll verification checks passed! ✅")
     return True

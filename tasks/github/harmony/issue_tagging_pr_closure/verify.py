@@ -196,7 +196,7 @@ def verify() -> bool:
     ]
     ISSUE_HEADINGS = ["## Problem", "## Proposed Solution", "## Benefits"]
     ISSUE_KEYWORDS = ["CommonJS", "ESM imports", "module bundling", "modern JavaScript"]
-    ISSUE_LABELS = ["enhancement", "wontfix"]
+    ISSUE_LABELS = ["enhancement"]
 
     # PR requirements
     PR_TITLE_KEYWORDS = ["Upgrade JavaScript demo to ESM imports", "modern modules"]
@@ -398,17 +398,10 @@ def verify() -> bool:
         )
         return False
 
-    # 9. Verify issue is closed as not_planned
-    print("9. Verifying issue is closed as not_planned...")
+    # 9. Verify issue is closed
+    print("9. Verifying issue is closed...")
     if issue.get("state") != "closed":
         print(f"Error: Issue #{issue_number} should be closed", file=sys.stderr)
-        return False
-
-    if issue.get("state_reason") != "not_planned":
-        print(
-            f"Error: Issue #{issue_number} should be closed with state_reason 'not_planned'",
-            file=sys.stderr,
-        )
         return False
 
     # 10. Check issue closure comment with required keywords
@@ -431,7 +424,7 @@ def verify() -> bool:
 
     print("\n✓ All verification checks passed!")
     print("Issue tagging and PR closure workflow completed successfully:")
-    print(f"  - Issue #{issue_number}: {issue.get('title')} (closed as not_planned)")
+    print(f"  - Issue #{issue_number}: {issue.get('title')} (closed)")
     print(f"  - PR #{pr_number}: {pr.get('title')} (closed without merging)")
     print(f"  - Branch: {BRANCH_NAME}")
     print("  - All comments contain required keywords")

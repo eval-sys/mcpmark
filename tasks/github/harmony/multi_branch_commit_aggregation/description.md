@@ -26,7 +26,7 @@ In the 'history-report-2025' branch, create a file called `BRANCH_COMMITS.json` 
 
 **Step 3: Create Cross-Branch Analysis**
 Create a file `CROSS_BRANCH_ANALYSIS.md` that contains:
-- A section "## Top Contributors" listing the 5 contributors with the most commits across ALL 7 branches, sorted by commit count (format: "github_username: X commits")
+- A section "## Top Contributors" listing the 3 contributors with the most commits on the main branch, sorted by commit count (format: "github_username: X commits")
 - Must include keywords: "contributors"
 
 **Step 4: Generate Merge Timeline**
@@ -35,10 +35,3 @@ Create a file `MERGE_TIMELINE.txt` that lists the 10 most recent merge commits f
 - List in reverse chronological order (newest first)
 - Only include actual merge commits (commits that have exactly 2 parent commits)
 - Note: While the commit messages reference PR numbers, those PRs no longer exist in the repository
-
-**Step 5: Create Pull Request**
-Create a pull request from 'history-report-2025' to main with:
-- Title: `Cross-Branch Commit Analysis Report`
-- Body must contain exactly these lines:
-  - `Total branches analyzed: 7`
-  - `Top contributor: [USERNAME]` (replace [USERNAME] with the GitHub username of the contributor who has the most commits)

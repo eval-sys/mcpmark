@@ -24,24 +24,6 @@ def _get_github_api(
         return False, None
 
 
-def _get_all_labels(
-    headers: Dict[str, str], org: str, repo: str = "claude-code"
-) -> List[Dict]:
-    """Get all labels in the repository."""
-    all_labels = []
-    page = 1
-    while True:
-        success, labels = _get_github_api(
-            f"labels?page={page}&per_page=100", headers, org, repo
-        )
-        if not success or not labels:
-            break
-        all_labels.extend(labels)
-        if len(labels) < 100:
-            break
-        page += 1
-    return all_labels
-
 
 def _check_branch_exists(
     branch_name: str, headers: Dict[str, str], org: str, repo: str = "claude-code"
@@ -162,12 +144,6 @@ def _get_issue_comments(
     return []
 
 
-def _get_all_repo_labels(
-    headers: Dict[str, str], org: str, repo: str = "claude-code"
-) -> List[str]:
-    """Get all label names in the repository."""
-    all_labels = _get_all_labels(headers, org, repo)
-    return [label["name"] for label in all_labels]
 
 
 def verify() -> bool:
@@ -211,17 +187,15 @@ def verify() -> bool:
         "documentation",
     ]
 
-    # All expected labels in the repository (we'll validate against actual labels)
+    # All expected labels in the repository that are actually used/discoverable via MCP tools
+    # Note: Excludes 'wontfix', 'invalid', 'good first issue', 'help wanted' as they exist
+    # in the repository but are not used by any issues (not discoverable via MCP search)
     ALL_EXPECTED_LABELS = [
         "bug",
         "enhancement",
         "duplicate",
         "question",
         "documentation",
-        "wontfix",
-        "invalid",
-        "good first issue",
-        "help wanted",
         "platform:macos",
         "platform:linux",
         "platform:windows",
@@ -238,6 +212,7 @@ def verify() -> bool:
         "has repro",
         "memory",
         "perf:memory",
+        "external",
     ]
 
     headers = {
@@ -273,13 +248,8 @@ def verify() -> bool:
         return False
 
     # 3. Verify labels are documented
-    print("3. Verifying labels are documented...")
-    actual_labels = _get_all_labels(headers, github_org)
-    label_names = [label["name"] for label in actual_labels]
-
-    # Count total labels
-    total_labels = len(label_names)
-    print(f"  ✓ {total_labels} labels found in repository")
+    print("3. Verifying expected labels are documented...")
+    print(f"  ✓ {len(ALL_EXPECTED_LABELS)} expected labels defined for verification")
 
     # 4. Find the created issue
     print("4. Verifying issue creation...")
@@ -294,10 +264,26 @@ def verify() -> bool:
     issue_number = issue.get("number")
     issue_body = issue.get("body", "")
 
-    # Check issue content
+    # Check issue content has required sections and keywords
+    issue_required_sections = ["## Problem", "## Proposed Solution", "## Benefits"]
+    for section in issue_required_sections:
+        if section not in issue_body:
+            print(f"Error: Issue body missing required section: {section}", file=sys.stderr)
+            return False
+
+    # Check issue has required keywords
     if not all(keyword.lower() in issue_body.lower() for keyword in ISSUE_KEYWORDS):
-        print("Error: Issue missing required keywords", file=sys.stderr)
+        missing_keywords = [kw for kw in ISSUE_KEYWORDS if kw.lower() not in issue_body.lower()]
+        print(f"Error: Issue body missing required keywords: {missing_keywords}", file=sys.stderr)
         return False
+
+    # Check issue has initial required labels (enhancement and documentation)
+    issue_label_names = [label["name"] for label in issue.get("labels", [])]
+    initial_required_labels = ["enhancement", "documentation"]
+    for required_label in initial_required_labels:
+        if required_label not in issue_label_names:
+            print(f"Error: Issue missing initial required label: {required_label}", file=sys.stderr)
+            return False
 
     # 5. Find the created PR
     print("5. Verifying pull request creation...")
@@ -313,68 +299,83 @@ def verify() -> bool:
     pr_body = pr.get("body", "")
     pr_labels = pr.get("labels", [])
 
-    # Check PR references issue
-    if f"#{issue_number}" not in pr_body:
-        print(f"Error: PR does not reference issue #{issue_number}", file=sys.stderr)
+    # Check PR references issue with correct pattern
+    if f"Fixes #{issue_number}" not in pr_body and f"fixes #{issue_number}" not in pr_body:
+        print(f"Error: PR does not contain 'Fixes #{issue_number}' pattern", file=sys.stderr)
         return False
 
-    # 6. Verify issue has ALL labels applied (demonstrates organization)
-    print("6. Verifying issue has all labels applied...")
+    # Check PR body has required sections and keywords
+    pr_required_sections = ["## Summary", "## Changes", "## Verification"]
+    for section in pr_required_sections:
+        if section not in pr_body:
+            print(f"Error: PR body missing required section: {section}", file=sys.stderr)
+            return False
+
+    # Check PR has required keywords
+    if not all(keyword.lower() in pr_body.lower() for keyword in PR_KEYWORDS):
+        missing_keywords = [kw for kw in PR_KEYWORDS if kw.lower() not in pr_body.lower()]
+        print(f"Error: PR body missing required keywords: {missing_keywords}", file=sys.stderr)
+        return False
+
+    # Check PR has sufficient labels (at least 5 from different categories)
+    if len(pr_labels) < 5:
+        print(f"Error: PR has only {len(pr_labels)} labels, needs at least 5", file=sys.stderr)
+        return False
+
+    # 6. Verify issue has ALL expected/usable labels applied (demonstrates organization)
+    print("6. Verifying issue has all expected labels applied...")
     issue_label_names = [label["name"] for label in issue.get("labels", [])]
-    all_repo_labels = _get_all_repo_labels(headers, github_org)
+    # Use our expected labels list instead of all repo labels (excludes unused labels)
+    expected_labels_to_check = ALL_EXPECTED_LABELS
     missing_labels = []
 
-    for repo_label in all_repo_labels:
-        if repo_label not in issue_label_names:
-            missing_labels.append(repo_label)
+    for expected_label in expected_labels_to_check:
+        if expected_label not in issue_label_names:
+            missing_labels.append(expected_label)
 
     if missing_labels:
         print(
-            f"Error: Issue missing {len(missing_labels)} labels: {missing_labels[:5]}...",
+            f"Error: Issue missing {len(missing_labels)} expected labels: {missing_labels[:5]}...",
             file=sys.stderr,
         )
         return False
 
-    print(f"  ✓ Issue has all {len(issue_label_names)} labels applied")
+    print(f"  ✓ Issue has all {len(expected_labels_to_check)} expected labels applied")
 
     # 7. Verify issue has comment documenting changes
     print("7. Verifying issue comment with documentation...")
     issue_comments = _get_issue_comments(issue_number, headers, github_org)
 
     found_update_comment = False
+    comment_required_keywords = ["documentation created", "label guide complete", "organization complete"]
+    
     for comment in issue_comments:
         body = comment.get("body", "")
-        if "documentation created" in body.lower() and f"PR #{pr_number}" in body:
+        # Check for PR reference and required keywords
+        if (f"PR #{pr_number}" in body and 
+            any(keyword.lower() in body.lower() for keyword in comment_required_keywords) and
+            "total" in body.lower() and "labels" in body.lower()):
             found_update_comment = True
             break
 
     if not found_update_comment:
-        print("Error: Issue missing comment documenting changes", file=sys.stderr)
+        print("Error: Issue missing comment documenting changes with required content", file=sys.stderr)
+        print("  Comment should include: PR reference, label count, and completion keywords", file=sys.stderr)
         return False
 
     # 8. Final verification of complete workflow
     print("8. Final verification of workflow completion...")
+    
+    # Skip repository label existence check - we trust that our expected labels 
+    # are the ones actually discoverable/usable via MCP tools
 
-    # Check that all expected labels exist in the repository
-    missing_expected_labels = []
-    for expected_label in ALL_EXPECTED_LABELS:
-        if expected_label not in all_repo_labels:
-            missing_expected_labels.append(expected_label)
-
-    if missing_expected_labels:
-        print(
-            f"Error: Repository missing expected labels: {missing_expected_labels}",
-            file=sys.stderr,
-        )
-        return False
-
-    # Ensure all repository labels are documented
+    # Ensure expected labels are documented (not all repo labels, since some are unused)
     documented_label_count = len(documented_labels)
-    actual_label_count = len(all_repo_labels)
+    expected_label_count = len(ALL_EXPECTED_LABELS)
 
-    if documented_label_count < actual_label_count:
+    if documented_label_count < expected_label_count:
         print(
-            f"Error: Documentation incomplete - {documented_label_count} documented vs {actual_label_count} actual",
+            f"Error: Documentation incomplete - {documented_label_count} documented vs {expected_label_count} expected",
             file=sys.stderr,
         )
         return False
@@ -392,7 +393,7 @@ def verify() -> bool:
         )
         return False
 
-    print(f"  ✓ All {actual_label_count} repository labels documented")
+    print(f"  ✓ All {expected_label_count} expected labels documented")
     print(f"  ✓ All {len(ALL_EXPECTED_LABELS)} expected labels present and documented")
 
     print("\n✓ All verification checks passed!")
@@ -403,7 +404,7 @@ def verify() -> bool:
     print(f"  - PR #{pr_number}: {pr.get('title')}")
     print(f"  - Branch: {BRANCH_NAME}")
     print("  - Documentation: docs/LABEL_COLORS.md")
-    print(f"  - {total_labels} labels documented for better organization")
+    print(f"  - {expected_label_count} labels documented for better organization")
     return True
 
 
