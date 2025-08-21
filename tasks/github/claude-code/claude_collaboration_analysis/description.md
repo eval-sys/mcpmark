@@ -10,11 +10,11 @@ Analyze ALL commits in the repository to identify:
 Create a file called `CLAUDE_COLLABORATION_ANALYSIS.md` in the repository root with:
 
 - A "# Claude AI Collaboration Analysis" title
-- A "## Summary Statistics" section with:
-  - Total commits analyzed
-  - Number of Claude co-authored commits found
-  - Percentage of commits with Claude collaboration
-  - Number of unique human collaborators who worked with Claude
+- A "## Summary Statistics" section with these exact format requirements:
+  - "Total commits analyzed: [NUMBER]"
+  - "Number of Claude co-authored commits found: [NUMBER]"
+  - "Percentage of commits with Claude collaboration: [NUMBER]%"
+  - "Number of unique human collaborators who worked with Claude: [NUMBER]"
 
 - A "## Top Claude Collaborators" section with this exact table format:
 ```markdown

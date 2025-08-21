@@ -78,8 +78,8 @@ Close the pull request without merging by updating its state to 'closed', and ad
 - "cannot be merged"
 Also explain why the PR cannot be merged, what would need to change in the future, reference back to the issue, and add "wontfix" label to the PR.
 
-**Step 8: Close Issue as Not Planned**
-Close the original issue by updating its state to 'closed' with state_reason 'not_planned'. Add a final comment to the issue that must contain these exact keywords:
+**Step 8: Close Issue**
+Close the original issue by updating its state to 'closed'. Add a final comment to the issue that must contain these exact keywords:
 - "closing as not planned"
 - "architectural constraints"
 - "future implementation blocked"

@@ -136,18 +136,6 @@ class MCPEvaluator:
                 with meta_path.open("r", encoding="utf-8") as f:
                     meta_data = json.load(f)
 
-                # Ignore legacy directories containing "_task-".
-                # Only process the new format: <categorySlug>_<taskSlug>
-                # ----------------------------------------------------------
-
-                if "_task-" in task_dir.name:
-                    # skip legacy directory
-                    continue
-
-                if "_" not in task_dir.name:
-                    # malformed; skip
-                    continue
-
                 category_part, identifier_part = task_dir.name.split("_", 1)
 
                 category = category_part.replace("-", "_")
@@ -179,7 +167,9 @@ class MCPEvaluator:
         # Track overall task start time
         task_start_time = time.time()
 
+        # ------------------------------------------------------------------
         # Stage 1: Set up the initial state for the task
+        # ------------------------------------------------------------------
         setup_start_time = time.time()
         logger.info(
             "\n┌─ Stage 1: Setup ─────────────────────────────────────────────────────"
@@ -201,18 +191,20 @@ class MCPEvaluator:
             )
         display_time = self._format_duration(setup_time)
         logger.info(f"└─ Completed in {display_time}\n")
-
+        
+        # ------------------------------------------------------------------
         # Stage 2: Execute the task using the agent
+        # ------------------------------------------------------------------
         logger.info(
             "┌─ Stage 2: Execute ───────────────────────────────────────────────────"
         )
 
-        execute_start_time = time.time()
+        agent_execution_start_time = time.time()
 
         # Get task instruction from task manager
         task_instruction = self.task_manager.get_task_instruction(task)
 
-        # ---------- Prepare task_output_dir and tool call log file ----------
+        # Prepare task_output_dir and tool call log file
         task_output_dir = self._get_task_output_dir(task)
         task_output_dir.mkdir(parents=True, exist_ok=True)
         execution_log_path = task_output_dir / "execution.log"
@@ -222,9 +214,9 @@ class MCPEvaluator:
             task_instruction, str(execution_log_path)
         )
 
-        agent_execution_time = time.time() - execute_start_time
+        agent_execution_time = time.time() - agent_execution_start_time
 
-        # ---------- Write messages.json to task_output_dir ----------
+        # Write messages.json to task_output_dir
         messages_path = task_output_dir / "messages.json"
         self.results_reporter.save_messages_json(
             agent_result.get("output", []), messages_path
@@ -234,7 +226,9 @@ class MCPEvaluator:
         self.state_manager.set_verification_environment(str(messages_path))
         logger.info(f"└─ Completed in {self._format_duration(agent_execution_time)}\n")
 
+        # ------------------------------------------------------------------
         # Stage 3: Verify
+        # ------------------------------------------------------------------
         logger.info(
             "┌─ Stage 3: Verify ────────────────────────────────────────────────────"
         )
@@ -247,10 +241,13 @@ class MCPEvaluator:
 
             os.environ.pop("MCP_MESSAGES", None)
             os.environ.pop("MCP_GITHUB_TOKEN", None)
+            
         verify_time = time.time() - verify_start_time
         logger.info(f"└─ Completed in {self._format_duration(verify_time)}\n")
 
+        # ------------------------------------------------------------------
         # Stage 4: Clean up
+        # ------------------------------------------------------------------
         logger.info(
             "┌─ Stage 4: Cleanup ───────────────────────────────────────────────────"
         )
@@ -277,13 +274,12 @@ class MCPEvaluator:
         results = []
 
         for task in tasks:
-            # ------------------------ Resume check ------------------------
+            # --------------------------------------------------------------
+            # Resume check
+            # --------------------------------------------------------------
             existing_result = self._load_latest_task_result(task)
 
-            # ------------------------------------------------------
-            # Decide whether to skip or retry this task based on the
-            # previous result and retryable pipeline errors.
-            # ------------------------------------------------------
+            # Decide whether to skip or retry this task
             retry_due_to_error = (
                 existing_result is not None
                 and not existing_result.success
@@ -309,16 +305,15 @@ class MCPEvaluator:
                     task.name,
                 )
 
-            # -------------------- Execute new task -----------------------
+            # --------------------------------------------------------------
+            # Execute new task
+            # --------------------------------------------------------------
             task_start = time.time()
             task_result = self._run_single_task(task)
             task_end = time.time()
 
             results.append(task_result)
-
-            # ----------------------------------------------------------
-            # Save results for this single task immediately for resume
-            # ----------------------------------------------------------
+            
             # Prepare directory & save
             task_output_dir = self._get_task_output_dir(task)
             task_output_dir.mkdir(parents=True, exist_ok=True)
@@ -326,7 +321,6 @@ class MCPEvaluator:
             # Save messages.json (conversation trajectory)
             messages_path = task_output_dir / "messages.json"
 
-            # ↓↓↓ 修改处 ↓↓↓
             if not messages_path.exists():  # 已经写过就跳过
                 messages = (
                     task_result.model_output
@@ -334,7 +328,6 @@ class MCPEvaluator:
                     else []
                 )
                 self.results_reporter.save_messages_json(messages, messages_path)
-            # ↑↑↑ 修改结束 ↑↑↑
 
             # Save meta.json (all other metadata)
             meta_path = task_output_dir / "meta.json"
@@ -361,7 +354,7 @@ class MCPEvaluator:
             if flt.lower() == "all":
                 return True
             if "/" in flt:
-                # specific task (category/task_N)
+                # specific task
                 return tr.task_name == flt
             # category level
             return tr.category == flt

@@ -20,6 +20,48 @@ def setup_security_environment():
         'database': os.getenv('POSTGRES_DATABASE', 'postgres')
     }
 
+    postgres_params = db_params.copy()
+    postgres_params['database'] = 'postgres'
+
+    try:
+        conn_postgres = psycopg2.connect(**postgres_params)
+        conn_postgres.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cur_postgres = conn_postgres.cursor()
+
+        current_db = db_params['database']
+        cur_postgres.execute("SELECT datname FROM pg_database WHERE datname LIKE %s AND datname != %s;", ('%user_permission_audit%', current_db))
+        audit_databases = cur_postgres.fetchall()
+
+        if audit_databases:
+            for db_row in audit_databases:
+                db_name = db_row[0]
+                try:
+                    cur_postgres.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s;", (db_name,))
+                    # TODO: Not sure why we have to drop database in order to drop the following users
+                    cur_postgres.execute(f"DROP DATABASE IF EXISTS {db_name};")
+                    print(f"Dropped database: {db_name}")
+                except Exception as e:
+                    print(f"Warning: Could not drop database {db_name}: {e}")
+
+        users_to_drop = [
+            'analytics_user', 'marketing_user', 'customer_service', 'finance_user',
+            'product_manager', 'security_auditor', 'developer_user', 'backup_user',
+            'temp_contractor', 'old_employee', 'test_account'
+        ]
+
+        for user in users_to_drop:
+            try:
+                cur_postgres.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = %s;", (user,))
+                cur_postgres.execute(f"DROP USER IF EXISTS {user};")
+            except Exception as e:
+                print(f"Warning: Could not drop user {user}: {e}")
+
+        cur_postgres.close()
+        conn_postgres.close()
+
+    except Exception as e:
+        print(f"Warning: Could not clean up users: {e}")
+
     try:
         conn = psycopg2.connect(**db_params)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
@@ -179,19 +221,6 @@ def setup_security_environment():
         """)
 
         print("Created 7 business tables")
-
-        # Drop existing users if they exist (ignore errors)
-        users_to_drop = [
-            'analytics_user', 'marketing_user', 'customer_service', 'finance_user',
-            'product_manager', 'security_auditor', 'developer_user', 'backup_user',
-            'temp_contractor', 'old_employee', 'test_account'
-        ]
-
-        for user in users_to_drop:
-            try:
-                cur.execute(f"DROP USER IF EXISTS {user};")
-            except:
-                pass
 
         # Create PostgreSQL users with different roles
 

@@ -120,12 +120,3 @@ class NotionTaskManager(BaseTaskManager):
             str(task.task_verification_path),
             task.duplicated_initial_state_id or "",
         ]
-
-    def _pre_execution_check(self, task: NotionTask) -> Dict[str, Any]:
-        """Check if duplication succeeded before execution."""
-        if task.duplicated_initial_state_id is None:
-            return {"success": False, "error": "Duplication failed"}
-        return {"success": True}
-
-    # Note: execute_task and get_task_instruction are now implemented in the base class
-    # Service-specific behavior is handled through the template methods above

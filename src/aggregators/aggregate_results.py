@@ -268,12 +268,12 @@ def create_experiment_summary(
 
     for summary in service_model_results.values():
         if summary:
-            all_tasks += summary["total_tasks"]
-            all_successful += summary["successful_tasks"]
-            all_execution_time += summary["total_execution_time"]
-            all_input_tokens += summary["token_usage"]["total_input_tokens"]
-            all_output_tokens += summary["token_usage"]["total_output_tokens"]
-            all_turns += summary["turn_usage"]["total_turns"]
+            all_tasks += summary.get("total_tasks", 0) or 0
+            all_successful += summary.get("successful_tasks", 0) or 0
+            all_execution_time += summary.get("total_execution_time", 0) or 0
+            all_input_tokens += summary.get("token_usage", {}).get("total_input_tokens", 0) or 0
+            all_output_tokens += summary.get("token_usage", {}).get("total_output_tokens", 0) or 0
+            all_turns += summary.get("turn_usage", {}).get("total_turns", 0) or 0
 
     overall_success_rate = (all_successful / all_tasks * 100) if all_tasks > 0 else 0
 
@@ -317,11 +317,11 @@ def create_models_comparison(service_model_results: Dict[str, Any]) -> Dict[str,
             service = service_model.split("_", 1)[0]
             model = service_model.split("_", 1)[1]
 
-            models[model]["total_tasks"] += summary["total_tasks"]
-            models[model]["successful_tasks"] += summary["successful_tasks"]
+            models[model]["total_tasks"] += summary.get("total_tasks", 0) or 0
+            models[model]["successful_tasks"] += summary.get("successful_tasks", 0) or 0
             models[model]["services"].append(service)
-            models[model]["total_tokens"] += summary["token_usage"]["total_tokens"]
-            models[model]["total_turns"] += summary["turn_usage"]["total_turns"]
+            models[model]["total_tokens"] += summary.get("token_usage", {}).get("total_tokens", 0) or 0
+            models[model]["total_turns"] += summary.get("turn_usage", {}).get("total_turns", 0) or 0
 
     # Calculate averages
     for model_data in models.values():
@@ -351,11 +351,11 @@ def create_services_comparison(service_model_results: Dict[str, Any]) -> Dict[st
             service = service_model.split("_", 1)[0]
             model = service_model.split("_", 1)[1]
 
-            services[service]["total_tasks"] += summary["total_tasks"]
-            services[service]["successful_tasks"] += summary["successful_tasks"]
+            services[service]["total_tasks"] += summary.get("total_tasks", 0) or 0
+            services[service]["successful_tasks"] += summary.get("successful_tasks", 0) or 0
             services[service]["models"].append(model)
-            services[service]["total_tokens"] += summary["token_usage"]["total_tokens"]
-            services[service]["total_turns"] += summary["turn_usage"]["total_turns"]
+            services[service]["total_tokens"] += summary.get("token_usage", {}).get("total_tokens", 0) or 0
+            services[service]["total_turns"] += summary.get("turn_usage", {}).get("total_turns", 0) or 0
 
     # Calculate averages
     for service_data in services.values():

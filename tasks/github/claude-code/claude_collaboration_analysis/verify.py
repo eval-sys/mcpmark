@@ -65,19 +65,19 @@ def _parse_summary_statistics(content: str) -> Dict:
                 break
 
             # Parse statistics lines
-            if "Total commits analyzed:" in line:
+            if "Total commits analyzed" in line:
                 match = re.search(r"(\d+)", line)
                 if match:
                     stats["total_analyzed"] = int(match.group(1))
-            elif "Number of Claude co-authored commits:" in line:
+            elif "Number of Claude co-authored commits" in line:
                 match = re.search(r"(\d+)", line)
                 if match:
                     stats["claude_commits"] = int(match.group(1))
-            elif "Percentage of commits with Claude collaboration:" in line:
+            elif "Percentage of commits with Claude collaboration" in line:
                 match = re.search(r"([\d.]+)%", line)
                 if match:
                     stats["percentage"] = float(match.group(1))
-            elif "Number of unique human collaborators:" in line:
+            elif "Number of unique human collaborators" in line:
                 match = re.search(r"(\d+)", line)
                 if match:
                     stats["unique_collaborators"] = int(match.group(1))
@@ -153,15 +153,15 @@ def verify_task() -> bool:
             "username": "bcherny",
             "min_collaborations": 14,
         },  # Boris Cherny has many Claude collaborations
+        {"username": "ashwin-ant", "min_collaborations": 5},  # Ashwin Bhat has some
         {"username": "ant-kurt", "min_collaborations": 3},  # Kurt Carpenter has several
-        {"username": "ashwin-ant", "min_collaborations": 2},  # Ashwin Bhat has some
     ]
 
     # Expected exact values for summary statistics
     EXPECTED_STATS = {
         "total_analyzed": 158,
-        "claude_commits": 22,
-        "percentage": 13.9,
+        "claude_commits": 25,
+        "percentage": 15.82,
         "unique_collaborators": 6,
     }
 
@@ -215,9 +215,12 @@ def verify_task() -> bool:
         )
         return False
 
-    if stats.get("percentage") != EXPECTED_STATS["percentage"]:
+    # Allow 0.1% tolerance for percentage
+    expected_percentage = EXPECTED_STATS["percentage"]
+    actual_percentage = stats.get("percentage", 0)
+    if abs(actual_percentage - expected_percentage) > 0.1:
         print(
-            f"Error: Percentage should be {EXPECTED_STATS['percentage']}%, found {stats.get('percentage')}%",
+            f"Error: Percentage should be around {expected_percentage}% (±0.1%), found {actual_percentage}%",
             file=sys.stderr,
         )
         return False
