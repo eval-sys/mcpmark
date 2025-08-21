@@ -40,14 +40,11 @@ The `run-task.sh` script provides simplified Docker usage:
 # Run filesystem tasks (filesystem is the default mcp service)
 ./run-task.sh --models MODEL_NAME --k K
 
-# Run github/notion/postgres with specific folder
+# Run github/notion/postgres/playwright/playwright_webarena with specific task
 ./run-task.sh --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK --k K
-
-# Run playwright/playwright_webarena with specific folder
-./run-task.sh --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK  --k K --timeout TIMEOUT
 ```
 
-where *MODEL_NAME* refers to the model choice from the supported models (see [Introduction Page](./introduction.md) for more information), *EXPNAME* refers to customized experiment name, *TASK* refers to specific task or task groups, *K* refers to the time of parallel experiments to compute the pass@K metric, *TIMEOUT* is the max timeout seconds for each task.
+where *MODEL_NAME* refers to the model choice from the supported models (see [Introduction Page](./introduction.md) for more information), *EXPNAME* refers to customized experiment name, *TASK* refers to specific task or task group (see `tasks/` for more information), *K* refers to the time of independent experiments.
 
 
 Additionally, the `run-benchmark.sh` script evaluates models across all MCP services:

@@ -109,7 +109,7 @@ For single task or task group, run
 ```bash
 python -m pipeline --exp-name EXPNAME --mcp postgres --tasks POSTGRESTASK --models MODEL
 ```
-Here *EXPNAME* refers to customized experiment name, *POSTGRESTASK* refers to the postgres task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.
+Here *EXPNAME* refers to customized experiment name, *POSTGRESTASK* refers to the postgres task or task group selected (see `tasks/` for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.
 
 
 ## 6. Troubleshooting
