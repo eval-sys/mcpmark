@@ -1,8 +1,9 @@
-# Playwright Environment Setup
+# Playwright-WebArena
 
 This guide walks you through setting up WebArena environments for Playwright MCP automated testing, including Shopping, Shopping Admin, and Reddit instances.
 
-## 1 Download Docker Images
+## 1. Setup Playwright-WebArena Environment
+### 1.1 Download Docker Images
 
 [WebArena](https://github.com/web-arena-x/webarena/tree/main/environment_docker) provides Docker images from multiple sources. Choose the fastest one for your network:
 
@@ -43,9 +44,9 @@ wget https://archive.org/download/webarena-env-forum-image/postmill-populated-ex
 wget http://metis.lti.cs.cmu.edu/webarena-images/postmill-populated-exposed-withimg.tar
 ```
 
-## 2 Deploy Environments
+### 1.2 Deploy Environments
 
-### Shopping (E-commerce Site)
+#### Shopping (E-commerce Site)
 ```bash
 docker load --input shopping_final_0712.tar
 
@@ -64,7 +65,7 @@ docker exec shopping /var/www/magento2/bin/magento cache:flush
 **Access**: `http://localhost:7770`  
 
 
-### Shopping Admin (Management Panel)
+#### Shopping Admin (Management Panel)
 ```bash
 docker load --input shopping_admin_final_0719.tar
 
@@ -85,7 +86,7 @@ docker exec shopping_admin /var/www/magento2/bin/magento cache:flush
 **Access**: `http://localhost:7780/admin`  
 **Admin Credentials**: `admin / admin1234`
 
-### Reddit (Forum)
+#### Reddit (Forum)
 ```bash
 docker load --input postmill-populated-exposed-withimg.tar
 
@@ -102,11 +103,11 @@ curl -I http://localhost:9999
 
 **Access**: `http://localhost:9999`
 
-## 3 External Access Configuration
+### 1.3 External Access Configuration
 
 For cloud deployments (GCP, AWS, etc.), configure external access:
 
-### Configure Firewall (GCP Example)
+#### Configure Firewall (GCP Example)
 ```bash
 # Shopping environment
 gcloud compute firewall-rules create allow-shopping-7770 \
@@ -121,7 +122,7 @@ gcloud compute firewall-rules create allow-reddit-9999 \
   --allow tcp:9999 --source-ranges 0.0.0.0/0
 ```
 
-### Update Base URLs for External Access
+#### Update Base URLs for External Access
 ```bash
 # Get external IP
 EXTERNAL_IP=$(curl -s ifconfig.me)
@@ -137,9 +138,9 @@ docker exec shopping_admin mysql -u magentouser -pMyPassword magentodb -e "UPDAT
 docker exec shopping_admin /var/www/magento2/bin/magento cache:flush
 ```
 
-## 4 Alternative Access Methods (Not Verified)
+### 1.4 Alternative Access Methods (Not Verified)
 
-### Cloudflared Tunnel (Free & Persistent)
+#### Cloudflared Tunnel (Free & Persistent)
 ```bash
 # Install cloudflared
 wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
@@ -152,7 +153,7 @@ cloudflared tunnel --url http://localhost:7780  # Admin
 cloudflared tunnel --url http://localhost:9999  # Reddit
 ```
 
-### ngrok (Quick Sharing)
+#### ngrok (Quick Sharing)
 ```bash
 # Install ngrok
 wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
@@ -163,7 +164,21 @@ sudo mv ngrok /usr/local/bin
 ngrok http 7770  # For Shopping
 ```
 
-## 5 Troubleshooting
+## 2. Running Playwright-WebArena Tasks
+
+1. Configure environment variables: make sure the following service credentials are added in `.mcp_env`.
+```env
+PLAYWRIGHT_BROWSER="chromium" # default to chromium, you can also choose firefox
+PLAYWRIGHT_HEADLESS="True"
+```
+
+2. For single task or task group, run 
+```bash
+python -m pipeline --exp-name EXPNAME --mcp playwright_webarena --tasks  PLAYWRIGHTTASK --models MODEL
+```
+Here *EXPNAME* refers to customized experiment name, *PLAYWRIGHTTASK* refers to the playwright-webarena task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the Pass@K metric.
+
+## 3. Troubleshooting
 
 ### Container Issues
 ```bash
@@ -191,7 +206,7 @@ docker rm [container_name]
 # Re-deploy (follow steps in Section 3)
 ```
 
-## Important Notes
+## 4. Important Notes
 
 - **Service startup time**: Allow 2-3 minutes for Magento, 1-2 minutes for Reddit
 - **Memory requirements**: Ensure Docker has at least 4GB RAM allocated per container
