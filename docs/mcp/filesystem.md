@@ -57,7 +57,7 @@ Docker is recommended to avoid library version conflicts:
 ./run-task.sh --mcp filesystem --models MODEL --exp-name EXPNAME --tasks FILESYSTEMTASK --k K
 ```
 
-Here *EXPNAME* refers to customized experiment name, *FILESYSTEMTASK* refers to the github task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the Pass@K metric.
+Here *EXPNAME* refers to customized experiment name, *FILESYSTEMTASK* refers to the github task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.
 
 ---
 

@@ -24,45 +24,49 @@ The image is hosted at: https://hub.docker.com/r/evalsysorg/mcpmark
   ```bash
   docker pull evalsysorg/mcpmark:latest
   ```
-- For local development/testing, you can build your own:
+- For local development/testing, you can build your own docker:
   ```bash
-  ./build-docker.sh  # Creates evalsysorg/mcpmark:latest locally
+   # Creates evalsysorg/mcpmark:latest locally
+  ./build-docker.sh
   ```
 
 ## 2. Running MCP Experiments
 
 ### 2.1 Running Individual MCP Experiment 
 
-The `run-task.sh` script simplifies Docker usage:
+The `run-task.sh` script provides simplified Docker usage:
 
 ```bash
-# Run filesystem tasks (by default)
-./run-task.sh --models MODEL_NAME
+# Run filesystem tasks (filesystem is the default mcp service)
+./run-task.sh --models MODEL_NAME --k K
 
 # Run github/notion/postgres with specific folder
-./run-task.sh --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK
+./run-task.sh --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK --k K
 
 # Run playwright/playwright_webarena with specific folder
-./run-task.sh --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK --timeout 600
+./run-task.sh --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK  --k K --timeout TIMEOUT
 ```
 
-where `MODEL_NAME` refers to the model choice from the supported models (see [Introduction Page](./introduction.md) for more information).
+where *MODEL_NAME* refers to the model choice from the supported models (see [Introduction Page](./introduction.md) for more information), *EXPNAME* refers to customized experiment name, *TASK* refers to specific task or task groups, *K* refers to the time of parallel experiments to compute the pass@K metric, *TIMEOUT* is the max timeout seconds for each task.
 
-Use the `run-benchmark.sh` script to evaluate models across all MCP services:
+
+Additionally, the `run-benchmark.sh` script evaluates models across all MCP services:
 
 ```bash
 # Run all services with Docker (recommended)
-./run-benchmark.sh --models o3,gpt-4.1 --exp-name benchmark-1 --docker
+./run-benchmark.sh --models MODEL --exp-name EXPNAME --docker
 
 # Run specific services
-./run-benchmark.sh --models o3 --exp-name test-1 --mcps filesystem,postgres --docker
+./run-benchmark.sh --models MODEL --exp-name EXPNAME --mcps MCPSERVICES --docker
 
 # Run with parallel execution for faster results
-./run-benchmark.sh --models claude-4 --exp-name parallel-test --docker --parallel
+./run-benchmark.sh --models MODEL --exp-name EXPNAME --docker --parallel
 
 # Run locally without Docker
-./run-benchmark.sh --models gpt-4o --exp-name local-bench --mcps notion,github
+./run-benchmark.sh --models MODEL --exp-name EXPNAME --mcps MCPSERVICES
 ```
+
+Here *MCPSERVICES* refers to group of MCP services, separated by comma (e.g. *filesystem,postgres*)
 
 The benchmark script:
 - Runs all or selected MCP services automatically
@@ -86,7 +90,7 @@ docker run --rm \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
   -v $(pwd)/notion_state.json:/app/notion_state.json:ro \
   evalsysorg/mcpmark:latest \
-  python3 -m pipeline --mcp notion --models MODEL --exp-name EXPNAME --tasks all
+  python3 -m pipeline --mcp notion --models MODEL --exp-name EXPNAME --tasks TASK --k K
 ```
 
 #### For Postgres Service
@@ -109,21 +113,11 @@ docker run --rm \
   -v $(pwd)/results:/app/results \
   -v $(pwd)/.mcp_env:/app/.mcp_env:ro \
   evalsysorg/mcpmark:latest \
-  python3 -m pipeline --mcp postgres --models MODEL --exp-name EXPNAME --tasks all
+  python3 -m pipeline --mcp postgres --models MODEL --exp-name EXPNAME --tasks TASK --k K
 
 # Stop and remove postgres when done
 docker stop mcp-postgres && docker rm mcp-postgres
 ```
-
-## Available Services
-
-| Service | Requires Postgres | Description |
-|---------|------------------|-------------|
-| notion | No | Notion workspace tasks |
-| github | No | GitHub repository tasks |
-| filesystem | No | File system operations |
-| playwright | No | Web automation tasks |
-| postgres | Yes | PostgreSQL database tasks |
 
 ## Script Usage
 
@@ -151,18 +145,28 @@ Optional Options:
 
 Options:
     --mcp SERVICE    MCP service (notion|github|filesystem|playwright|postgres)
-                        Default: notion
+                        Default: filesystem
+
+Environment Variables:
+    DOCKER_MEMORY_LIMIT  Memory limit for container (default: 4g)
+    DOCKER_CPU_LIMIT     CPU limit for container (default: 2)
+    DOCKER_IMAGE_VERSION Docker image tag to use (default: latest)
 
 All other arguments are passed directly to the pipeline command.
 
 Pipeline arguments (see python3 -m pipeline --help):
-    --models MODELS     Comma-separated list of models (required)
-    --tasks TASKS       Tasks to run: "all", category, or "category/task"
-    --exp-name NAME     Experiment name for results (required)
-    --timeout SECONDS   Timeout per task in seconds
+  --mcp {notion,github,filesystem,playwright,postgres,playwright_webarena}
+                        MCP service to use (default: filesystem)
+  --models MODELS       Comma-separated list of models to evaluate (e.g., 'o3,k2,gpt-4.1')
+  --tasks TASKS         Tasks to run: "all", a category name, or "category/task_name"
+  --exp-name EXP_NAME   Experiment name; results are saved under results/<exp-name>/ (default: YYYY-MM-DD-HH-MM-SS)
+  --k K                 Number of evaluation runs for pass@k metrics (default: 1)
+  --timeout TIMEOUT     Timeout in seconds for each task
+  --output-dir OUTPUT_DIR
+                        Directory to save results
 ```
 
-## Benefits
+## Docker Benefits
 
 1. **Efficiency**: Only starts necessary containers
 2. **Isolation**: Each task runs in a fresh container
@@ -183,7 +187,7 @@ chmod +x run-task.sh
 ### Docker Build Issues
 ```bash
 # Force rebuild with no cache
-./run-task.sh --build --mcp notion --models o3 --exp-name test --tasks all
+./run-task.sh --build --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK
 ```
 
 ### PostgreSQL Connection Issues
@@ -223,13 +227,15 @@ ANTHROPIC_API_KEY=your-key
 # ... etc
 ```
 
+Please refer to [Quick Start](./quickstart.md) for setting up API key for specific model.
+
 ## Docker Compose Files
 
 - `docker-compose.yml` - Full stack with postgres (for development/testing)
 
 ## Notes
 
-- Results are saved to `./results/<exp-name>/`
-- Each task runs in an ephemeral container
-- Docker image is shared across all tasks
-- PostgreSQL data persists in Docker volume
+- Results are saved under `./results/<exp-name>/`.
+- Each task runs in an ephemeral container.
+- Docker image is shared across all tasks.
+- PostgreSQL data persists in Docker volume.
