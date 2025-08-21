@@ -178,11 +178,11 @@ class FilesystemStateManager(BaseStateManager):
 
         # Ensure the directory exists by downloading and extracting if needed
         if not self.test_root.exists():
-            logger.warning(f"Test directory does not exist: {self.test_root}")
+            logger.warning(f"| Test directory does not exist: {self.test_root}")
             if not self._download_and_extract_test_environment():
                 logger.error(f"Failed to download and extract test environment for: {self.test_root}")
                 raise RuntimeError(f"Test environment not available: {self.test_root}")
-            logger.info(f"Downloaded and extracted test environment: {self.test_root}")
+            logger.info(f"| Downloaded and extracted test environment: {self.test_root}")
 
 
     def clean_up(self, task: Optional[BaseTask] = None, **kwargs) -> bool:

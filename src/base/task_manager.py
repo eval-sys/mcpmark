@@ -7,10 +7,8 @@ This module provides an improved base class for task managers that consolidates
 common task discovery patterns while maintaining flexibility for service-specific needs.
 """
 
-import re
 import subprocess
 import sys
-import time
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -147,12 +145,6 @@ class BaseTaskManager(ABC):
                         # Check if task_id matches (as string or as specific pattern)
                         if str(task.task_id) == task_part:
                             return [task]
-                        # Also check if it's a task_N format and matches
-                        if (
-                            task_part.startswith("task_")
-                            and str(task.task_id) == task_part.split("_", 1)[1]
-                        ):
-                            return [task]
             except (ValueError, IndexError):
                 pass
 
@@ -172,24 +164,6 @@ class BaseTaskManager(ABC):
     # Common Helper Methods
     # =========================================================================
 
-    def extract_task_id(
-        self, filename: str, pattern: Optional[str] = None
-    ) -> Optional[int]:
-        """Extract task ID from filename (common implementation).
-
-        Args:
-            filename: The filename to extract ID from
-            pattern: Optional custom regex pattern (default: r'task_(\\d+)\\.md')
-
-        Returns:
-            Task ID or None if not found
-        """
-        if pattern is None:
-            pattern = r"task_(\d+)\.md"
-
-        match = re.match(pattern, filename)
-        return int(match.group(1)) if match else None
-
     def get_task_instruction(self, task: BaseTask) -> str:
         """Get formatted task instruction (template method)."""
         base_instruction = self._read_task_instruction(task)
@@ -197,21 +171,9 @@ class BaseTaskManager(ABC):
 
     def execute_task(self, task: BaseTask, agent_result: Dict[str, Any]) -> TaskResult:
         """Execute task verification (template method)."""
-        start_time = time.time()
         logger.info(f"| Verifying task ({self.mcp_service.title()}): {task.name}")
 
         try:
-            # Check for any pre-execution conditions
-            pre_check_result = self._pre_execution_check(task)
-            if not pre_check_result["success"]:
-                return TaskResult(
-                    task_name=task.name,
-                    success=False,
-                    error_message=pre_check_result["error"],
-                    category=task.category,
-                    task_id=task.task_id,
-                )
-
             # If agent execution failed, return the failure
             logger.debug(f"| DEBUG: agent_result = {agent_result}")
             if not agent_result.get("success", False):
@@ -250,9 +212,6 @@ class BaseTaskManager(ABC):
                 verify_result.stderr if not success and verify_result.stderr else None
             )
 
-            # Post-execution cleanup or tracking
-            self._post_execution_hook(task, success)
-
             if success:
                 logger.info(f"| Verification Result: \033[92m✓ PASSED\033[0m")
             else:
@@ -272,7 +231,7 @@ class BaseTaskManager(ABC):
             )
 
         except Exception as e:
-            logger.error(f"Task verification failed: {e}", exc_info=True)
+            logger.error(f"| Task verification failed: {e}", exc_info=True)
             return TaskResult(
                 task_name=task.name,
                 success=False,
@@ -399,14 +358,6 @@ class BaseTaskManager(ABC):
     def _get_verification_command(self, task: BaseTask) -> List[str]:
         """Get the command to run task verification (default implementation)."""
         return [sys.executable, str(task.task_verification_path)]
-
-    def _pre_execution_check(self, task: BaseTask) -> Dict[str, Any]:
-        """Perform pre-execution checks (default: always success)."""
-        return {"success": True}
-
-    def _post_execution_hook(self, task: BaseTask, success: bool) -> None:
-        """Perform post-execution actions (default: no action)."""
-        pass
 
     def _standardize_error_message(self, error_message: str) -> str:
         """Standardize error messages for consistent reporting."""

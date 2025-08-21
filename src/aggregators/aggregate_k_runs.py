@@ -70,7 +70,7 @@ def collect_task_results_from_run(run_dir: Path) -> Dict[str, Dict[str, Any]]:
                         "error_message": meta.get("execution_result", {}).get("error_message"),
                         "execution_time": meta.get("execution_time", 0),
                         "token_usage": meta.get("token_usage", {}),
-                        "turn_count": meta.get("turn_count", 0),
+                        "turn_count": meta.get("turn_count", 0) or 0,
                     }
             except Exception as e:
                 print(f"Error reading {meta_path}: {e}")
@@ -114,9 +114,9 @@ def calculate_pass_k_metrics(
                 if task_result:
                     success = 1 if task_result["success"] else 0
                     successes.append(success)
-                    execution_times.append(task_result.get("execution_time", 0))
+                    execution_times.append(task_result.get("execution_time", 0) or 0)
                     token_usages.append(task_result.get("token_usage", {}))
-                    turn_counts.append(task_result.get("turn_count", 0))
+                    turn_counts.append(task_result.get("turn_count", 0) or 0)
                 else:
                     # Task not found in this run (might be incomplete)
                     successes.append(0)

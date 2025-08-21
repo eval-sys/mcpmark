@@ -44,7 +44,7 @@ def main():
     parser.add_argument(
         "--tasks",
         default="all",
-        help='Tasks to run: "all", a category name, or "category/task_name"',
+        help='Tasks to run: (1). "all"; (2). "category"; or (3). "category/task".',
     )
     parser.add_argument(
         "--exp-name",
@@ -55,12 +55,12 @@ def main():
         "--k",
         type=int,
         default=4,
-        help="Number of evaluation runs for pass@k metrics (default: 1)",
+        help="Number of evaluation runs (default: 1)",
     )
 
     # Execution configuration
     parser.add_argument(
-        "--timeout", type=int, default=3600, help="Timeout in seconds for each task"
+        "--timeout", type=int, default=3600, help="Timeout in seconds for agent execution"
     )
 
     # Output configuration
@@ -142,7 +142,7 @@ def main():
     logger.info(f"\n{'=' * 60}")
     if args.k > 1:
         logger.info(f"✓ All {args.k} runs completed for {len(model_list)} model(s)")
-        logger.info(f"Run aggregate_results.py to compute pass@k metrics")
+        logger.info(f"Run `python -m src.aggregators.aggregate_results --exp-name {args.exp_name}` to compute all metrics")
     else:
         logger.info(f"✓ All evaluations completed for {len(model_list)} model(s)")
     logger.info(f"{'=' * 60}")
