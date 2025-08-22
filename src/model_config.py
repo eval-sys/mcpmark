@@ -137,7 +137,7 @@ class ModelConfig:
             "provider": "qwen",
             "api_key_var": "QWEN_API_KEY",
             "base_url_var": "QWEN_BASE_URL",
-            "actual_model_name": "qwen3-coder-480b-a35b-instruct",
+            "actual_model_name": "qwen/qwen3-coder",
         },
     }
 
