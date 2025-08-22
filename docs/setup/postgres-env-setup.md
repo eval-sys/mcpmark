@@ -12,7 +12,7 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
      -e POSTGRES_PASSWORD=mysecretpassword \
      -e POSTGRES_USER=postgres \
      -p 5432:5432 \
-     postgres
+     pgvector/pgvector:0.8.0-pg17-bookworm
    ```
 
 2. **Verify Container is Running**
@@ -25,7 +25,20 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
 ## Import Sample Databases
 
 1. **Download Database Backups**
-   Download the backup files from the provided source and place them in `./postgres_state/` directory.
+   Download the backup files and place them in `./postgres_state/` directory:
+   ```bash
+   mkdir -p ./postgres_state
+   cd ./postgres_state
+   
+   # Download all database backups
+   wget https://storage.mcpmark.ai/postgres/employees.backup
+   wget https://storage.mcpmark.ai/postgres/chinook.backup
+   wget https://storage.mcpmark.ai/postgres/dvdrental.backup
+   wget https://storage.mcpmark.ai/postgres/sports.backup
+   wget https://storage.mcpmark.ai/postgres/lego.backup
+   
+   cd ..
+   ```
 
 2. **Create Databases and Restore from Backups**
    ```bash
@@ -45,7 +58,8 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
    createdb -h localhost -U postgres sports
    pg_restore -h localhost -U postgres -d sports -v ./postgres_state/sports.backup
    
-   # Add other databases as needed
+   createdb -h localhost -U postgres lego
+   pg_restore -h localhost -U postgres -d lego -v ./postgres_state/lego.backup
    ```
 
 3. **Verify Databases are Imported**

@@ -1,0 +1,18 @@
+{
+    "task_id": "database_security_policies",
+    "task_name": "Database Security Policies",
+    "category_id": "lego",
+    "category_name": "Lego",
+    "description": "Implement Row-Level Security policies with role-based access control for theme-based data isolation in LEGO database.",
+    "author": "Jiawei Wang",
+    "created_at": "2025-08-15",
+    "difficulty": "L3",
+    "tags": [
+        "security and access control",
+        "stored procedures and functions"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

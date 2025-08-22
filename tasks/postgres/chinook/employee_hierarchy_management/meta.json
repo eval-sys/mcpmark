@@ -1,0 +1,19 @@
+{
+    "task_id": "employee_hierarchy_management",
+    "task_name": "Employee Hierarchy Management",
+    "category_id": "chinook",
+    "category_name": "Chinook",
+    "description": "Reorganize employee structure through CRUD operations including inserts, updates, deletes, and customer reassignments.",
+    "author": "Lingxiao Du",
+    "created_at": "2025-08-12",
+    "difficulty": "L3",
+    "tags": [
+        "data migration",
+        "schema design",
+        "transactional operations"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

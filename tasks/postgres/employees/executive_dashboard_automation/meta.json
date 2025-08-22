@@ -1,0 +1,19 @@
+{
+    "task_id": "executive_dashboard_automation",
+    "task_name": "Executive Dashboard Automation",
+    "category_id": "employees",
+    "category_name": "Employees",
+    "description": "Design automated reporting system with materialized views, stored procedures, and triggers for executive dashboard monitoring.",
+    "author": "Lingxiao Du",
+    "created_at": "2025-08-15",
+    "difficulty": "L3",
+    "tags": [
+        "reporting and analytics",
+        "stored procedures and functions",
+        "schema design"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

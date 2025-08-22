@@ -1,0 +1,18 @@
+{
+    "task_id": "user_permission_audit",
+    "task_name": "User Permission Audit",
+    "category_id": "security",
+    "category_name": "Security",
+    "description": "Conduct comprehensive security audit identifying users with insufficient or dangling permissions in business database environment.",
+    "author": "Fanshi Zhang",
+    "created_at": "2025-08-17",
+    "difficulty": "L3",
+    "tags": [
+        "security and access control",
+        "audit and compliance"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

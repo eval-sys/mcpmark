@@ -1,0 +1,18 @@
+{
+    "task_id": "employee_demographics_report",
+    "task_name": "Employee Demographics Report",
+    "category_id": "employees",
+    "category_name": "Employees",
+    "description": "Generate comprehensive employee demographics report with gender statistics, age groups, birth months, and hiring trends.",
+    "author": "Lingxiao Du",
+    "created_at": "2025-08-14",
+    "difficulty": "L3",
+    "tags": [
+        "reporting and analytics",
+        "statistical aggregation"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

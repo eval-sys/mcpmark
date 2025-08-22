@@ -1,0 +1,19 @@
+{
+    "task_id": "employee_project_tracking",
+    "task_name": "Employee Project Tracking",
+    "category_id": "employees",
+    "category_name": "Employees",
+    "description": "Build project tracking system from scratch with tables for projects, assignments, milestones, and performance indexes.",
+    "author": "Lingxiao Du",
+    "created_at": "2025-08-14",
+    "difficulty": "L3",
+    "tags": [
+        "schema design",
+        "data migration",
+        "data integrity enforcement"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

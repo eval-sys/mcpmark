@@ -1,0 +1,19 @@
+{
+    "task_id": "baseball_player_analysis",
+    "task_name": "Baseball Player Analysis",
+    "category_id": "sports",
+    "category_name": "Sports",
+    "description": "Consolidate scattered baseball player data into comprehensive analysis table combining offensive and defensive statistics.",
+    "author": "Lingxiao Du",
+    "created_at": "2025-08-18",
+    "difficulty": "L3",
+    "tags": [
+        "reporting and analytics",
+        "statistical aggregation",
+        "schema design"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

@@ -1,0 +1,17 @@
+{
+    "task_id": "customer_analytics_optimization",
+    "task_name": "Customer Analytics Optimization",
+    "category_id": "dvdrental",
+    "category_name": "DVD Rental",
+    "description": "Optimize slow customer analytics query with correlated subqueries causing timeout issues in reporting dashboard.",
+    "author": "Lingxiao Du",
+    "created_at": "2025-08-20",
+    "difficulty": "L3",
+    "tags": [
+        "performance optimization"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}

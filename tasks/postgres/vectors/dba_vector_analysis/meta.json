@@ -1,0 +1,19 @@
+{
+    "task_id": "dba_vector_analysis",
+    "task_name": "DBA Vector Analysis",
+    "category_id": "vectors",
+    "category_name": "Vectors",
+    "description": "Analyze pgvector database storage, identify vector columns, assess space utilization and performance for RAG applications.",
+    "author": "Fanshi Zhang",
+    "created_at": "2025-08-18",
+    "difficulty": "L3",
+    "tags": [
+        "performance optimization",
+        "audit and compliance",
+        "statistical aggregation"
+    ],
+    "mcp": [
+        "postgres"
+    ],
+    "metadata": {}
+}
