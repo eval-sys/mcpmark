@@ -2,7 +2,7 @@
 """
 MCPMark Results Aggregator
 
-Aggregates evaluation results and generates simplified summary.json and tasks_folders structure.
+Aggregates evaluation results and generates simplified summary.json and model_results/task_results structure.
 Supports both single-run and k-run experiments.
 
 Usage:
@@ -67,7 +67,7 @@ def collect_task_results_from_run(
         for task_dir in service_model_dir.iterdir():
             if not task_dir.is_dir():
                 continue
-            
+
             # Only process directories with '__' separator
             if "__" not in task_dir.name:
                 continue
@@ -88,9 +88,7 @@ def collect_task_results_from_run(
                 task_name = task_dir.name
                 task_key = f"{service_model}__{task_name}"
                 results[task_key] = {
-                    "success": meta.get("execution_result", {}).get(
-                        "success", False
-                    ),
+                    "success": meta.get("execution_result", {}).get("success", False),
                     "error_message": meta.get("execution_result", {}).get(
                         "error_message"
                     ),
@@ -98,7 +96,7 @@ def collect_task_results_from_run(
                     "task_execution_time": meta.get("task_execution_time", 0),
                     "token_usage": meta.get("token_usage", {}),
                     "turn_count": meta.get("turn_count", 0),
-                    "meta": meta,  # Keep full meta for tasks_folders
+                    "meta": meta,  # Keep full meta for model_results
                 }
             except Exception as e:
                 print(f"⚠️  Error reading {meta_path}: {e}")
@@ -134,7 +132,12 @@ def calculate_k_run_metrics(
 
     # Process each task
     for task_key in all_task_keys:
-        service_model = task_key.split("__")[0]
+        # Extract service__model from service__model__category__task format
+        parts = task_key.split("__")
+        if len(parts) >= 2:
+            service_model = f"{parts[0]}__{parts[1]}"
+        else:
+            continue
 
         # Collect success/failure and metrics across all runs for this task
         run_successes = []
@@ -439,7 +442,7 @@ def create_simplified_summary(
         summary[service] = {}
 
         for model in sorted(all_models):
-            service_model = f"{service}_{model}"
+            service_model = f"{service}__{model}"
             if service_model in service_model_results:
                 metrics = service_model_results[service_model].copy()
 
@@ -492,21 +495,21 @@ def create_simplified_summary(
     return summary
 
 
-def generate_tasks_folders(exp_dir: Path, k: int = 1, force: bool = False) -> str:
-    """Generate tasks_folders directory structure."""
+def generate_model_results(exp_dir: Path, k: int = 1, force: bool = False) -> str:
+    """Generate model_results directory structure."""
 
     if k > 1:
-        tasks_folders_dir = exp_dir / "tasks_folders"
+        model_results_dir = exp_dir / "model_results"
         run_dirs = discover_run_directories(exp_dir)
     else:
-        tasks_folders_dir = exp_dir / "tasks_folders"
+        model_results_dir = exp_dir / "model_results"
         run_dirs = [exp_dir]
 
-    # Remove existing tasks_folders if it exists
-    if tasks_folders_dir.exists():
-        shutil.rmtree(tasks_folders_dir)
+    # Remove existing model_results if it exists
+    if model_results_dir.exists():
+        shutil.rmtree(model_results_dir)
 
-    tasks_folders_dir.mkdir(parents=True, exist_ok=True)
+    model_results_dir.mkdir(parents=True, exist_ok=True)
 
     # Collect all task data organized by model
     model_task_data = defaultdict(dict)
@@ -525,7 +528,7 @@ def generate_tasks_folders(exp_dir: Path, k: int = 1, force: bool = False) -> st
             for task_dir in service_model_dir.iterdir():
                 if not task_dir.is_dir():
                     continue
-                
+
                 # Only process directories with '__' separator
                 if "__" not in task_dir.name:
                     continue
@@ -570,7 +573,7 @@ def generate_tasks_folders(exp_dir: Path, k: int = 1, force: bool = False) -> st
 
     # Create individual model directories and task files
     for model, tasks in model_task_data.items():
-        model_dir = tasks_folders_dir / model
+        model_dir = model_results_dir / model
         model_dir.mkdir(exist_ok=True)
 
         for task_name, task_data in tasks.items():
@@ -580,7 +583,150 @@ def generate_tasks_folders(exp_dir: Path, k: int = 1, force: bool = False) -> st
             with open(task_file, "w", encoding="utf-8") as f:
                 json.dump(task_data, f, indent=2, ensure_ascii=False)
 
-    return str(tasks_folders_dir)
+    return str(model_results_dir)
+
+
+def generate_task_results(exp_dir: Path, k: int = 1, force: bool = False) -> str:
+    """Generate task_results directory structure with task-centric organization."""
+
+    if k > 1:
+        task_results_dir = exp_dir / "task_results"
+        run_dirs = discover_run_directories(exp_dir)
+    else:
+        task_results_dir = exp_dir / "task_results"
+        run_dirs = [exp_dir]
+
+    # Remove existing task_results if it exists
+    if task_results_dir.exists():
+        shutil.rmtree(task_results_dir)
+
+    task_results_dir.mkdir(parents=True, exist_ok=True)
+
+    # Collect all task data organized by task ID
+    task_data = defaultdict(
+        lambda: {"task_id": None, "models": defaultdict(list), "overview": {}}
+    )
+
+    for run_idx, run_dir in enumerate(run_dirs, 1):
+        run_name = f"run-{run_idx}" if k > 1 else "run-1"
+
+        for service_model_dir in discover_service_model_dirs(run_dir):
+            service_model = service_model_dir.name
+
+            if "__" not in service_model:
+                continue
+
+            service, model = service_model.split("__", 1)
+
+            for task_dir in service_model_dir.iterdir():
+                if not task_dir.is_dir():
+                    continue
+
+                # Only process directories with '__' separator
+                if "__" not in task_dir.name:
+                    continue
+
+                meta_path = task_dir / "meta.json"
+                if not meta_path.exists():
+                    continue
+
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+
+                    # Skip results with pipeline errors unless force=True
+                    if not force and has_pipeline_errors(meta):
+                        continue
+
+                    # Use directory name as task_name (category_id__task_id format)
+                    task_name = task_dir.name
+
+                    # Set task_id if not already set
+                    if task_data[task_name]["task_id"] is None:
+                        task_data[task_name]["task_id"] = task_name
+
+                    # Extract data for this run
+                    execution_result = meta.get("execution_result", {})
+                    token_usage = meta.get("token_usage", {})
+
+                    run_data = {
+                        "run": run_name,
+                        "success": execution_result.get("success", False),
+                        "token_usage": {
+                            "input_tokens": token_usage.get("input_tokens", 0) or 0,
+                            "output_tokens": token_usage.get("output_tokens", 0) or 0,
+                            "total_tokens": token_usage.get("total_tokens", 0) or 0,
+                        },
+                        "agent_execution_time": meta.get("agent_execution_time", 0)
+                        or 0,
+                        "turn_count": meta.get("turn_count", 0) or 0,
+                    }
+
+                    # Add to model's run list
+                    task_data[task_name]["models"][model].append(run_data)
+
+                except Exception as e:
+                    print(f"⚠️  Error reading {meta_path}: {e}")
+                    continue
+
+    # Calculate overview statistics for each task and save JSON files
+    for task_name, data in task_data.items():
+        if not data["models"]:
+            continue
+
+        # Calculate overview statistics
+        total_runs = 0
+        total_successes = 0
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        total_agent_time = 0
+        total_turns = 0
+
+        for model, runs in data["models"].items():
+            for run in runs:
+                total_runs += 1
+                if run["success"]:
+                    total_successes += 1
+                total_input_tokens += run["token_usage"]["input_tokens"]
+                total_output_tokens += run["token_usage"]["output_tokens"]
+                total_tokens += run["token_usage"]["total_tokens"]
+                total_agent_time += run["agent_execution_time"]
+                total_turns += run["turn_count"]
+
+        # Set overview
+        data["overview"] = {
+            "total_models": len(data["models"]),
+            "total_runs": total_runs,
+            "avg_success_rate": round(total_successes / total_runs, 4)
+            if total_runs > 0
+            else 0.0,
+            "avg_input_tokens": round(total_input_tokens / total_runs, 2)
+            if total_runs > 0
+            else 0.0,
+            "avg_output_tokens": round(total_output_tokens / total_runs, 2)
+            if total_runs > 0
+            else 0.0,
+            "avg_total_tokens": round(total_tokens / total_runs, 2)
+            if total_runs > 0
+            else 0.0,
+            "avg_agent_execution_time": round(total_agent_time / total_runs, 2)
+            if total_runs > 0
+            else 0.0,
+            "avg_turn_count": round(total_turns / total_runs, 2)
+            if total_runs > 0
+            else 0.0,
+        }
+
+        # Convert defaultdict to regular dict for JSON serialization
+        data["models"] = dict(data["models"])
+
+        # Save JSON file
+        task_file = task_results_dir / f"{task_name}.json"
+        with open(task_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    return str(task_results_dir)
 
 
 def generate_readme_content(exp_name: str, summary: Dict[str, Any]) -> str:
@@ -759,7 +905,11 @@ def generate_readme_content(exp_name: str, summary: Dict[str, Any]) -> str:
 
 
 def push_to_experiments_repo(
-    exp_name: str, summary_file_path: Path, readme_content: str, tasks_folders_path: str
+    exp_name: str,
+    summary_file_path: Path,
+    readme_content: str,
+    model_results_path: str,
+    task_results_path: str = None,
 ) -> bool:
     """Push results to eval-sys/mcpmark-experiments repository."""
 
@@ -790,13 +940,21 @@ def push_to_experiments_repo(
                 f.write(readme_content)
             print("  📄 README.md")
 
-            # Copy tasks_folders
-            if Path(tasks_folders_path).exists():
-                dest_tasks_folders = temp_dir / "tasks_folders"
-                if dest_tasks_folders.exists():
-                    shutil.rmtree(dest_tasks_folders)
-                shutil.copytree(tasks_folders_path, dest_tasks_folders)
-                print("  📁 tasks_folders/")
+            # Copy model_results
+            if Path(model_results_path).exists():
+                dest_model_results = temp_dir / "model_results"
+                if dest_model_results.exists():
+                    shutil.rmtree(dest_model_results)
+                shutil.copytree(model_results_path, dest_model_results)
+                print("  📁 model_results/")
+
+            # Copy task_results if provided
+            if task_results_path and Path(task_results_path).exists():
+                dest_task_results = temp_dir / "task_results"
+                if dest_task_results.exists():
+                    shutil.rmtree(dest_task_results)
+                shutil.copytree(task_results_path, dest_task_results)
+                print("  📁 task_results/")
 
             # Git operations
             os.chdir(temp_dir)
@@ -904,10 +1062,15 @@ def main():
 
     print(f"✅ Summary saved to: {summary_path}")
 
-    # Generate tasks_folders
-    print("📁 Generating tasks_folders...")
-    tasks_folders_path = generate_tasks_folders(exp_dir, k, args.force)
-    print(f"✅ Tasks folders created at: {tasks_folders_path}")
+    # Generate model_results
+    print("📁 Generating model_results...")
+    model_results_path = generate_model_results(exp_dir, k, args.force)
+    print(f"✅ Model results created at: {model_results_path}")
+
+    # Generate task_results
+    print("📁 Generating task_results...")
+    task_results_path = generate_task_results(exp_dir, k, args.force)
+    print(f"✅ Task results created at: {task_results_path}")
 
     # Push to repository if requested
     if args.push:
@@ -915,15 +1078,27 @@ def main():
 
         readme_content = generate_readme_content(args.exp_name, summary)
 
+        # Also save README locally
+        local_readme_path = exp_dir / "README.md"
+        with open(local_readme_path, "w", encoding="utf-8") as f:
+            f.write(readme_content)
+        print(f"✅ README saved locally to: {local_readme_path}")
+
         success = push_to_experiments_repo(
-            args.exp_name, summary_path, readme_content, tasks_folders_path
+            args.exp_name,
+            summary_path,
+            readme_content,
+            model_results_path,
+            task_results_path,
         )
 
         if not success:
             print("❌ Failed to push to experiments repository")
             return 1
 
-        print("🎉 Successfully pushed: summary.json, README.md, tasks_folders/")
+        print(
+            "🎉 Successfully pushed: summary.json, README.md, model_results/, task_results/"
+        )
 
     print(f"\n🎉 Processing complete for {args.exp_name}")
     return 0
