@@ -219,13 +219,13 @@ class NotionStateManager(BaseStateManager):
         self._cleanup_eval_hub_orphans()
 
         try:
-            initial_state_title = self._category_to_initial_state_title(task.category)
+            initial_state_title = self._category_to_initial_state_title(task.category_id)
             initial_state_info = self._find_initial_state_by_title(initial_state_title)
 
             if not initial_state_info:
                 logger.error(
                     "Initial state not found for category '%s' (title: '%s')",
-                    task.category,
+                    task.category_id,
                     initial_state_title,
                 )
                 return None
@@ -233,7 +233,7 @@ class NotionStateManager(BaseStateManager):
             _, initial_state_url = initial_state_info
 
             duplicated_url, duplicated_id = self._duplicate_initial_state_for_task(
-                initial_state_url, task.category, task.name
+                initial_state_url, task.category_id, task.name
             )
             
             # Wait for database backend to be ready
@@ -263,7 +263,7 @@ class NotionStateManager(BaseStateManager):
                 state_url=duplicated_url,
                 metadata={
                     "original_url": initial_state_url,
-                    "category": task.category,
+                    "category": task.category_id,
                     "task_name": task.name,
                 },
             )

@@ -403,9 +403,9 @@ class PlaywrightStateManager(BaseStateManager):
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
         try:
             # Dynamically update config based on task category
-            if hasattr(task, 'category') and task.category in self.CATEGORY_CONFIGS:
-                category_config = self.CATEGORY_CONFIGS[task.category]
-                logger.info(f"| Using category-specific config for '{task.category}': {category_config}")
+            if hasattr(task, 'category') and task.category_id in self.CATEGORY_CONFIGS:
+                category_config = self.CATEGORY_CONFIGS[task.category_id]
+                logger.info(f"| Using category-specific config for '{task.category_id}': {category_config}")
                 
                 # Update the config with category-specific values
                 self.config.image_name = category_config["image_name"]
@@ -476,7 +476,7 @@ class PlaywrightStateManager(BaseStateManager):
                     "host_port": self.config.host_port,
                     "container_port": self.config.container_port,
                     "base_url": entry_url,
-                    "category": task.category,
+                    "category": task.category_id,
                 },
             )
         except Exception as exc:

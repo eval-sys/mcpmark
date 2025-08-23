@@ -49,16 +49,32 @@ class PostgresTaskManager(BaseTaskManager):
         )
 
     def _create_task_from_files(
-        self, category_name: str, task_files_info: Dict[str, Any]
+        self, category_id: str, task_files_info: Dict[str, Any]
     ) -> Optional[PostgresTask]:
         """Instantiate a `PostgresTask` from the dictionary returned by `_find_task_files`."""
+        import json
+        
+        # Check for meta.json
+        meta_path = task_files_info["instruction_path"].parent / "meta.json"
+        final_category_id = category_id
+        task_id = task_files_info["task_name"]
+        
+        if meta_path.exists():
+            try:
+                with open(meta_path, 'r') as f:
+                    meta_data = json.load(f)
+                    # Use values from meta.json if available
+                    final_category_id = meta_data.get("category_id", category_id)
+                    task_id = meta_data.get("task_id", task_id)
+            except Exception as e:
+                logger.warning(f"Failed to load meta.json from {meta_path}: {e}")
 
         return PostgresTask(
             task_instruction_path=task_files_info["instruction_path"],
             task_verification_path=task_files_info["verification_path"],
             service="postgres",
-            category=category_name,
-            task_id=task_files_info["task_name"],
+            category_id=final_category_id,
+            task_id=task_id,
             task_name=task_files_info["task_name"],
         )
 

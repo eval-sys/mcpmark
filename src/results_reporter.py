@@ -24,9 +24,9 @@ class TaskResult:
     Represents the result of a single task evaluation.
 
     Attributes:
-        task_name: The full name of the task (e.g., "category/task_1").
+        task_name: The full name of the task (e.g., "category_id__task_id").
         success: Whether the task completed successfully.
-        category: The task category.
+        category_id: The task category ID.
         task_id: The task identifier (number or slug).
         error_message: Error message if the task failed.
         model_output: Agent conversation trajectory (messages).
@@ -38,7 +38,7 @@ class TaskResult:
 
     task_name: str
     success: bool
-    category: Optional[str] = None
+    category_id: Optional[str] = None
     task_id: Optional[str] = None
     error_message: Optional[str] = None
     model_output: Optional[Any] = None  # Agent conversation trajectory
@@ -139,7 +139,7 @@ class EvaluationReport:
         category_stats = {}
 
         for result in self.task_results:
-            category = result.category or "Uncategorized"
+            category = result.category_id or "Uncategorized"
             if category not in category_stats:
                 category_stats[category] = {
                     "total": 0,
@@ -187,7 +187,7 @@ class EvaluationReport:
                 category_results = [
                     r
                     for r in self.task_results
-                    if (r.category or "Uncategorized") == category
+                    if (r.category_id or "Uncategorized") == category
                 ]
                 total_time = sum(r.task_execution_time for r in category_results)
                 stats["avg_execution_time"] = total_time / len(category_results)

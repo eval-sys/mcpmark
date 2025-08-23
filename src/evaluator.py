@@ -67,7 +67,7 @@ class MCPEvaluator:
 
         # Output directory handling
         model_slug = self.model.replace(".", "-")
-        self.base_experiment_dir = output_dir / exp_name / f"{mcp_service}_{model_slug}"
+        self.base_experiment_dir = output_dir / exp_name / f"{mcp_service}__{model_slug}"
         self.base_experiment_dir.mkdir(parents=True, exist_ok=True)
 
     def _format_duration(self, seconds: float) -> str:
@@ -75,16 +75,12 @@ class MCPEvaluator:
         return f"{(seconds * 1000):.2f}ms" if seconds < 1 else f"{seconds:.2f}s"
 
     def _get_task_output_dir(self, task) -> Path:
-        """Return the directory path for storing this task's reports."""
-        # Replace underscores with hyphens so the directory name is filesystem-friendly.
-        category_slug = (
-            task.category.replace("_", "-") if task.category else "uncategorized"
-        )
+        """Return the directory path for storing this task's reports using '__' separator."""
+        # Use category_id and task_id with '__' separator
+        category_id = task.category_id if task.category_id else "uncategorized"
+        task_id = str(task.task_id)
 
-        # Use the task identifier as-is (numeric or slug) – no "task-" prefix.
-        task_slug = str(task.task_id)
-
-        return self.base_experiment_dir / f"{category_slug}_{task_slug}"
+        return self.base_experiment_dir / f"{category_id}__{task_id}"
 
     # ------------------------------------------------------------------
     # Resuming helpers
@@ -108,7 +104,7 @@ class MCPEvaluator:
                 task_name=meta_data["task_name"],
                 success=meta_data["execution_result"]["success"],
                 error_message=meta_data["execution_result"]["error_message"],
-                category=task.category,
+                category_id=task.category_id,
                 task_id=task.task_id,
                 model_output=None,
                 token_usage=meta_data.get("token_usage", {}),
@@ -136,16 +132,21 @@ class MCPEvaluator:
                 with meta_path.open("r", encoding="utf-8") as f:
                     meta_data = json.load(f)
 
-                category_part, identifier_part = task_dir.name.split("_", 1)
+                # Only process the new format with '__' separator
+                # ----------------------------------------------------------
 
-                category = category_part.replace("-", "_")
-                task_id = identifier_part  # keep slug as-is (string)
+                if "__" not in task_dir.name:
+                    # Skip directories without '__' separator
+                    logger.debug(f"Skipping directory without '__': {task_dir.name}")
+                    continue
+
+                category_id, task_id = task_dir.name.split("__", 1)
 
                 result = TaskResult(
                     task_name=meta_data["task_name"],
                     success=meta_data["execution_result"]["success"],
                     error_message=meta_data["execution_result"]["error_message"],
-                    category=category,
+                    category_id=category_id,
                     task_id=task_id,
                     model_output=None,
                     token_usage=meta_data.get("token_usage", {}),
@@ -184,7 +185,7 @@ class MCPEvaluator:
                 task_name=task.name,
                 success=False,
                 error_message="State Duplication Error",
-                category=task.category,
+                category_id=task.category_id,
                 task_id=task.task_id,
                 agent_execution_time=0.0,
                 task_execution_time=task_total_time,
@@ -354,10 +355,11 @@ class MCPEvaluator:
             if flt.lower() == "all":
                 return True
             if "/" in flt:
-                # specific task
-                return tr.task_name == flt
+                # specific task (category_id/task_id)
+                category_id, task_id = flt.split("/", 1)
+                return tr.category_id == category_id and str(tr.task_id) == task_id
             # category level
-            return tr.category == flt
+            return tr.category_id == flt
 
         # Pull existing reports from disk and merge
         existing_results = [

@@ -163,11 +163,11 @@ class FilesystemStateManager(BaseStateManager):
 
         base_test_path = Path(base_test_root)
 
-        # If task has a category, append it to the base path
-        if task.category:
-            self.test_root = base_test_path / task.category
+        # If task has a category_id, append it to the base path
+        if task.category_id:
+            self.test_root = base_test_path / task.category_id
             # Store the current task category for URL selection
-            self._current_task_category = task.category
+            self._current_task_category = task.category_id
             logger.info(f"| ✓ Setting test root to category-specific directory: {self.test_root}")
         else:
             # Use the base test environments directory
@@ -312,7 +312,7 @@ class FilesystemStateManager(BaseStateManager):
             backup_root = (project_root / ".mcpmark_backups").resolve()
             backup_root.mkdir(exist_ok=True)
 
-            task_id = f"{task.service}_{task.category}_{task.task_id}"
+            task_id = f"{task.service}_{task.category_id}_{task.task_id}"
             self.backup_dir = backup_root / f"backup_{task_id}_{os.getpid()}"
 
             # Remove existing backup if it exists

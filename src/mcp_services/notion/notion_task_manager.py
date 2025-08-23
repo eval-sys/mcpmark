@@ -56,14 +56,6 @@ class NotionTask(BaseTask):
         """Alias for task_verification_path."""
         return self.task_verification_path
 
-    @property
-    def name(self) -> str:
-        """Return the full task name."""
-        # Prefer the explicit task_name slug when provided; fall back to the numeric
-        # task_id kept for backward-compatibility.
-        if self.task_name:
-            return f"{self.category}/{self.task_name}"
-        return f"{self.category}/task_{self.task_id}"
 
     def get_description(self) -> str:
         """Read and return the task description."""
@@ -97,16 +89,32 @@ class NotionTaskManager(BaseTaskManager):
         return "notion"
 
     def _create_task_from_files(
-        self, category_name: str, task_files_info: Dict[str, Any]
+        self, category_id: str, task_files_info: Dict[str, Any]
     ) -> Optional[NotionTask]:
         """Instantiate a `NotionTask` from the dictionary returned by `_find_task_files`."""
+        import json
+        
+        # Check for meta.json
+        meta_path = task_files_info["instruction_path"].parent / "meta.json"
+        final_category_id = category_id
+        task_id = task_files_info["task_name"]
+        
+        if meta_path.exists():
+            try:
+                with open(meta_path, 'r') as f:
+                    meta_data = json.load(f)
+                    # Use values from meta.json if available
+                    final_category_id = meta_data.get("category_id", category_id)
+                    task_id = meta_data.get("task_id", task_id)
+            except Exception as e:
+                logger.warning(f"Failed to load meta.json from {meta_path}: {e}")
 
         return NotionTask(
             task_instruction_path=task_files_info["instruction_path"],
             task_verification_path=task_files_info["verification_path"],
             service="notion",
-            category=category_name,
-            task_id=task_files_info["task_name"],  # keep compatibility with BaseTask
+            category_id=final_category_id,
+            task_id=task_id,
             task_name=task_files_info["task_name"],
         )
 

@@ -21,10 +21,6 @@ logger = get_logger(__name__)
 class PlaywrightTask(BaseTask):
     """Playwright-specific task that uses directory name as task name."""
     
-    @property
-    def name(self) -> str:
-        """Return the task name in the format 'category/task_id' without forcing 'task_' prefix."""
-        return f"{self.category}/{self.task_id}"
 
 
 class PlaywrightTaskManager(BaseTaskManager):
@@ -43,17 +39,31 @@ class PlaywrightTaskManager(BaseTaskManager):
         )
 
     def _create_task_from_files(
-        self, category_name: str, task_files_info: Dict[str, Any]
+        self, category_id: str, task_files_info: Dict[str, Any]
     ) -> PlaywrightTask:
         """Instantiate a `PlaywrightTask` from the dictionary returned by `_find_task_files`."""
-        # Use the directory name directly as task_id for cleaner task names
+        import json
+        
+        # Check for meta.json
+        meta_path = task_files_info["instruction_path"].parent / "meta.json"
+        final_category_id = category_id
         task_id = task_files_info["task_name"]
+        
+        if meta_path.exists():
+            try:
+                with open(meta_path, 'r') as f:
+                    meta_data = json.load(f)
+                    # Use values from meta.json if available
+                    final_category_id = meta_data.get("category_id", category_id)
+                    task_id = meta_data.get("task_id", task_id)
+            except Exception as e:
+                logger.warning(f"Failed to load meta.json from {meta_path}: {e}")
 
         return PlaywrightTask(
             task_instruction_path=task_files_info["instruction_path"],
             task_verification_path=task_files_info["verification_path"],
             service="playwright",
-            category=category_name,
+            category_id=final_category_id,
             task_id=task_id,
         )
 

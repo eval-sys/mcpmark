@@ -26,18 +26,6 @@ class FilesystemTask(BaseTask):
     expected_files: Optional[List[str]] = None
     expected_directories: Optional[List[str]] = None
 
-    @property
-    def name(self) -> str:
-        """Return the task name in the format 'category/task_id'."""
-        # Handle both numeric task_id and string task_id for filesystem tasks
-        if isinstance(self.task_id, int) or (
-            isinstance(self.task_id, str) and self.task_id.isdigit()
-        ):
-            return f"{self.category}/task_{self.task_id}"
-        else:
-            # For arbitrary task names, use the task_id directly
-            return f"{self.category}/{self.task_id}"
-
 
 class FilesystemTaskManager(BaseTaskManager):
     """Simplified filesystem task manager using enhanced base class."""
@@ -56,9 +44,11 @@ class FilesystemTaskManager(BaseTaskManager):
 
     # Override only what's needed for filesystem-specific behavior
     def _create_task_from_files(
-        self, category_name: str, task_files_info: Dict[str, Any]
+        self, category_id: str, task_files_info: Dict[str, Any]
     ) -> BaseTask:
         """Instantiate a `BaseTask` from the dictionary returned by `_find_task_files`."""
+        import json
+        
         # Support arbitrary task names, not just task_n format
         task_name = task_files_info["task_name"]
 
@@ -72,11 +62,25 @@ class FilesystemTaskManager(BaseTaskManager):
                 # Keep the original task_name as task_id if parsing fails
                 pass
 
+        # Check for meta.json
+        meta_path = task_files_info["instruction_path"].parent / "meta.json"
+        final_category_id = category_id
+        
+        if meta_path.exists():
+            try:
+                with open(meta_path, 'r') as f:
+                    meta_data = json.load(f)
+                    # Use values from meta.json if available
+                    final_category_id = meta_data.get("category_id", category_id)
+                    task_id = meta_data.get("task_id", task_id)
+            except Exception as e:
+                logger.warning(f"Failed to load meta.json from {meta_path}: {e}")
+
         return self.task_class(
             task_instruction_path=task_files_info["instruction_path"],
             task_verification_path=task_files_info["verification_path"],
             service="filesystem",
-            category=category_name,
+            category_id=final_category_id,
             task_id=task_id,
         )
 
@@ -114,32 +118,32 @@ class FilesystemTaskManager(BaseTaskManager):
         # Check if it's a category filter
         categories = self.get_categories()
         if task_filter in categories:
-            return [task for task in all_tasks if task.category == task_filter]
+            return [task for task in all_tasks if task.category_id == task_filter]
 
-        # Check for specific task pattern (category/task_X or category/arbitrary_name)
+        # Check for specific task pattern (category_id/task_X or category_id/arbitrary_name)
         if "/" in task_filter:
             try:
-                category, task_part = task_filter.split("/", 1)
+                category_id, task_part = task_filter.split("/", 1)
                 # Handle both task_X format and arbitrary task names
                 if task_part.startswith("task_"):
                     # Try to extract numeric ID for backward compatibility
                     try:
                         task_id = int(task_part.split("_")[1])
                         for task in all_tasks:
-                            if task.category == category and task.task_id == task_id:
+                            if task.category_id == category_id and task.task_id == task_id:
                                 return [task]
                     except (ValueError, IndexError):
                         # Fallback to string matching
                         for task in all_tasks:
                             if (
-                                task.category == category
+                                task.category_id == category_id
                                 and str(task.task_id) == task_part
                             ):
                                 return [task]
                 else:
                     # Handle arbitrary task names
                     for task in all_tasks:
-                        if task.category == category and str(task.task_id) == task_part:
+                        if task.category_id == category_id and str(task.task_id) == task_part:
                             return [task]
             except (ValueError, IndexError):
                 pass
@@ -148,7 +152,7 @@ class FilesystemTaskManager(BaseTaskManager):
         filtered_tasks = []
         for task in all_tasks:
             if (
-                task_filter in task.category
+                task_filter in task.category_id
                 or task_filter in task.name
                 or task_filter == str(task.task_id)
             ):

@@ -101,11 +101,11 @@ class PlaywrightStateManager(BaseStateManager):
 
             # Generate a lightweight identifier to allow resource tracking even
             # though no real browser context is created.
-            context_id = f"noop_{task.category}_{task.task_id}_{int(time.time())}"
+            context_id = f"noop_{task.category_id}_{task.task_id}_{int(time.time())}"
 
             # We still expose the canonical test URL (if any) because some
             # consumers add it to the task metadata.
-            test_url = self.test_environments.get(task.category)
+            test_url = self.test_environments.get(task.category_id)
 
             # Record a dummy resource so cleanup logic remains symmetrical.
             self.track_resource(
@@ -113,7 +113,7 @@ class PlaywrightStateManager(BaseStateManager):
                 context_id,
                 {
                     "task_name": task.name,
-                    "task_category": task.category,
+                    "task_category": task.category_id,
                     "test_url": test_url,
                 },
             )
@@ -125,7 +125,7 @@ class PlaywrightStateManager(BaseStateManager):
                     "browser": self.browser_name,
                     "headless": self.headless,
                     "test_url": test_url,
-                    "task_category": task.category,
+                    "task_category": task.category_id,
                 },
             )
 
@@ -203,10 +203,10 @@ class PlaywrightStateManager(BaseStateManager):
                 logger.warning(f"Failed to load browser state: {e}")
 
         # Task-specific context options
-        if task.category == "form_interaction":
+        if task.category_id == "form_interaction":
             # Enable form interactions
             options["permissions"] = ["geolocation"]
-        elif task.category == "web_navigation":
+        elif task.category_id == "web_navigation":
             # Allow navigation between pages
             options["accept_downloads"] = False
 
@@ -215,10 +215,10 @@ class PlaywrightStateManager(BaseStateManager):
     def _setup_test_environment(self, task: BaseTask) -> Optional[str]:
         """Set up test environment for task category."""
         try:
-            test_url = self.test_environments.get(task.category)
+            test_url = self.test_environments.get(task.category_id)
             if not test_url:
                 logger.warning(
-                    f"No test environment defined for category: {task.category}"
+                    f"No test environment defined for category: {task.category_id}"
                 )
                 return None
 
@@ -264,9 +264,9 @@ class PlaywrightStateManager(BaseStateManager):
 
     def navigate_to_test_url(self, task: BaseTask) -> Optional[Page]:
         """Navigate to the test URL for a specific task."""
-        test_url = self.test_environments.get(task.category)
+        test_url = self.test_environments.get(task.category_id)
         if not test_url:
-            logger.error(f"No test URL defined for category: {task.category}")
+            logger.error(f"No test URL defined for category: {task.category_id}")
             return None
 
         page = self.get_test_page()

@@ -7,6 +7,7 @@ This module provides an improved base class for task managers that consolidates
 common task discovery patterns while maintaining flexibility for service-specific needs.
 """
 
+import json
 import subprocess
 import sys
 from abc import ABC
@@ -27,13 +28,13 @@ class BaseTask:
     task_instruction_path: Path
     task_verification_path: Path
     service: str
-    category: str
-    task_id: str
+    category_id: str  # From meta.json if available, otherwise directory name
+    task_id: str  # From meta.json if available, otherwise directory name
 
     @property
     def name(self) -> str:
-        """Return the task name in the format 'category/task_id'."""
-        return f"{self.category}/task_{self.task_id}"
+        """Return the task name using '__' separator format: 'category_id__task_id'."""
+        return f"{self.category_id}__{self.task_id}"
 
     def get_task_instruction(self) -> str:
         """Return the full text content of the task instruction file."""
@@ -96,20 +97,20 @@ class BaseTaskManager(ABC):
             if not self._is_valid_category_dir(category_dir):
                 continue
 
-            category_name = category_dir.name
-            logger.info("Discovering tasks in category: %s", category_name)
+            category_id = category_dir.name
+            logger.info("Discovering tasks in category: %s", category_id)
 
             # Find tasks using service-specific logic
             task_files = self._find_task_files(category_dir)
             for task_files_info in task_files:
-                task = self._create_task_from_files(category_name, task_files_info)
+                task = self._create_task_from_files(category_id, task_files_info)
                 if task:
                     tasks.append(task)
                     logger.debug("Found task: %s", task.name)
 
         # Sort and cache
-        # Sort by category and a stringified task_id to handle both numeric IDs and slugs uniformly
-        self._tasks_cache = sorted(tasks, key=lambda t: (t.category, str(t.task_id)))
+        # Sort by category_id and a stringified task_id to handle both numeric IDs and slugs uniformly
+        self._tasks_cache = sorted(tasks, key=lambda t: (t.category_id, str(t.task_id)))
         logger.info(
             "Discovered %d %s tasks across all categories",
             len(self._tasks_cache),
@@ -120,7 +121,7 @@ class BaseTaskManager(ABC):
     def get_categories(self) -> List[str]:
         """Get a list of all task categories (common implementation)."""
         tasks = self.discover_all_tasks()
-        return sorted(list(set(task.category for task in tasks)))
+        return sorted(list(set(task.category_id for task in tasks)))
 
     def filter_tasks(self, task_filter: str) -> List[BaseTask]:
         """Filter tasks based on category or specific task pattern (common implementation)."""
@@ -132,16 +133,16 @@ class BaseTaskManager(ABC):
         # Check if it's a category filter
         categories = self.get_categories()
         if task_filter in categories:
-            return [task for task in all_tasks if task.category == task_filter]
+            return [task for task in all_tasks if task.category_id == task_filter]
 
-        # Check for specific task pattern (category/task_X or category/task_name)
+        # Check for specific task pattern (category_id/task_id)
         if "/" in task_filter:
             try:
                 category, task_part = task_filter.split("/", 1)
 
                 # First try to match by task_id (could be numeric or string)
                 for task in all_tasks:
-                    if task.category == category:
+                    if task.category_id == category:
                         # Check if task_id matches (as string or as specific pattern)
                         if str(task.task_id) == task_part:
                             return [task]
@@ -152,7 +153,7 @@ class BaseTaskManager(ABC):
         filtered_tasks = []
         for task in all_tasks:
             if (
-                task_filter in task.category
+                task_filter in task.category_id
                 or task_filter in task.name
                 or task_filter == str(task.task_id)
             ):
@@ -195,7 +196,7 @@ class BaseTaskManager(ABC):
                     task_name=task.name,
                     success=False,
                     error_message=error_message,
-                    category=task.category,
+                    category_id=task.category_id,
                     task_id=task.task_id,
                     model_output=agent_result.get("output", ""),
                     token_usage=agent_result.get("token_usage", {}),
@@ -224,7 +225,7 @@ class BaseTaskManager(ABC):
                 success=success,
                 error_message=error_message,
                 model_output=agent_result.get("output", ""),
-                category=task.category,
+                category_id=task.category_id,
                 task_id=task.task_id,
                 token_usage=agent_result.get("token_usage", {}),
                 turn_count=agent_result.get("turn_count", -1),
@@ -236,7 +237,7 @@ class BaseTaskManager(ABC):
                 task_name=task.name,
                 success=False,
                 error_message=str(e),
-                category=task.category,
+                category_id=task.category_id,
                 task_id=task.task_id,
                 model_output=agent_result.get("output", ""),
                 token_usage=agent_result.get("token_usage", {}),
@@ -324,7 +325,7 @@ class BaseTaskManager(ABC):
 
             task_files.append(
                 {
-                    "task_name": task_dir.name,
+                    "task_id": task_dir.name,
                     "instruction_path": description_path,
                     "verification_path": verify_path,
                 }
@@ -333,15 +334,31 @@ class BaseTaskManager(ABC):
         return task_files
 
     def _create_task_from_files(
-        self, category_name: str, task_files_info: Dict[str, Any]
+        self, category_id: str, task_files_info: Dict[str, Any]
     ) -> Optional[BaseTask]:
-        """Create a task from file information (default implementation)."""
+        """Create a task from file information with meta.json support."""
+        # Check for meta.json
+        meta_path = task_files_info["instruction_path"].parent / "meta.json"
+        # Default to directory names
+        task_id = task_files_info["task_id"]
+        final_category_id = category_id
+        
+        if meta_path.exists():
+            try:
+                with open(meta_path, 'r') as f:
+                    meta_data = json.load(f)
+                    # Use values from meta.json if available
+                    final_category_id = meta_data.get("category_id", category_id)
+                    task_id = meta_data.get("task_id", task_id)
+            except Exception as e:
+                logger.warning(f"Failed to load meta.json from {meta_path}: {e}")
+        
         return self.task_class(
-            task_instruction_path=task_files_info["description"],
-            task_verification_path=task_files_info["verification"],
-            mcp_service=self.mcp_service,
-            category=category_name,
-            task_id=task_files_info["task_id"],
+            task_instruction_path=task_files_info["instruction_path"],
+            task_verification_path=task_files_info["verification_path"],
+            service=self.mcp_service,
+            category_id=final_category_id,
+            task_id=task_id,
         )
 
     def _read_task_instruction(self, task: BaseTask) -> str:

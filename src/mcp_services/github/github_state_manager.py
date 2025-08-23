@@ -408,10 +408,10 @@ class GitHubStateManager(BaseStateManager):
         try:
             logger.info(f"| Setting up GitHub state for task: {task.name}")
 
-            template_name = self.select_initial_state_for_task(task.category)
+            template_name = self.select_initial_state_for_task(task.category_id)
             if template_name is None:
                 raise RuntimeError(
-                    f"No template configured for task category: {task.category}"
+                    f"No template configured for task category: {task.category_id}"
                 )
 
             template_dir = (self.templates_root / template_name).resolve()
@@ -438,7 +438,7 @@ class GitHubStateManager(BaseStateManager):
                 metadata={
                     "owner": owner,
                     "repo_name": repo_name,
-                    "category": task.category,
+                    "category": task.category_id,
                     "task_id": task.task_id,
                 },
             )

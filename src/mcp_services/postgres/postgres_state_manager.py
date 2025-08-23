@@ -80,20 +80,20 @@ class PostgresStateManager(BaseStateManager):
         """Create initial database state for a task."""
         try:
             # Generate unique database name
-            db_name = f"mcpmark_{task.category}_{task.task_id}_{self._get_timestamp()}"
+            db_name = f"mcpmark_{task.category_id}_{task.task_id}_{self._get_timestamp()}"
 
             # Create database from template if exists, otherwise empty
-            if self._database_exists(task.category):
-                self._create_database_from_template(db_name, task.category)
+            if self._database_exists(task.category_id):
+                self._create_database_from_template(db_name, task.category_id)
                 logger.info(
-                    f"Created database '{db_name}' from template '{task.category}'"
+                    f"| Created database '{db_name}' from template '{task.category_id}'"
                 )
             else:
                 self._create_empty_database(db_name)
-                logger.info(f"Created empty database '{db_name}'")
+                logger.info(f"| Created empty database '{db_name}'")
                 # Run prepare_environment.py if it exists
                 self._run_prepare_environment(db_name, task)
-                logger.info(f"Prepared environment for database '{db_name}'")
+                logger.info(f"| Prepared environment for database '{db_name}'")
 
             # Track for cleanup
             self.created_databases.append(db_name)
@@ -105,7 +105,7 @@ class PostgresStateManager(BaseStateManager):
                 state_url=f"postgresql://{self.username}@{self.host}:{self.port}/{db_name}",
                 metadata={
                     "database": db_name,
-                    "category": task.category,
+                    "category": task.category_id,
                     "task_id": task.task_id,
                 },
             )
@@ -129,7 +129,7 @@ class PostgresStateManager(BaseStateManager):
         if hasattr(task, "database_name") and task.database_name:
             try:
                 self._drop_database(task.database_name)
-                logger.info(f"Dropped database: {task.database_name}")
+                logger.info(f"| Dropped database: {task.database_name}")
 
                 # Remove from tracking
                 self.created_databases = [
@@ -149,10 +149,10 @@ class PostgresStateManager(BaseStateManager):
         if resource["type"] == "database":
             try:
                 self._drop_database(resource["id"])
-                logger.info(f"Dropped database: {resource['id']}")
+                logger.info(f"| Dropped database: {resource['id']}")
                 return True
             except Exception as e:
-                logger.error(f"Failed to drop database {resource['id']}: {e}")
+                logger.error(f"| Failed to drop database {resource['id']}: {e}")
                 return False
         return False
 
@@ -279,11 +279,11 @@ class PostgresStateManager(BaseStateManager):
         conn = psycopg2.connect(**self.conn_params, database=db_name)
         try:
             with conn.cursor() as cur:
-                if task.category == "basic_queries":
+                if task.category_id == "basic_queries":
                     self._setup_basic_queries_data(cur)
-                elif task.category == "data_manipulation":
+                elif task.category_id == "data_manipulation":
                     self._setup_data_manipulation_data(cur)
-                elif task.category == "table_operations":
+                elif task.category_id == "table_operations":
                     self._setup_table_operations_data(cur)
                 # Add more categories as needed
 
