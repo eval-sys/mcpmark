@@ -6,15 +6,15 @@ Simple task manager for WebArena-backed Playwright MCP tasks.
 """
 
 from __future__ import annotations
-import logger
 import sys
 import os
 import subprocess
 from pathlib import Path
 from typing import List, Dict, Any
 
+from src.logger import get_logger
 from src.base.task_manager import BaseTask, BaseTaskManager
-
+logger = get_logger(__name__)
 
 class PlaywrightTaskManager(BaseTaskManager):
     """Task manager for Playwright tasks against a WebArena environment."""
