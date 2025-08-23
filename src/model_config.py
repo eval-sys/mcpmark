@@ -105,6 +105,12 @@ class ModelConfig:
             "base_url_var": "ANTHROPIC_BASE_URL",
             "actual_model_name": "claude-opus-4-20250514",
         },
+        "claude-4.1-opus": {
+            "provider": "anthropic",
+            "api_key_var": "ANTHROPIC_API_KEY",
+            "base_url_var": "ANTHROPIC_BASE_URL",
+            "actual_model_name": "claude-opus-4-1-20250805",
+        },
         # Google models
         "gemini-2.5-pro": {
             "provider": "google",
