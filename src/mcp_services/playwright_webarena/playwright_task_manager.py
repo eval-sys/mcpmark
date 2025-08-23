@@ -6,7 +6,7 @@ Simple task manager for WebArena-backed Playwright MCP tasks.
 """
 
 from __future__ import annotations
-
+import logger
 import sys
 import os
 import subprocess
