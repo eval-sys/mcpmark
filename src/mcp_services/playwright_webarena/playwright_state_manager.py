@@ -403,7 +403,7 @@ class PlaywrightStateManager(BaseStateManager):
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
         try:
             # Dynamically update config based on task category
-            if hasattr(task, 'category') and task.category_id in self.CATEGORY_CONFIGS:
+            if hasattr(task, 'category_id') and task.category_id in self.CATEGORY_CONFIGS:
                 category_config = self.CATEGORY_CONFIGS[task.category_id]
                 logger.info(f"| Using category-specific config for '{task.category_id}': {category_config}")
                 
