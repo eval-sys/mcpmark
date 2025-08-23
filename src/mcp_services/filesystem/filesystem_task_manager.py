@@ -50,17 +50,10 @@ class FilesystemTaskManager(BaseTaskManager):
         import json
         
         # Support arbitrary task names, not just task_n format
-        task_name = task_files_info["task_name"]
+        task_name = task_files_info["task_id"]
 
-        # Try to extract numeric ID from task_n format for backward compatibility
+        # Use task_name as default task_id
         task_id = task_name
-        if task_name.startswith("task_") and "_" in task_name:
-            try:
-                numeric_id = int(task_name.split("_")[1])
-                task_id = numeric_id
-            except (IndexError, ValueError):
-                # Keep the original task_name as task_id if parsing fails
-                pass
 
         # Check for meta.json
         meta_path = task_files_info["instruction_path"].parent / "meta.json"
@@ -123,28 +116,11 @@ class FilesystemTaskManager(BaseTaskManager):
         # Check for specific task pattern (category_id/task_X or category_id/arbitrary_name)
         if "/" in task_filter:
             try:
-                category_id, task_part = task_filter.split("/", 1)
-                # Handle both task_X format and arbitrary task names
-                if task_part.startswith("task_"):
-                    # Try to extract numeric ID for backward compatibility
-                    try:
-                        task_id = int(task_part.split("_")[1])
-                        for task in all_tasks:
-                            if task.category_id == category_id and task.task_id == task_id:
-                                return [task]
-                    except (ValueError, IndexError):
-                        # Fallback to string matching
-                        for task in all_tasks:
-                            if (
-                                task.category_id == category_id
-                                and str(task.task_id) == task_part
-                            ):
-                                return [task]
-                else:
-                    # Handle arbitrary task names
-                    for task in all_tasks:
-                        if task.category_id == category_id and str(task.task_id) == task_part:
-                            return [task]
+                category_id, task_id = task_filter.split("/", 1)
+                # Direct string matching for task_id
+                for task in all_tasks:
+                    if task.category_id == category_id and str(task.task_id) == task_id:
+                        return [task]
             except (ValueError, IndexError):
                 pass
 

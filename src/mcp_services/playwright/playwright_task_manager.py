@@ -47,7 +47,7 @@ class PlaywrightTaskManager(BaseTaskManager):
         # Check for meta.json
         meta_path = task_files_info["instruction_path"].parent / "meta.json"
         final_category_id = category_id
-        task_id = task_files_info["task_name"]
+        task_id = task_files_info["task_id"]
         
         if meta_path.exists():
             try:

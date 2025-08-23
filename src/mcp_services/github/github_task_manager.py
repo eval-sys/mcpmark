@@ -73,7 +73,7 @@ class GitHubTaskManager(BaseTaskManager):
         # Check for meta.json
         meta_path = task_files_info["instruction_path"].parent / "meta.json"
         final_category_id = category_id
-        task_id = task_files_info["task_name"]
+        task_id = task_files_info["task_id"]
         
         if meta_path.exists():
             try:
@@ -91,7 +91,7 @@ class GitHubTaskManager(BaseTaskManager):
             service="github",
             category_id=final_category_id,
             task_id=task_id,
-            task_name=task_files_info["task_name"],
+            task_name=task_files_info["task_id"],
         )
 
     def _get_verification_command(self, task: GitHubTask) -> List[str]:
