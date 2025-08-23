@@ -132,14 +132,6 @@ class MCPEvaluator:
                 with meta_path.open("r", encoding="utf-8") as f:
                     meta_data = json.load(f)
 
-                # Only process the new format with '__' separator
-                # ----------------------------------------------------------
-
-                if "__" not in task_dir.name:
-                    # Skip directories without '__' separator
-                    logger.debug(f"Skipping directory without '__': {task_dir.name}")
-                    continue
-
                 category_id, task_id = task_dir.name.split("__", 1)
 
                 result = TaskResult(

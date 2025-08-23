@@ -36,13 +36,13 @@ def extract_run_index(run_dir: Path) -> int:
 def collect_task_results_from_run(run_dir: Path) -> Dict[str, Dict[str, Any]]:
     """
     Collect all task results from a single run directory.
-    Returns a dictionary mapping "service_model/task_name" to task result.
+    Returns a dictionary mapping "service_model__task_name" to task result.
     """
     results = {}
 
     # Find all service_model directories in this run
     for service_model_dir in run_dir.iterdir():
-        if not service_model_dir.is_dir() or "_" not in service_model_dir.name:
+        if not service_model_dir.is_dir() or "__" not in service_model_dir.name:
             continue
 
         service_model = service_model_dir.name
@@ -50,6 +50,10 @@ def collect_task_results_from_run(run_dir: Path) -> Dict[str, Dict[str, Any]]:
         # Find all task results in this service_model directory
         for task_dir in service_model_dir.iterdir():
             if not task_dir.is_dir():
+                continue
+            
+            # Only process directories with '__' separator
+            if "__" not in task_dir.name:
                 continue
 
             meta_path = task_dir / "meta.json"
@@ -60,21 +64,21 @@ def collect_task_results_from_run(run_dir: Path) -> Dict[str, Dict[str, Any]]:
                 with open(meta_path, "r", encoding="utf-8") as f:
                     meta = json.load(f)
 
-                task_name = meta.get("task_name", "")
-                if task_name:
-                    # Create unique key for this task
-                    task_key = f"{service_model}/{task_name}"
-                    results[task_key] = {
-                        "success": meta.get("execution_result", {}).get(
-                            "success", False
-                        ),
-                        "error_message": meta.get("execution_result", {}).get(
-                            "error_message"
-                        ),
-                        "execution_time": meta.get("execution_time", 0),
-                        "token_usage": meta.get("token_usage", {}),
-                        "turn_count": meta.get("turn_count", 0) or 0,
-                    }
+                # Use directory name as task_name (category_id__task_id format)
+                task_name = task_dir.name
+                # Create unique key for this task
+                task_key = f"{service_model}__{task_name}"
+                results[task_key] = {
+                    "success": meta.get("execution_result", {}).get(
+                        "success", False
+                    ),
+                    "error_message": meta.get("execution_result", {}).get(
+                        "error_message"
+                    ),
+                    "execution_time": meta.get("execution_time", 0),
+                    "token_usage": meta.get("token_usage", {}),
+                    "turn_count": meta.get("turn_count", 0) or 0,
+                }
             except Exception as e:
                 print(f"Error reading {meta_path}: {e}")
                 continue
@@ -169,8 +173,8 @@ def aggregate_by_service_model(task_metrics: Dict[str, Any]) -> Dict[str, Any]:
 
     for task_key, metrics in task_metrics.items():
         # Extract service_model from task_key
-        if "/" in task_key:
-            parts = task_key.split("/", 1)
+        if "__" in task_key:
+            parts = task_key.split("__", 1)
             service_model = parts[0]
             task_name = parts[1]
 
@@ -189,7 +193,7 @@ def aggregate_by_service_model(task_metrics: Dict[str, Any]) -> Dict[str, Any]:
             # Calculate pass@1 (from run-1 results)
             pass_1_count = 0
             for task_key, metrics in task_metrics.items():
-                if "/" in task_key and task_key.startswith(service_model + "/"):
+                if "__" in task_key and task_key.startswith(service_model + "__"):
                     pass_1_count += metrics.get("pass@1", 0)
 
             final_metrics[service_model] = {

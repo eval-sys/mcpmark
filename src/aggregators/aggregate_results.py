@@ -38,7 +38,7 @@ def discover_run_directories(exp_dir: Path) -> List[Path]:
 
 def discover_service_model_dirs(base_dir: Path) -> List[Path]:
     """Discover all service_model directories in a run directory."""
-    return [d for d in base_dir.iterdir() if d.is_dir() and "_" in d.name]
+    return [d for d in base_dir.iterdir() if d.is_dir() and "__" in d.name]
 
 
 def has_pipeline_errors(meta: Dict[str, Any]) -> bool:
@@ -54,18 +54,22 @@ def collect_task_results_from_run(
 ) -> Dict[str, Dict[str, Any]]:
     """
     Collect all task results from a single run directory.
-    Returns dict mapping "service_model/task_name" to task result.
+    Returns dict mapping "service_model__task_name" to task result.
     """
     results = {}
 
     for service_model_dir in run_dir.iterdir():
-        if not service_model_dir.is_dir() or "_" not in service_model_dir.name:
+        if not service_model_dir.is_dir() or "__" not in service_model_dir.name:
             continue
 
         service_model = service_model_dir.name
 
         for task_dir in service_model_dir.iterdir():
             if not task_dir.is_dir():
+                continue
+            
+            # Only process directories with '__' separator
+            if "__" not in task_dir.name:
                 continue
 
             meta_path = task_dir / "meta.json"
@@ -80,22 +84,22 @@ def collect_task_results_from_run(
                 if not force and has_pipeline_errors(meta):
                     continue
 
-                task_name = meta.get("task_name", "")
-                if task_name:
-                    task_key = f"{service_model}/{task_name}"
-                    results[task_key] = {
-                        "success": meta.get("execution_result", {}).get(
-                            "success", False
-                        ),
-                        "error_message": meta.get("execution_result", {}).get(
-                            "error_message"
-                        ),
-                        "agent_execution_time": meta.get("agent_execution_time", 0),
-                        "task_execution_time": meta.get("task_execution_time", 0),
-                        "token_usage": meta.get("token_usage", {}),
-                        "turn_count": meta.get("turn_count", 0),
-                        "meta": meta,  # Keep full meta for tasks_folders
-                    }
+                # Use directory name as task_name (category_id__task_id format)
+                task_name = task_dir.name
+                task_key = f"{service_model}__{task_name}"
+                results[task_key] = {
+                    "success": meta.get("execution_result", {}).get(
+                        "success", False
+                    ),
+                    "error_message": meta.get("execution_result", {}).get(
+                        "error_message"
+                    ),
+                    "agent_execution_time": meta.get("agent_execution_time", 0),
+                    "task_execution_time": meta.get("task_execution_time", 0),
+                    "token_usage": meta.get("token_usage", {}),
+                    "turn_count": meta.get("turn_count", 0),
+                    "meta": meta,  # Keep full meta for tasks_folders
+                }
             except Exception as e:
                 print(f"⚠️  Error reading {meta_path}: {e}")
                 continue
@@ -130,7 +134,7 @@ def calculate_k_run_metrics(
 
     # Process each task
     for task_key in all_task_keys:
-        service_model = task_key.split("/")[0]
+        service_model = task_key.split("__")[0]
 
         # Collect success/failure and metrics across all runs for this task
         run_successes = []
@@ -219,7 +223,7 @@ def calculate_k_run_metrics(
                 run_results = all_runs_results[run_name]
                 # Get success rate for this service_model in this run
                 sm_tasks = [
-                    k for k in run_results.keys() if k.startswith(f"{service_model}/")
+                    k for k in run_results.keys() if k.startswith(f"{service_model}__")
                 ]
                 if sm_tasks:
                     successes = sum(1 for k in sm_tasks if run_results[k]["success"])
@@ -332,8 +336,8 @@ def create_simplified_summary(
     all_services = set()
 
     for service_model in service_model_results.keys():
-        if "_" in service_model:
-            service, model = service_model.split("_", 1)
+        if "__" in service_model:
+            service, model = service_model.split("__", 1)
             all_services.add(service)
             all_models.add(model)
 
@@ -352,7 +356,7 @@ def create_simplified_summary(
         model_service_data = []
 
         for service_model, metrics in service_model_results.items():
-            if "_" in service_model and service_model.split("_", 1)[1] == model:
+            if "__" in service_model and service_model.split("__", 1)[1] == model:
                 model_metrics["total_tasks"] += metrics["total_tasks"]
                 model_metrics["total_agent_execution_time"] += metrics.get(
                     "total_agent_execution_time", 0
@@ -513,13 +517,17 @@ def generate_tasks_folders(exp_dir: Path, k: int = 1, force: bool = False) -> st
         for service_model_dir in discover_service_model_dirs(run_dir):
             service_model = service_model_dir.name
 
-            if "_" not in service_model:
+            if "__" not in service_model:
                 continue
 
-            service, model = service_model.split("_", 1)
+            service, model = service_model.split("__", 1)
 
             for task_dir in service_model_dir.iterdir():
                 if not task_dir.is_dir():
+                    continue
+                
+                # Only process directories with '__' separator
+                if "__" not in task_dir.name:
                     continue
 
                 meta_path = task_dir / "meta.json"
@@ -534,9 +542,8 @@ def generate_tasks_folders(exp_dir: Path, k: int = 1, force: bool = False) -> st
                     if not force and has_pipeline_errors(meta):
                         continue
 
-                    task_name = meta.get("task_name", "")
-                    if not task_name:
-                        continue
+                    # Use directory name as task_name (category_id__task_id format)
+                    task_name = task_dir.name
 
                     # Initialize task structure if not exists
                     if task_name not in model_task_data[model]:
@@ -567,9 +574,8 @@ def generate_tasks_folders(exp_dir: Path, k: int = 1, force: bool = False) -> st
         model_dir.mkdir(exist_ok=True)
 
         for task_name, task_data in tasks.items():
-            # Clean task name for filename (replace / with _)
-            safe_task_name = task_name.replace("/", "_")
-            task_file = model_dir / f"{safe_task_name}.json"
+            # Task name is already in category_id__task_id format, use as-is
+            task_file = model_dir / f"{task_name}.json"
 
             with open(task_file, "w", encoding="utf-8") as f:
                 json.dump(task_data, f, indent=2, ensure_ascii=False)
