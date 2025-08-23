@@ -16,8 +16,9 @@
   "mcp": [
     "notion"
   ],
-  "metadata": {
-    "ori_template_url": "https://painted-tennis-ebc.notion.site/Team-Projects-24e81626b6d7809c982fdb7a25825898",
-    "gt_page_url": "https://www.notion.so/Team-Projects-Priority-Tasks-Table-24e2b7e8cebd80bb9f86fd842e2c5f6d"
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://painted-tennis-ebc.notion.site/Team-Projects-24e81626b6d7809c982fdb7a25825898"
   }
 }

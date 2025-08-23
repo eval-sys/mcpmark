@@ -13,5 +13,9 @@
   "mcp": [
     "filesystem"
   ],
-  "metadata": {}
+  "meta_data": {
+    "stateType": "text",
+    "stateContent": "",
+    "stateUrl": null
+  }
 }

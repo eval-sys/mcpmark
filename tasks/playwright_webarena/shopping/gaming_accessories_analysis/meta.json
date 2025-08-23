@@ -1,19 +1,23 @@
 {
-    "task_id": "gaming_accessories_analysis",
-    "task_name": "Gaming Accessories Analysis",
-    "category_id": "shopping",
-    "category_name": "Shopping",
-    "description": "Research gaming peripherals by analyzing technical specifications, comparing performance metrics, evaluating user reviews, tracking price trends, and creating detailed gaming accessory recommendations.",
-    "author": "Yaoqi Ye",
-    "created_at": "2025-08-17",
-    "difficulty": "L3",
-    "tags": [
-        "search aggregation",
-        "comparative analysis",
-        "data extraction"
-    ],
-    "mcp": [
-        "playwright"
-    ],
-    "metadata": {}
+  "task_id": "gaming_accessories_analysis",
+  "task_name": "Gaming Accessories Analysis",
+  "category_id": "shopping",
+  "category_name": "Shopping",
+  "description": "Research gaming peripherals by analyzing technical specifications, comparing performance metrics, evaluating user reviews, tracking price trends, and creating detailed gaming accessory recommendations.",
+  "author": "Yaoqi Ye",
+  "created_at": "2025-08-17",
+  "difficulty": "L3",
+  "tags": [
+    "search aggregation",
+    "comparative analysis",
+    "data extraction"
+  ],
+  "mcp": [
+    "playwright"
+  ],
+  "meta_data": {
+    "stateType": "video",
+    "stateContent": null,
+    "stateUrl": ""
+  }
 }

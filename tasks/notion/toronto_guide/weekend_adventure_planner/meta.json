@@ -17,8 +17,9 @@
   "mcp": [
     "notion"
   ],
-  "metadata": {
-    "ori_template_url": "https://painted-tennis-ebc.notion.site/Toronto-Guide-25281626b6d7802caa7cc394647e901c",
-    "gt_page_url": "https://www.notion.so/Toronto-Guide-Weekend-Adventure-Planner-2502b7e8cebd8097ae9cc1e275795a78"
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://painted-tennis-ebc.notion.site/Toronto-Guide-25281626b6d7802caa7cc394647e901c"
   }
 }

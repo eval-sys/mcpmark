@@ -1,19 +1,23 @@
 {
-    "task_id": "products_sales_analysis",
-    "task_name": "Products Sales Analysis",
-    "category_id": "shopping_admin",
-    "category_name": "Shopping Admin",
-    "description": "Generate comprehensive sales performance reports by extracting product metrics, analyzing revenue trends, identifying top performers, evaluating inventory turnover, and creating actionable insights.",
-    "author": "Fanqing Meng",
-    "created_at": "2025-08-17",
-    "difficulty": "L3",
-    "tags": [
-        "data extraction",
-        "comparative analysis",
-        "content submission"
-    ],
-    "mcp": [
-        "playwright"
-    ],
-    "metadata": {}
+  "task_id": "products_sales_analysis",
+  "task_name": "Products Sales Analysis",
+  "category_id": "shopping_admin",
+  "category_name": "Shopping Admin",
+  "description": "Generate comprehensive sales performance reports by extracting product metrics, analyzing revenue trends, identifying top performers, evaluating inventory turnover, and creating actionable insights.",
+  "author": "Fanqing Meng",
+  "created_at": "2025-08-17",
+  "difficulty": "L3",
+  "tags": [
+    "data extraction",
+    "comparative analysis",
+    "content submission"
+  ],
+  "mcp": [
+    "playwright"
+  ],
+  "meta_data": {
+    "stateType": "video",
+    "stateContent": null,
+    "stateUrl": ""
+  }
 }
