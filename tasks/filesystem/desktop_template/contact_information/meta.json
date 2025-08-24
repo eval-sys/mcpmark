@@ -16,7 +16,7 @@
   ],
   "meta_data": {
     "stateType": "text",
-    "stateContent": "",
+    "stateContent": "desktop_template/\n    ├── Archives/\n    │       ├── backup_contacts.csv\n    │       └── tax_documents_2022.csv\n    ├── Desktop/\n    │       └── contacts.csv\n    ├── Documents/\n    │       ├── Personal/\n    │       │       └── tax_info_2023.csv\n    │       ├── Projects/\n    │       │       └── budget_tracker.csv\n    │       ├── Work/\n    │       │       ├── client_list.csv\n    │       │       └── timesheet.csv\n    │       ├── budget.csv\n    │       └── important_dates.csv\n    ├── Downloads/\n    │       ├── expenses.csv\n    │       ├── fitness_log.csv\n    │       └── price_comparisons.csv\n    ├── Temp/\n    │       └── test_data.csv\n    ├── book_list.txt\n    ├── bookmark_export.txt\n    ├── calculations.txt\n    ├── correspondence_2023.txt\n    ├── draft_letter.txt\n    ├── emergency_contacts.txt\n    ├── example.txt\n    └── experiment_results.txt\n",
     "stateUrl": "https://storage.mcpmark.ai/filesystem/desktop_template.zip"
   }
 }
