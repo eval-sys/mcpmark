@@ -9,7 +9,7 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
    ```bash
    docker run -d \
      --name mcpmark-postgres \
-     -e POSTGRES_PASSWORD=mysecretpassword \
+     -e POSTGRES_PASSWORD=password \
      -e POSTGRES_USER=postgres \
      -p 5432:5432 \
      pgvector/pgvector:0.8.0-pg17-bookworm
@@ -43,7 +43,7 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
 2. **Create Databases and Restore from Backups**
    ```bash
    # Set the password environment variable
-   export PGPASSWORD=mysecretpassword
+   export PGPASSWORD=password
    
    # Create and restore each database
    createdb -h localhost -U postgres employees
@@ -65,7 +65,7 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
 3. **Verify Databases are Imported**
    ```bash
    # List all databases
-   PGPASSWORD=mysecretpassword psql -h localhost -U postgres -c "\l"
+   PGPASSWORD=password psql -h localhost -U postgres -c "\l"
    ```
 
 ---
@@ -79,7 +79,7 @@ Add the following PostgreSQL configuration to your `.mcp_env` file in the projec
 POSTGRES_HOST="localhost"
 POSTGRES_PORT="5432"
 POSTGRES_USER="postgres"
-POSTGRES_PASSWORD="mysecretpassword"
+POSTGRES_PASSWORD="password"
 ```
 
 ---
@@ -90,7 +90,7 @@ Verify the PostgreSQL setup is working correctly:
 
 ```bash
 # Test connection using psql
-PGPASSWORD=mysecretpassword psql -h localhost -U postgres -c "SELECT version();"
+PGPASSWORD=password psql -h localhost -U postgres -c "SELECT version();"
 ```
 
 ---
@@ -115,7 +115,7 @@ docker rm mcpmark-postgres
 
 ### Access PostgreSQL Shell
 ```bash
-PGPASSWORD=mysecretpassword psql -h localhost -U postgres
+PGPASSWORD=password psql -h localhost -U postgres
 ```
 
 ---
@@ -129,7 +129,7 @@ docker run -d \
    ```bash
    docker run -d \
      --name mcpmark-postgres \
-     -e POSTGRES_PASSWORD=mysecretpassword \
+     -e POSTGRES_PASSWORD=password \
      -e POSTGRES_USER=postgres \
      -p 5433:5432 \
      postgres

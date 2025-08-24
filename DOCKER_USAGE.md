@@ -97,7 +97,7 @@ docker run -d \
   --network mcp-network \
   -e POSTGRES_DATABASE=postgres \
   -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=123456 \
+  -e POSTGRES_PASSWORD=password \
   ghcr.io/cloudnative-pg/postgresql:17-bookworm
 
 # Run postgres task
@@ -213,7 +213,7 @@ Create `.mcp_env` file with your credentials:
 SOURCE_NOTION_API_KEY=your-key
 EVAL_NOTION_API_KEY=your-key
 GITHUB_TOKEN=your-token
-POSTGRES_PASSWORD=your-password
+POSTGRES_PASSWORD=your-password (default to "password")
 
 # Model API keys
 OPENAI_API_KEY=your-key

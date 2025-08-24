@@ -51,7 +51,9 @@ class GitHubStateManager(BaseStateManager):
         else:
             # Multiple tokens - use token pool
             self.token_pool = GitHubTokenPool(github_token)
-            self.github_token = self.token_pool.get_current_token()  # For backward compatibility
+            self.github_token = (
+                self.token_pool.get_current_token()
+            )  # For backward compatibility
 
         # Store evaluation context (consistent naming)
         self.eval_org = eval_org  # evaluation organisation / user
@@ -74,7 +76,7 @@ class GitHubStateManager(BaseStateManager):
         try:
             # Set initial token for validation
             self._update_session_token()
-            
+
             response = self.session.get("https://api.github.com/user")
             if response.status_code != 200:
                 raise ValueError(
@@ -112,6 +114,16 @@ class GitHubStateManager(BaseStateManager):
             "harmony": "openai-harmony",
             "claude-code": "anthropics-claude-code",
             "easyr1": "hiyouga-EasyR1",
+        }
+
+        # CDN URL mapping for downloading GitHub templates
+        self.github_template_url_mapping = {
+            "codecrafters-io-build-your-own-x": "https://storage.mcpmark.ai/github/codecrafters-io-build-your-own-x.zip",
+            "missing-semester-missing-semester": "https://storage.mcpmark.ai/github/missing-semester-missing-semester.zip",
+            "zjwu0522-mcpmark-cicd": "https://storage.mcpmark.ai/github/zjwu0522-mcpmark-cicd.zip",
+            "openai-harmony": "https://storage.mcpmark.ai/github/openai-harmony.zip",
+            "anthropics-claude-code": "https://storage.mcpmark.ai/github/anthropics-claude-code.zip",
+            "hiyouga-EasyR1": "https://storage.mcpmark.ai/github/hiyouga-EasyR1.zip",
         }
 
     # =========================================================================
@@ -243,7 +255,9 @@ class GitHubStateManager(BaseStateManager):
 
         # Immediately disable GitHub Actions for ALL repositories to prevent any accidental triggers
         # We'll re-enable it later only for mcpmark-cicd
-        logger.info("| [import] Disabling GitHub Actions immediately after repo creation...")
+        logger.info(
+            "| [import] Disabling GitHub Actions immediately after repo creation..."
+        )
         self._disable_github_actions(owner, repo_name)
 
         # ------------------------------------------------------------------
@@ -377,7 +391,9 @@ class GitHubStateManager(BaseStateManager):
                     )
             else:
                 skipped_prs += 1
-        logger.info("| [phase] Created %d PRs, skipped %d PRs", created_prs, skipped_prs)
+        logger.info(
+            "| [phase] Created %d PRs, skipped %d PRs", created_prs, skipped_prs
+        )
 
         # Re-enable GitHub Actions ONLY for mcpmark-cicd repository
         # All other repos remain disabled (as set immediately after creation)
@@ -416,8 +432,16 @@ class GitHubStateManager(BaseStateManager):
 
             template_dir = (self.templates_root / template_name).resolve()
             if not template_dir.exists():
-                logger.error("| Template directory %s not found", template_dir)
-                return None
+                logger.warning(
+                    "| Template directory %s not found locally, attempting to download from CDN",
+                    template_dir,
+                )
+                if not self._download_and_extract_github_template(template_name):
+                    logger.error(
+                        "| Failed to download template %s from CDN", template_name
+                    )
+                    return None
+                logger.info("| Template %s downloaded successfully", template_name)
 
             logger.info(f"| Importing repository template from {template_dir} …")
             owner = self.eval_org if self.eval_org else self._get_authenticated_user()
@@ -520,18 +544,14 @@ class GitHubStateManager(BaseStateManager):
     def _update_session_token(self):
         """Update the session Authorization header with the current token."""
         current_token = self.token_pool.get_current_token()
-        self.session.headers.update({
-            "Authorization": f"Bearer {current_token}"
-        })
+        self.session.headers.update({"Authorization": f"Bearer {current_token}"})
         # Update backward compatibility attribute
         self.github_token = current_token
-    
+
     def _rotate_token(self):
         """Rotate to the next token in the pool and update session."""
         next_token = self.token_pool.get_next_token()
-        self.session.headers.update({
-            "Authorization": f"Bearer {next_token}"
-        })
+        self.session.headers.update({"Authorization": f"Bearer {next_token}"})
         # Update backward compatibility attribute
         self.github_token = next_token
         logger.debug(f"| Rotated to next token in pool")
@@ -559,11 +579,11 @@ class GitHubStateManager(BaseStateManager):
 
         attempt = 0
         tokens_tried = 0
-        
+
         while True:
             # Ensure we have the current token set
             self._update_session_token()
-            
+
             resp = self.session.request(method, url, **kwargs)
             # Successful or non-rate-limited response – return immediately
             if resp.status_code != 403:
@@ -571,16 +591,19 @@ class GitHubStateManager(BaseStateManager):
 
             # 403 – very likely rate-limited
             # First, try rotating tokens if we have multiple
-            if self.token_pool.pool_size > 1 and tokens_tried < self.token_pool.pool_size:
+            if (
+                self.token_pool.pool_size > 1
+                and tokens_tried < self.token_pool.pool_size
+            ):
                 logger.warning(
                     "| GitHub API rate limit encountered. Rotating to next token (tried %d/%d tokens)",
                     tokens_tried + 1,
-                    self.token_pool.pool_size
+                    self.token_pool.pool_size,
                 )
                 self._rotate_token()
                 tokens_tried += 1
                 continue
-            
+
             # All tokens exhausted or single token, resort to sleep/retry
             if attempt >= max_retries:
                 raise RuntimeError(
@@ -626,7 +649,7 @@ class GitHubStateManager(BaseStateManager):
     def get_service_config_for_agent(self) -> dict:
         """
         Get service-specific configuration for agent execution.
-        
+
         Rotates to the next token in the pool before returning config
         to distribute load across tokens.
 
@@ -634,29 +657,29 @@ class GitHubStateManager(BaseStateManager):
             Dictionary containing configuration needed by the agent/MCP server
         """
         service_config = {}
-        
+
         # Add GitHub token if available
         if self.github_token:
             service_config["github_token"] = self.github_token
 
         return service_config
-    
+
     def set_verification_environment(self, messages_path: str = None) -> None:
         """
         Set GitHub-specific environment variables for verification scripts.
-        
+
         This ensures verification scripts use the same token as the current
         agent execution, maintaining consistency across the evaluation flow.
-        
+
         Args:
             messages_path: Optional path to messages.json file for verification
         """
         import os
-        
+
         # Set common MCP_MESSAGES if provided
         if messages_path:
             os.environ["MCP_MESSAGES"] = str(messages_path)
-        
+
         # Set GitHub-specific token
         current_token = self.token_pool.get_current_token()
         os.environ["MCP_GITHUB_TOKEN"] = current_token
@@ -694,9 +717,7 @@ class GitHubStateManager(BaseStateManager):
             url = (
                 f"https://api.github.com/repos/{owner}/{repo_name}/actions/permissions"
             )
-            response = self.session.put(
-                url, json={"enabled": False}
-            )
+            response = self.session.put(url, json={"enabled": False})
 
             if response.status_code in [200, 204]:
                 logger.info(
@@ -741,3 +762,124 @@ class GitHubStateManager(BaseStateManager):
 
         except Exception as e:
             logger.error("| Failed to disable repository notifications: %s", e)
+
+    def _download_and_extract_github_template(self, template_name: str) -> bool:
+        """
+        Download and extract GitHub template from CDN using wget and unzip commands.
+
+        This approach preserves original file timestamps and is simpler than Python zipfile.
+
+        Args:
+            template_name: Name of the template to download (e.g., "anthropics-claude-code")
+
+        Returns:
+            bool: True if download and extraction successful
+        """
+        try:
+            import subprocess
+            import sys
+            import tempfile
+            import shutil
+            import os
+
+            # Get the URL from mapping
+            if template_name not in self.github_template_url_mapping:
+                logger.error(f"| No URL mapping found for template: {template_name}")
+                return False
+
+            template_url = self.github_template_url_mapping[template_name]
+            # Allow override via environment variable
+            template_url = os.getenv("GITHUB_TEMPLATE_URL", template_url)
+
+            logger.info(f"| ○ Downloading GitHub template from: {template_url}")
+
+            # Create a temporary directory for the download
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                zip_path = temp_path / "github_template.zip"
+
+                # Step 1: Download using wget/curl
+                logger.info("| ○ Downloading GitHub template zip file...")
+                try:
+                    # Use wget if available, otherwise fall back to curl
+                    if sys.platform == "win32":
+                        # Windows: try wget, fall back to curl
+                        try:
+                            result = subprocess.run(
+                                ["wget", "-O", str(zip_path), template_url],
+                                capture_output=True,
+                                text=True,
+                                check=True,
+                            )
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            # Fall back to curl
+                            result = subprocess.run(
+                                ["curl", "-L", "-o", str(zip_path), template_url],
+                                capture_output=True,
+                                text=True,
+                                check=True,
+                            )
+                    else:
+                        # Unix-like systems: try wget, fall back to curl
+                        try:
+                            result = subprocess.run(
+                                ["wget", "-O", str(zip_path), template_url],
+                                capture_output=True,
+                                text=True,
+                                check=True,
+                            )
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            # Fall back to curl
+                            result = subprocess.run(
+                                ["curl", "-L", "-o", str(zip_path), template_url],
+                                capture_output=True,
+                                text=True,
+                                check=True,
+                            )
+
+                    logger.info("| ✓ Download completed successfully")
+                except Exception as e:
+                    logger.error(f"| Download failed: {e}")
+                    return False
+
+                # Step 2: Extract using unzip
+                logger.info("| ○ Extracting GitHub template...")
+                try:
+                    # Extract to templates root directory
+                    result = subprocess.run(
+                        ["unzip", "-o", str(zip_path), "-d", str(self.templates_root)],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    logger.info("| ✓ Extraction completed successfully")
+                except Exception as e:
+                    logger.error(f"| Extraction failed: {e}")
+                    return False
+
+                # Step 3: Remove __MACOSX folder if it exists
+                macosx_path = self.templates_root / "__MACOSX"
+                if macosx_path.exists():
+                    logger.info("| ○ Cleaning up macOS metadata...")
+                    try:
+                        shutil.rmtree(macosx_path)
+                        logger.info("| ✓ Removed __MACOSX folder")
+                    except Exception as e:
+                        logger.warning(f"| Failed to remove __MACOSX folder: {e}")
+
+                # Verify the extracted template directory exists
+                template_path = self.templates_root / template_name
+                if not template_path.exists():
+                    logger.error(
+                        f"| Extracted template directory not found at expected path: {template_path}"
+                    )
+                    return False
+
+                logger.info(
+                    f"| ✓ Successfully downloaded and extracted GitHub template to: {template_path}"
+                )
+                return True
+
+        except Exception as e:
+            logger.error(f"| Failed to download and extract GitHub template: {e}")
+            return False
