@@ -5,8 +5,8 @@
     "category_name": "Missing Semester",
     "description": "Assign labels to open issues and PRs based on contributors mentioned in comments or the most frequent contributor from past 100 commits, using assigned-username format.",
     "author": "Zijian Wu",
-    "created_at": "2025-08-22",
-    "difficulty": "L2",
+    "created_at": "2025-08-15",
+    "difficulty": "L3",
     "tags": [
         "issue management",
         "label automation",
