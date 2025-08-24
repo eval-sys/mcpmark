@@ -16,6 +16,7 @@
   "meta_data": {
     "stateType": "video",
     "stateContent": null,
-    "stateUrl": ""
+    "stateUrl": "https://mcp-eval-website.vercel.app/auth/turnstile",
+    "stateOriginalUrl": "https://mcp-eval-website.vercel.app/auth/turnstile"
   }
 }

@@ -15,8 +15,9 @@
     "playwright"
   ],
   "meta_data": {
-    "stateType": "video",
+    "stateType": null,
     "stateContent": null,
-    "stateUrl": ""
+    "stateUrl": null,
+    "stateOriginalUrl": null
   }
 }

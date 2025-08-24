@@ -146,7 +146,7 @@ else
         -v "$(pwd)/results:/app/results" \
         -v "$(pwd)/test_environments:/app/test_environments" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
-        $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json:ro") \
+        $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json") \
         "$DOCKER_IMAGE" \
         python3 -m pipeline --mcp "$SERVICE" "$@"
 fi
