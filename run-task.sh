@@ -99,8 +99,8 @@ if [ "$SERVICE" = "postgres" ]; then
             --network "$NETWORK_NAME" \
             -e POSTGRES_DATABASE=postgres \
             -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
-            postgres:17
+            -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-password}" \
+            pgvector/pgvector:0.8.0-pg17-bookworm
 
         echo "Waiting for PostgreSQL to be ready..."
         for i in {1..10}; do
@@ -122,9 +122,10 @@ if [ "$SERVICE" = "postgres" ]; then
         -e POSTGRES_HOST="$POSTGRES_CONTAINER" \
         -e POSTGRES_PORT=5432 \
         -e POSTGRES_USERNAME=postgres \
-        -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-123456}" \
+        -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-password}" \
         -e POSTGRES_DATABASE=postgres \
         -v "$(pwd)/results:/app/results" \
+        -v "$(pwd)/postgres_state:/app/postgres_state" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         "$DOCKER_IMAGE" \
         python3 -m pipeline --mcp "$SERVICE" "$@"

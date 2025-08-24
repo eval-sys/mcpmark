@@ -22,9 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Layer 2: PostgreSQL runtime (stable, only changes with postgres version)
+# Layer 2: PostgreSQL runtime and client tools (stable, only changes with postgres version)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Layer 3: Git (stable)
