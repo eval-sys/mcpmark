@@ -1,6 +1,4 @@
-# Desktop  Project Management Task: Reorganize Files into Structured Project Directory
-
-## 🎯 Task Objectives
+Please use FileSystem tools to finish the following task:
 
 1. **Create the main directory structure** in `desktop_2`:
 

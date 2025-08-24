@@ -1,10 +1,10 @@
-# File Classification Task
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 Classify all files in the test directory into three categories based on their file size. Create three subdirectories and move files accordingly.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Create three directories** in the test directory:
 

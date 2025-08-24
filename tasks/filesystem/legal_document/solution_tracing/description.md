@@ -1,6 +1,6 @@
-# Legal Document Solution Tracing Task
+Please use FileSystem tools to finish the following task:
 
-## Overview
+### Overview
 
 The folder "legal_files/" contains all versions (Preferred_Stock_Purchase_Agreement_v0.txt  -- Preferred_Stock_Purchase_Agreement_v10.txt) of the Stock Purchase Agreement for a corporate investment project.
 
@@ -18,7 +18,7 @@ Between v1 and v9, these four people make comments on the clauses. The comment f
 
 **Special Note:** If the name is "All parties", it represents a joint comment from all parties, which counts as one comment but does not count toward any individual's personal comment count.
 
-## Task Description
+### Task Description
 
 **Your task is to focus on clauses 4.6, 4.16, 6.8, and 6.16 in v5-9** to determine:
 
@@ -27,7 +27,7 @@ Between v1 and v9, these four people make comments on the clauses. The comment f
 
 **Important:** If the final solution was formed through multiple people's comments, count as the originator the person whose comment first provided the core motivation (or part of the idea) that shaped the final solution. The key is to identify who initially proposed the motivation for the final solution.
 
-## Output Requirements
+### Output Requirements
 
 **File Name:** `tracing.csv` (must be placed in the main directory)
 

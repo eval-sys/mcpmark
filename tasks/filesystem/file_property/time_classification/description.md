@@ -1,10 +1,10 @@
-# File Organization by Creation Time
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 Analyze the creation time (ctime) of all files in the test directory and organize them into a hierarchical directory structure based on their creation dates.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Read metadata** of all files in the test directory
 2. **Analyze creation times** (ctime) of all files (excluding .DS_Store)
@@ -12,16 +12,16 @@ Analyze the creation time (ctime) of all files in the test directory and organiz
 4. **Move files** to appropriate directories
 5. **Create metadata analysis files** in each directory
 
-## 📝 Expected Output
+### Expected Output
 
-### Directory Structure
+#### Directory Structure
 
 Create directories in the format: `MM/DD/` where:
 
 - MM = month (two digits, e.g., 01, 02)
 - DD = day (two digits, e.g., 07, 09, 11, 26)
 
-### Metadata Analysis Files
+#### Metadata Analysis Files
 
 Create a file named `metadata_analyse.txt` in each directory containing exactly only two lines:
 

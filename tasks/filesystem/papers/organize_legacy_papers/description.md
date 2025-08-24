@@ -1,24 +1,24 @@
-# Papers Collection Cleanup and Organization
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 You are given a directory containing multiple paper files. You have a collection of arXiv papers saved as HTML files in the papers directory, along with a BibTeX file. Your task is to organize the older papers (2023 and earlier) into a structured year-based hierarchy with proper documentation, while leaving newer papers in the original location.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Organize by year**: Create a year-based directory structure for papers from 2023 and earlier
 2. **Generate documentation**: Create INDEX.md files for each year with paper metadata
 3. **Create summary**: Build a master SUMMARY.md file linking to all year indexes
 
-## 📝 Detailed Requirements
+### Detailed Requirements
 
-### Step 1: Organization
+#### Step 1: Organization
 - Create directory structure: `organized/{year}/` where year is extracted from the arXiv ID
   - Example: `1707.06347.html` → `organized/2017/1707.06347.html`
 - Move each HTML file from 2023 and earlier to its corresponding year folder, keeping original filenames
 - Papers from 2024 onwards (arXiv IDs starting with `24` or `25`) should remain in the original papers directory
 
-### Step 2: Year Index Files
+#### Step 2: Year Index Files
 For each year folder, create an `INDEX.md` file containing:
 - A markdown table with three columns: `ArXiv ID | Authors | Local Path`
 - Extract authors from `<meta name="citation_author" content="..."/>` tags, keeping only the first 3 authors
@@ -27,13 +27,13 @@ For each year folder, create an `INDEX.md` file containing:
 - Local Path should be just the filename (e.g., `1707.06347.html`)
 - Sort entries by arXiv ID in ascending order
 
-### Step 3: Master Summary
+#### Step 3: Master Summary
 Create `organized/SUMMARY.md` with:
 - A markdown table with columns: `Year | Paper Count | Index Link`
 - Index Link should be a relative markdown link (e.g., `[View Index](2017/INDEX.md)`)
 - Sort by year in ascending order
 
-## 📁 Expected Output Structure
+### Expected Output Structure
 
 ```
 papers/

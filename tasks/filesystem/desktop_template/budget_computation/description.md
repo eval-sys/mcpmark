@@ -1,10 +1,10 @@
-# Budget Computation Task
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 You need to analyze all the files in the desktop environment to calculate personal life expenses and create a budget summary.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Locate and analyze all files** in the desktop environment
 2. **Extract personal life expenses** from the files (such as salary, food, living material, tax, expenses on the internet, ...) (exclude expenses in project/work)
@@ -12,7 +12,7 @@ You need to analyze all the files in the desktop environment to calculate person
 4. **Format each expense entry** as `file_path;price` (one per line)
 5. **Add total sum** as the last line, rounded to 2 decimal places
 
-## 📝 Output Format
+### Output Format
 
 The `total_budget.txt` file should contain:
 
@@ -22,7 +22,7 @@ The `total_budget.txt` file should contain:
 - Last line should be the total sum
 - No additional text or explanations
 
-## ⚠️ Important Notes
+### Important Notes
 
 - Only include personal life expenses (not in project/work)
 - Use the cheapest available price when multiple options exist for one thing

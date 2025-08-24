@@ -1,17 +1,17 @@
-# ThreeStudio Task 1: Find Zero123 Guidance Implementation
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 ThreeStudio is a comprehensive codebase that implements various diffusion-based text-to-3D models, including NeRF-based rendering stage and diffusion guidance stage. Your task is to explore the codebase and identify the specific file that defines the guidance functionality for the Zero123 model.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Explore the ThreeStudio codebase** using filesystem MCP tools
 2. **Search through the project structure** to understand the codebase organization
 3. **Identify the file** that contains the Zero123 guidance implementation
 4. **Create an answer file** with the correct file path
 
-## 📝 Expected Output
+### Expected Output
 
 Create a file named `answer.txt` in the test directory root
 

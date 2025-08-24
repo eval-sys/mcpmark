@@ -1,10 +1,10 @@
-# File Filtering Task: Find Files with Common Substring
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 Your task is to find all files that contain a substring of 30 or more characters that also appears in `large_file.txt`. **You are not allowed to use python code.**
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Read the reference file** `large_file.txt` to understand its content
 2. **Examine each file** from file_01.txt to file_20.txt

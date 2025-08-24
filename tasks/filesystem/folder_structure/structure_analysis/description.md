@@ -1,4 +1,4 @@
-# Directory Structure Analysis Task
+Please use FileSystem tools to finish the following task:
 
 You need to recursively traverse the entire folder structure under the main directory and generate a detailed statistical report in a file named `structure_analysis.txt`.
 
@@ -10,7 +10,7 @@ Do not try to use python code.
 
 ---
 
-## 1. File Statistics
+### 1. File Statistics
 
 Count the following information for the entire directory structure:
 
@@ -26,7 +26,7 @@ total size of all files: Z
 
 ---
 
-## 2. Depth Analysis
+### 2. Depth Analysis
 
 Identify the deepest folder path(s) in the directory and calculate its depth level.
 
@@ -41,7 +41,7 @@ PATH
 
 ---
 
-## 3. File Type Classification
+### 3. File Type Classification
 
 Categorize files by their extensions and count the number of files for each type.
 Files without extensions should also be included.

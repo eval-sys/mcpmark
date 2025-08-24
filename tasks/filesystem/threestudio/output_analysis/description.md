@@ -1,10 +1,10 @@
-# ThreeStudio Task 2: Analyze Zero123 Guidance Output Structure
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 ThreeStudio is a comprehensive codebase that implements various diffusion-based text-to-3D models, including NeRF-based rendering stage and diffusion guidance stage. Your task is to explore the codebase and identify the specific file that defines the guidance functionality for the Zero123 model.
 
-## 🎯 Task
+### Task
 
 What is the output of `guidance_out`, returned by the code at line 137 in `threestudio/systems/zero123.py`?
 

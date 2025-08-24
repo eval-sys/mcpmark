@@ -1,10 +1,10 @@
-# Desktop File Organization Task
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 You are tasked with organizing files on an AI researcher's desktop into a structured folder system. You need to create specific folders and move files to their designated locations according to the provided organization scheme.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Create the following folder structure** in the main directory:
 
@@ -14,7 +14,7 @@ You are tasked with organizing files on an AI researcher's desktop into a struct
    - `temp/` - for temporary files, drafts
    - `others/` - for files that cannot be classified elsewhere
 
-## 📁 Important Notes
+### Important Notes
 
 - All files must be moved from their current locations to the specified folders
 - The `others/` folder is for files that don't fit the other categories

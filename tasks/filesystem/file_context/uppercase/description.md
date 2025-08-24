@@ -1,10 +1,10 @@
-# File Context Task: Convert Files to Uppercase
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 You need to process 10 text files (file_01.txt to file_10.txt) and convert their content to uppercase format.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Create an uppercase directory** in the test environment root
 2. **Convert each file** from file_01.txt to file_10.txt to uppercase
@@ -12,7 +12,7 @@ You need to process 10 text files (file_01.txt to file_10.txt) and convert their
 4. **Count words** in each original file (file_01.txt to file_10.txt)
 5. **Create answer.txt** with word counts in the specified format.
 
-## 📝 Specified Format of answer.txt
+### Specified Format of answer.txt
 
 Create a file named `answer.txt` in uppercase/
 
