@@ -14,7 +14,7 @@
     "playwright"
   ],
   "meta_data": {
-    "stateType": "video",
+    "stateType": "url",
     "stateContent": null,
     "stateUrl": "https://eval-web.mcpmark.ai/extraction",
     "stateOriginalUrl": "https://eval-web.mcpmark.ai/extraction"
