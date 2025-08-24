@@ -213,7 +213,7 @@ Create `.mcp_env` file with your credentials:
 SOURCE_NOTION_API_KEY=your-key
 EVAL_NOTION_API_KEY=your-key
 GITHUB_TOKEN=your-token
-POSTGRES_PASSWORD=your-password
+POSTGRES_PASSWORD=your-password (default to "password")
 
 # Model API keys
 OPENAI_API_KEY=your-key
