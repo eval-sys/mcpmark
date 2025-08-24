@@ -1,10 +1,10 @@
-# VoteNet Task: Create Requirements.txt File
+Please use FileSystem tools to finish the following task:
 
-## 📋 Task Description
+### Task Description
 
 The VoteNet project is a 3D object detection framework for point clouds. Your task is to create a `requirements.txt` file that lists all the necessary Python dependencies for running this codebase.
 
-## 🎯 Task Objectives
+### Task Objectives
 
 1. **Create a requirements.txt file** in the main directory
 2. **Include all essential dependencies** needed to run the VoteNet codebase
@@ -12,7 +12,7 @@ The VoteNet project is a 3D object detection framework for point clouds. Your ta
 4. **Save the file as `requirements.txt`** in the current working directory
 5. **Not just** pip install or conda install, your answer should contain **every necessary dependencies in the hole process of VoteNet**.
 
-## 📝 Requirements
+### Requirements
 
 The requirements.txt file should contain Python packages that are necessary for:
 
@@ -23,7 +23,7 @@ The requirements.txt file should contain Python packages that are necessary for:
 - 3D mesh processing
 - Network/graph operations
 
-## 💡 Note
+### Note
 
 - You can examine the codebase structure and README to understand what packages are needed
 - The file should be saved as `requirements.txt` in the current directory
