@@ -2,6 +2,7 @@ import os
 import psycopg2
 import sys
 
+
 def verify_security_audit():
     """
     Verify that the security audit correctly identified all permission issues.
@@ -11,7 +12,7 @@ def verify_security_audit():
     db_params = {
         'host': os.getenv('POSTGRES_HOST', 'localhost'),
         'port': os.getenv('POSTGRES_PORT', '5432'),
-        'user': os.getenv('POSTGRES_USER', 'postgres'),
+        'user': os.getenv('POSTGRES_USERNAME', 'postgres'),
         'password': os.getenv('POSTGRES_PASSWORD', 'password'),
         'database': os.getenv('POSTGRES_DATABASE', 'postgres')
     }
@@ -20,7 +21,7 @@ def verify_security_audit():
         conn = psycopg2.connect(**db_params)
         cur = conn.cursor()
 
-        print("Verifying security audit findings...")
+        print("| Verifying security audit findings...")
 
         # Check if security_audit_results table exists
         cur.execute("""
@@ -54,7 +55,7 @@ def verify_security_audit():
             print("FAIL: No findings in security_audit_details table")
             return False
 
-        print(f"Found {len(findings)} audit findings")
+        print(f"| Found {len(findings)} audit findings")
 
         # Expected findings based on the ground truth:
         expected_findings = {
@@ -121,72 +122,95 @@ def verify_security_audit():
         missing_dangling = expected_findings['dangling_users'] - found_dangling
         extra_dangling = found_dangling - expected_findings['dangling_users']
 
-        print(f"Expected: {expected_findings['dangling_users']}")
-        print(f"Found: {found_dangling}")
-
         # Verify missing permissions
         missing_missing_perms = expected_findings['missing_permissions'] - found_missing_permissions
         extra_missing_perms = found_missing_permissions - expected_findings['missing_permissions']
-
-        print(f"Expected: {len(expected_findings['missing_permissions'])}")
-        print(f"Found: {len(found_missing_permissions)}")
 
         # Verify excessive permissions
         missing_excessive_perms = expected_findings['excessive_permissions'] - found_excessive_permissions
         extra_excessive_perms = found_excessive_permissions - expected_findings['excessive_permissions']
 
-        print(f"Expected: {len(expected_findings['excessive_permissions'])}")
-        print(f"Found: {len(found_excessive_permissions)}")
-
-        # Check for missing findings
-        all_correct = True
-
-        if missing_dangling:
-            print(f"Missing dangling users: {missing_dangling}")
-            all_correct = False
-
-        if missing_missing_perms:
-            print(f"Missing 'missing permission' findings:")
-            for perm in sorted(missing_missing_perms):
-                print(f"   - {perm[0]} should be granted {perm[2]} on {perm[1]}")
-            all_correct = False
-
-        if missing_excessive_perms:
-            print(f"Missing 'excessive permission' findings:")
-            for perm in sorted(missing_excessive_perms):
-                print(f"   - {perm[0]} should have {perm[2]} revoked on {perm[1]}")
-            all_correct = False
-
-        # Check audit summary table
-        cur.execute("SELECT audit_type, total_issues, users_affected, tables_affected FROM security_audit_results ORDER BY audit_type;")
-        summary_results = cur.fetchall()
-
-        for result in summary_results:
-            print(f"{result[0]}: {result[1]} issues, {result[2]} users affected, {result[3]} tables affected")
-
         # Validate structure
         structure_valid = True
         for i, finding in enumerate(findings):
             if len(finding) != 6:  # Should have 6 columns
-                print(f"FAIL: Finding {i+1} has wrong number of columns (expected 6, got {len(finding)})")
+                print(f"| FAIL: Finding {i + 1} has wrong number of columns (expected 6, got {len(finding)})")
                 structure_valid = False
                 continue
 
             detail_id, username, issue_type, table_name, permission_type, expected_access = finding
 
             if not username:
-                print(f"FAIL: Finding {i+1} missing username")
+                print(f"| FAIL: Finding {i + 1} missing username")
                 structure_valid = False
 
             if issue_type not in ['DANGLING_USER', 'MISSING_PERMISSION', 'EXCESSIVE_PERMISSION']:
-                print(f"FAIL: Finding {i+1} invalid issue_type: {issue_type}")
+                print(f"| FAIL: Finding {i + 1} invalid issue_type: {issue_type}")
                 structure_valid = False
 
             if expected_access not in [True, False]:
-                print(f"FAIL: Finding {i+1} invalid expected_access: {expected_access}")
+                print(f"| FAIL: Finding {i + 1} invalid expected_access: {expected_access}")
                 structure_valid = False
 
-        if all_correct and structure_valid:
+        if structure_valid:
+            print(f"| ✓ structure is valid")
+
+        # Check for missing findings
+        all_correct = True
+
+        print(f"| Expected dangling users: {expected_findings['dangling_users']} Found: {found_dangling}")
+        if missing_dangling:
+            print(f"| Missing dangling users: {missing_dangling}")
+            all_correct = False
+
+        print(
+            f"| Expected missing permissions: {len(expected_findings['missing_permissions'])} Found: {len(found_missing_permissions)} Missing: {len(missing_missing_perms)}")
+        if missing_missing_perms:
+            print(f"| Missing 'missing permission' findings:")
+            for perm in sorted(missing_missing_perms):
+                print(f"|   - {perm[0]} should be granted {perm[2]} on {perm[1]}")
+            all_correct = False
+
+        print(
+            f"| Expected excessive permissions: {len(expected_findings['excessive_permissions'])} Found: {len(found_excessive_permissions)} Missing: {len(missing_excessive_perms)}")
+        if missing_excessive_perms:
+            print(f"| Missing 'excessive permission' findings:")
+            for perm in sorted(missing_excessive_perms):
+                print(f"|   - {perm[0]} should have {perm[2]} revoked on {perm[1]}")
+            all_correct = False
+
+        # Check audit summary table
+        cur.execute(
+            "SELECT audit_type, total_issues, users_affected, tables_affected FROM security_audit_results ORDER BY audit_type;")
+        summary_results = cur.fetchall()
+
+        # Expected summary numbers based on ground truth
+        expected_summary = {
+            'DANGLING_USERS': (3, 3, 0),          # 3 issues, 3 users affected, 0 tables affected
+            'EXCESSIVE_PERMISSIONS': (13, 10, 7), # 13 issues, 10 users affected, 7 tables affected
+            'MISSING_PERMISSIONS': (13, 8, 7)     # 13 issues, 8 users affected, 7 tables affected
+        }
+
+        summary_correct = True
+        for result in summary_results:
+            audit_type, total_issues, users_affected, tables_affected = result
+            print(f"| Summary result: [{audit_type}] {total_issues} issues, {users_affected} users affected, {tables_affected} tables affected")
+            
+            if audit_type in expected_summary:
+                expected = expected_summary[audit_type]
+                if (total_issues, users_affected, tables_affected) != expected:
+                    print(f"| FAIL: {audit_type} summary mismatch - Expected: {expected}, Got: ({total_issues}, {users_affected}, {tables_affected})")
+                    summary_correct = False
+                else:
+                    print(f"| ✓ {audit_type} summary matches expected values")
+
+        # Assert exact counts match expected
+        assert len(found_dangling) == 3, f"Expected 3 dangling users, found {len(found_dangling)}"
+        assert len(found_missing_permissions) == 13, f"Expected 13 missing permissions, found {len(found_missing_permissions)}"
+        assert len(found_excessive_permissions) == 13, f"Expected 13 excessive permissions, found {len(found_excessive_permissions)}"
+
+        if all_correct and structure_valid and summary_correct:
+            print("| ✓ All assertions passed")
             return True
         else:
             return False
@@ -199,6 +223,7 @@ def verify_security_audit():
             cur.close()
         if 'conn' in locals():
             conn.close()
+
 
 if __name__ == "__main__":
     success = verify_security_audit()

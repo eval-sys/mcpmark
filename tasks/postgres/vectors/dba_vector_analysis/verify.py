@@ -20,7 +20,7 @@ def get_connection_params():
         "host": os.getenv("POSTGRES_HOST", "localhost"),
         "port": int(os.getenv("POSTGRES_PORT", 5432)),
         "database": os.getenv("POSTGRES_DATABASE"),
-        "user": os.getenv("POSTGRES_USER"),
+        "user": os.getenv("POSTGRES_USERNAME"),
         "password": os.getenv("POSTGRES_PASSWORD"),
     }
 

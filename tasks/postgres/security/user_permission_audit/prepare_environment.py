@@ -14,13 +14,13 @@ USER_CONFIGS = {
         'status': 'active'
     },
     'marketing_user': {
-        'password': 'marketing123', 
+        'password': 'marketing123',
         'role': 'Marketing Department',
         'status': 'active'
     },
     'customer_service': {
         'password': 'service123',
-        'role': 'Customer Service', 
+        'role': 'Customer Service',
         'status': 'active'
     },
     'finance_user': {
@@ -40,7 +40,7 @@ USER_CONFIGS = {
     },
     'developer_user': {
         'password': 'dev123',
-        'role': 'Development Team', 
+        'role': 'Development Team',
         'status': 'active'
     },
     'backup_user': {
@@ -56,7 +56,7 @@ USER_CONFIGS = {
     },
     'old_employee': {
         'password': 'old456',
-        'role': 'Inactive/Temporary', 
+        'role': 'Inactive/Temporary',
         'status': 'inactive'
     },
     'test_account': {
@@ -70,7 +70,7 @@ USER_CONFIGS = {
 ROLE_EXPECTED_PERMISSIONS = {
     'Analytics Team': [
         ('user_profiles', 'SELECT'),
-        ('user_stat_analysis', 'SELECT'), 
+        ('user_stat_analysis', 'SELECT'),
         ('product_catalog', 'SELECT'),
         ('order_management', 'SELECT'),
     ],
@@ -118,25 +118,24 @@ ROLE_EXPECTED_PERMISSIONS = {
         ('audit_logs', 'SELECT'),
         ('user_credentials', 'SELECT'),
     ],
-    'Inactive/Temporary': []  # Should have no permissions
 }
 
 # Excessive permissions that will be granted but should be flagged as security issues
 EXCESSIVE_PERMISSIONS = [
     # Users getting financial access they shouldn't have
     ('analytics_user', 'financial_transactions', 'SELECT'),
-    ('marketing_user', 'financial_transactions', 'SELECT'), 
+    ('marketing_user', 'financial_transactions', 'SELECT'),
     ('product_manager', 'financial_transactions', 'SELECT'),
-    
+
     # Security risks - credential access
     ('customer_service', 'user_credentials', 'SELECT'),
     ('developer_user', 'user_credentials', 'SELECT'),
-    
+
     # Excessive privileges
     ('security_auditor', 'financial_transactions', 'UPDATE'),
     ('developer_user', 'order_management', 'UPDATE'),
     ('backup_user', 'product_catalog', 'DELETE'),  # Backup should be read-only
-    
+
     # Inactive users with permissions they shouldn't have
     ('temp_contractor', 'product_catalog', 'SELECT'),
     ('temp_contractor', 'user_profiles', 'SELECT'),
@@ -164,7 +163,7 @@ PERMISSIONS_TO_REVOKE = [
 
 def create_business_tables(cur):
     """Create all business tables"""
-    
+
     tables = [
         ('user_profiles', """
             DROP TABLE IF EXISTS user_profiles CASCADE;
@@ -186,7 +185,7 @@ def create_business_tables(cur):
                 bio TEXT
             );
         """),
-        
+
         ('user_credentials', """
             DROP TABLE IF EXISTS user_credentials CASCADE;
             CREATE TABLE user_credentials (
@@ -205,7 +204,7 @@ def create_business_tables(cur):
                 security_questions JSONB
             );
         """),
-        
+
         ('user_stat_analysis', """
             DROP TABLE IF EXISTS user_stat_analysis CASCADE;
             CREATE TABLE user_stat_analysis (
@@ -224,7 +223,7 @@ def create_business_tables(cur):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """),
-        
+
         ('product_catalog', """
             DROP TABLE IF EXISTS product_catalog CASCADE;
             CREATE TABLE product_catalog (
@@ -244,7 +243,7 @@ def create_business_tables(cur):
                 dimensions JSONB
             );
         """),
-        
+
         ('order_management', """
             DROP TABLE IF EXISTS order_management CASCADE;
             CREATE TABLE order_management (
@@ -266,7 +265,7 @@ def create_business_tables(cur):
                 tracking_number VARCHAR(100)
             );
         """),
-        
+
         ('financial_transactions', """
             DROP TABLE IF EXISTS financial_transactions CASCADE;
             CREATE TABLE financial_transactions (
@@ -288,7 +287,7 @@ def create_business_tables(cur):
                 notes TEXT
             );
         """),
-        
+
         ('audit_logs', """
             DROP TABLE IF EXISTS audit_logs CASCADE;
             CREATE TABLE audit_logs (
@@ -308,7 +307,7 @@ def create_business_tables(cur):
             );
         """)
     ]
-    
+
     for table_name, sql in tables:
         cur.execute(sql)
 
@@ -352,7 +351,7 @@ def setup_security_environment():
     db_params = {
         'host': os.getenv('POSTGRES_HOST', 'localhost'),
         'port': os.getenv('POSTGRES_PORT', '5432'),
-        'user': os.getenv('POSTGRES_USER', 'postgres'),
+        'user': os.getenv('POSTGRES_USERNAME', 'postgres'),
         'password': os.getenv('POSTGRES_PASSWORD', 'password'),
         'database': os.getenv('POSTGRES_DATABASE', 'postgres')
     }
@@ -423,13 +422,6 @@ def setup_security_environment():
 
         # Grant sequence permissions where needed
         grant_sequence_permissions(cur)
-
-        print("Introduced security gaps by revoking permissions")
-        print("Environment setup complete!")
-        print("\nSecurity issues to find:")
-        print("- Users with incomplete permissions for their roles")
-        print("- Dangling users with no table access")
-        print("- Missing permissions that affect business operations")
 
         cur.close()
         conn.close()
