@@ -27,6 +27,19 @@ PIPELINE_RETRY_ERRORS = [
     "MCP Network Error",
 ]
 
+# Model pricing per million tokens (input, output)
+MODEL_PRICING = {
+    "claude-4-1-opus": {"input": 15.0, "output": 75.0},
+    "claude-4-sonnet": {"input": 3.0, "output": 15.0},
+    "deepseek-chat": {"input": 0.27, "output": 1.1},
+    "gemini-2-5-pro": {"input": 2.5, "output": 15.0},
+    "gpt-5": {"input": 1.25, "output": 10.0},
+    "o3": {"input": 2.0, "output": 0.5},
+    "grok-4": {"input": 3.0, "output": 15.0},
+    "k2": {"input": 0.15, "output": 2.0},
+    "qwen-3-coder": {"input": 0.3, "output": 1.5},
+}
+
 
 def discover_run_directories(exp_dir: Path) -> List[Path]:
     """Discover all run-N directories in an experiment."""
@@ -47,6 +60,24 @@ def has_pipeline_errors(meta: Dict[str, Any]) -> bool:
     if error_msg:
         return any(error in error_msg for error in PIPELINE_RETRY_ERRORS)
     return False
+
+
+def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Calculate cost based on model pricing and token usage."""
+    # Find the pricing for this model
+    pricing = None
+    for model_key, model_pricing in MODEL_PRICING.items():
+        if model_key in model:
+            pricing = model_pricing
+            break
+    
+    if not pricing:
+        return 0.0
+    
+    # Calculate cost (pricing is per million tokens)
+    input_cost = (input_tokens / 1_000_000) * pricing["input"]
+    output_cost = (output_tokens / 1_000_000) * pricing["output"]
+    return round(input_cost + output_cost, 4)
 
 
 def collect_task_results_from_run(
@@ -96,6 +127,7 @@ def collect_task_results_from_run(
                     "task_execution_time": meta.get("task_execution_time", 0),
                     "token_usage": meta.get("token_usage", {}),
                     "turn_count": meta.get("turn_count", 0),
+                    "actual_model_name": meta.get("actual_model_name"),
                     "meta": meta,  # Keep full meta for model_results
                 }
             except Exception as e:
@@ -132,6 +164,7 @@ def calculate_k_run_metrics(
             "total_output_tokens": 0,
             "total_tokens": 0,
             "total_turns": 0,
+            "actual_model_name": None,
         }
     )
 
@@ -207,6 +240,16 @@ def calculate_k_run_metrics(
         service_model_metrics[service_model]["total_tokens"] += sum(task_total_tokens)
         service_model_metrics[service_model]["total_turns"] += sum(task_turns)
 
+        # Store actual_model_name from first available task result
+        if service_model_metrics[service_model]["actual_model_name"] is None:
+            for run_name in runs_to_process:
+                if run_name in all_runs_results:
+                    run_results = all_runs_results[run_name]
+                    task_result = run_results.get(task_key)
+                    if task_result and task_result.get("actual_model_name"):
+                        service_model_metrics[service_model]["actual_model_name"] = task_result["actual_model_name"]
+                        break
+
         # pass@1: Will be calculated as avg@k later (skip individual task counting)
 
         # For single-run models, only count pass@1 (success in run-1)
@@ -269,11 +312,14 @@ def calculate_k_run_metrics(
                             1 for k in sm_tasks if run_results[k]["success"]
                         )
                         rate = successes / len(sm_tasks)
-                        metrics["pass@1"] = round(rate, 4)  # Single value, not avg/std
+                        metrics["pass@1"] = {
+                            "avg": round(rate, 4),
+                            "std": 0.0  # Single run, so std is 0
+                        }
                     else:
-                        metrics["pass@1"] = 0.0
+                        metrics["pass@1"] = {"avg": 0.0, "std": 0.0}
                 else:
-                    metrics["pass@1"] = 0.0
+                    metrics["pass@1"] = {"avg": 0.0, "std": 0.0}
             else:
                 # For k-run models, calculate as average success rate across all runs
                 service_model_success_rates = []
@@ -326,6 +372,7 @@ def aggregate_single_run_results(
         total_output_tokens = 0
         total_tokens = 0
         total_turns = 0
+        actual_model_name = None
 
         for task_dir in service_model_dir.iterdir():
             if not task_dir.is_dir():
@@ -355,6 +402,10 @@ def aggregate_single_run_results(
                 total_output_tokens += token_usage.get("output_tokens", 0) or 0
                 total_tokens += token_usage.get("total_tokens", 0) or 0
                 total_turns += meta.get("turn_count", 0) or 0
+                
+                # Store actual_model_name from first available meta
+                if actual_model_name is None and meta.get("actual_model_name"):
+                    actual_model_name = meta.get("actual_model_name")
 
             except Exception as e:
                 print(f"⚠️  Error reading {meta_path}: {e}")
@@ -377,6 +428,7 @@ def aggregate_single_run_results(
                 "avg_output_tokens": round(total_output_tokens / total_tasks, 4),
                 "avg_total_tokens": round(total_tokens / total_tasks, 4),
                 "avg_turns": round(total_turns / total_tasks, 4),
+                "actual_model_name": actual_model_name,
             }
 
     return service_model_results
@@ -467,21 +519,39 @@ def create_simplified_summary(
                     model_metrics["total_turns"] / divisor, 4
                 )
 
+                # Calculate per-run metrics for overall section
+                runs_divisor = 1 if is_single_run_model else k
+                per_run_input_tokens = model_metrics["total_input_tokens"] // runs_divisor
+                per_run_output_tokens = model_metrics["total_output_tokens"] // runs_divisor
+                per_run_cost = calculate_cost(model, per_run_input_tokens, per_run_output_tokens)
+                
+                model_metrics["per_run_input_tokens"] = per_run_input_tokens
+                model_metrics["per_run_output_tokens"] = per_run_output_tokens
+                model_metrics["per_run_cost"] = per_run_cost
+                
+                # Set actual_model_name from first available service data
+                for service_model, metrics in service_model_results.items():
+                    if "__" in service_model and service_model.split("__", 1)[1] == model:
+                        if metrics.get("actual_model_name"):
+                            model_metrics["actual_model_name"] = metrics["actual_model_name"]
+                            break
+
             if k > 1:
                 # K-run format: pass@1 (now avg@k), plus pass@k, pass^k
                 pass_1_data = [data["pass@1"] for data in model_service_data]
 
                 if is_single_run_model:
-                    # For single-run models, pass@1 is a simple float
-                    pass_1_rates = [
-                        data for data in pass_1_data if isinstance(data, (int, float))
+                    # For single-run models, pass@1 is a dict with avg and std=0
+                    avg_values = [
+                        data["avg"] for data in pass_1_data if isinstance(data, dict)
                     ]
-                    if pass_1_rates:
-                        model_metrics["pass@1"] = round(
-                            statistics.mean(pass_1_rates), 4
-                        )
+                    if avg_values:
+                        model_metrics["pass@1"] = {
+                            "avg": round(statistics.mean(avg_values), 4),
+                            "std": 0.0  # Single run across services, so std is 0
+                        }
                     else:
-                        model_metrics["pass@1"] = 0.0
+                        model_metrics["pass@1"] = {"avg": 0.0, "std": 0.0}
                     # Don't add pass@k or pass^k metrics
                 else:
                     # For k-run models, pass@1 is dict with avg/std
@@ -543,6 +613,12 @@ def create_simplified_summary(
                 # Check if this model is a single-run model
                 is_single_run_model = any(m in model for m in single_run_models)
 
+                # Calculate per-run metrics
+                runs_divisor = 1 if is_single_run_model else k
+                per_run_input_tokens = metrics.get("total_input_tokens", 0) // runs_divisor
+                per_run_output_tokens = metrics.get("total_output_tokens", 0) // runs_divisor
+                per_run_cost = calculate_cost(model, per_run_input_tokens, per_run_output_tokens)
+
                 # Format metrics according to k-run vs single-run
                 if k > 1:
                     # K-run: keep pass@k, pass^k and new metrics (no avg@k)
@@ -567,6 +643,9 @@ def create_simplified_summary(
                             "avg_output_tokens": metrics.get("avg_output_tokens", 0.0),
                             "avg_total_tokens": metrics.get("avg_total_tokens", 0.0),
                             "avg_turns": metrics.get("avg_turns", 0.0),
+                            "per_run_input_tokens": per_run_input_tokens,
+                            "per_run_output_tokens": per_run_output_tokens,
+                            "per_run_cost": per_run_cost,
                         }
                     else:
                         formatted_metrics = {
@@ -590,6 +669,9 @@ def create_simplified_summary(
                             "avg_output_tokens": metrics.get("avg_output_tokens", 0.0),
                             "avg_total_tokens": metrics.get("avg_total_tokens", 0.0),
                             "avg_turns": metrics.get("avg_turns", 0.0),
+                            "per_run_input_tokens": per_run_input_tokens,
+                            "per_run_output_tokens": per_run_output_tokens,
+                            "per_run_cost": per_run_cost,
                         }
                 else:
                     # Single run: keep all metrics
@@ -610,8 +692,13 @@ def create_simplified_summary(
                         "avg_output_tokens": metrics.get("avg_output_tokens", 0.0),
                         "avg_total_tokens": metrics.get("avg_total_tokens", 0.0),
                         "avg_turns": metrics.get("avg_turns", 0.0),
+                        "per_run_input_tokens": per_run_input_tokens,
+                        "per_run_output_tokens": per_run_output_tokens,
+                        "per_run_cost": per_run_cost,
                     }
 
+                # Add actual_model_name to service-level metrics
+                formatted_metrics["actual_model_name"] = metrics.get("actual_model_name")
                 summary[service][model] = formatted_metrics
 
     return summary

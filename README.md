@@ -1,8 +1,15 @@
-# MCPMark
+<div align="center">
+
+# MCPMark: Stress-Testing Comprehensive MCP Use
+
+[![Website](https://img.shields.io/badge/Website-mcpmark.ai-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://mcpmark.ai)
+[![Discord](https://img.shields.io/badge/Join_our_discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/HrKkJAxDnA)
+[![Docs](https://img.shields.io/badge/Docs-000000?style=for-the-badge&logo=mdbook&color=105864)](https://mcpmark.ai/docs)
+[![Hugging Face](https://img.shields.io/badge/Trajectory_Logs-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/datasets/Jakumetsu/mcpmark-trajectory-log)
+
+</div>
 
 An evaluation suite for agentic models in real MCP tool environments (Notion / GitHub / Filesystem / Postgres / Playwright).
-
-Official website: [mcpmark.ai](https://mcpmark.ai)
 
 MCPMark provides a reproducible, extensible benchmark for researchers and engineers: one-command tasks, isolated sandboxes, auto-resume for failures, unified metrics, and aggregated reports.
 
@@ -166,6 +173,19 @@ Contributions are welcome:
 3. See `docs/contributing/make-contribution.md` and `docs/contributing/add-new-mcp-service.md`.
 
 ---
+
+## Citation
+
+If you use MCPMark in your research, please cite:
+
+```bibtex
+@misc{mcpmark_2025,
+  title        = {MCPMark: Stress-Testing Comprehensive MCP Use},
+  author       = {The MCPMark Team},
+  howpublished = {\url{https://github.com/eval-sys/mcpmark}},
+  year         = {2025}
+}
+```
 
 ## License
 
