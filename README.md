@@ -1,157 +1,172 @@
 # MCPMark
 
-MCPMark is a comprehensive evaluation suite for testing AI models’ agentic ability.
+An evaluation suite for agentic models in real MCP tool environments (Notion / GitHub / Filesystem / Postgres / Playwright).
 
+Official website: [mcpmark.ai](https://mcpmark.ai)
 
-## 1 · Environment Setup
+MCPMark provides a reproducible, extensible benchmark for researchers and engineers: one-command tasks, isolated sandboxes, auto-resume for failures, unified metrics, and aggregated reports.
 
-Before running MCPMark you need to prepare the environment for the MCP service you plan to evaluate. Follow the service-specific guides below:
+## What you can do with MCPMark
 
-- **Notion** – [Notion Setup Doc](docs/mcp/notion.md)
-- **GitHub** – [Notion Setup Doc](docs/mcp/github.md)
-- **Filesystem** – coming soon...
-
-## 2 · Environment Variables
-
-All environment variables **must** be set in a file named `.mcp_env` in your project root. Example:
-
-```env
-# Service Credentials
-## Notion
-SOURCE_NOTION_API_KEY="your-source-notion-api-key"   # For Source Hub (templates)
-EVAL_NOTION_API_KEY="your-eval-notion-api-key"       # For Eval Hub (active evaluation)
-EVAL_PARENT_PAGE_TITLE="MCPMark Eval Hub"           # Must match the name of the empty page you created in Eval Hub
-PLAYWRIGHT_BROWSER="chromium" # default to chromium, you can also choose firefox
-PLAYWRIGHT_HEADLESS="True"
-
-## GitHub
-# GitHub token(s) for round-robin usage (comma-separated for multiple tokens)
-GITHUB_TOKENS="token1"
-# Example with multiple tokens:
-# GITHUB_TOKENS="token1,token2,token3,token4"
-GITHUB_EVAL_ORG="mcpmark-eval"
-
-## Postgres
-POSTGRES_PASSWORD="your-postgres-password"
-POSTGRES_HOST="localhost"
-POSTGRES_PORT="5432"
-POSTGRES_DATABASE="your-database-name"
-POSTGRES_USERNAME="your-postgres-username"
-
-# Model Providers (set only those you need)
-## Google Gemini
-GEMINI_BASE_URL="https://your-gemini-base-url.com/v1"
-GEMINI_API_KEY="your-gemini-api-key"
-
-## DeepSeek
-DEEPSEEK_BASE_URL="https://your-deepseek-base-url.com/v1"
-DEEPSEEK_API_KEY="your-deepseek-api-key"
-
-## OpenAI
-OPENAI_BASE_URL="https://your-openai-base-url.com/v1"
-OPENAI_API_KEY="your-openai-api-key"
-
-## Anthropic
-ANTHROPIC_BASE_URL="https://your-anthropic-base-url.com/v1"
-ANTHROPIC_API_KEY="your-anthropic-api-key"
-
-## Moonshot
-MOONSHOT_BASE_URL="https://your-moonshot-base-url.com/v1"
-MOONSHOT_API_KEY="your-moonshot-api-key"
-
-## Alibaba
-QWEN_BASE_URL="https://your-alibaba-base-url.com/v1"
-QWEN_API_KEY="your-alibaba-api-key"
-
-## xAI
-XAI_BASE_URL="https://your-xai-base-url.com/v1"
-XAI_API_KEY="your-xai-api-key"
-```
-
-You only need to set the variables for the model providers you plan to use. Currently supported model providers: **OpenAI, Google Gemini, DeepSeek, Anthropic, Moonshot, xAI, Alibaba**.
-
-## 3 · Installation
-
-### Option A: Local Installation
-```bash
-pip install -e .
-```
-
-### Option B: Docker (Recommended)
-```bash
-# Build Docker image
-./build-docker.sh
-
-# Run with Docker
-./run-task.sh --mcp notion --models o3 --exp-name run-1 --tasks all
-```
-
-## 4 · Authenticate with Your MCP Service
-
-Refer to the corresponding guide for authentication details:
-
-- Notion: [docs/setup/notion-workspace-setup.md#authenticate-with-notion](docs/setup/notion-workspace-setup.md#authenticate-with-notion)
-- GitHub: handled automatically via `GITHUB_TOKEN`.
-
-The verification script will tell you which browser is working properly. The pipeline defaults to using **chromium**. Our pipeline has been **fully tested on macOS and Linux**.
-
-## 5 · Run the Evaluation
-
-### Single Run Evaluation (k=1)
-```bash
-# Evaluate ALL tasks (single run)
-python -m pipeline --exp-name your-exp-name --mcp notion --tasks all --models o3 --k 1
-
-# Evaluate a single task group
-python -m pipeline --exp-name your-exp-name --mcp notion --tasks online_resume --models o3 --k 1
-
-# Evaluate one specific task
-python -m pipeline --exp-name your-exp-name --mcp notion --tasks online_resume/task_1 --models o3 --k 1
-
-# Evaluate multiple models
-python -m pipeline --exp-name your-exp-name --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet --k 1
-```
-
-### Multiple Run Evaluation (k>1) - Pass@K Metrics
-```bash
-# Run k=5 evaluations for pass@k metrics (requires --exp-name)
-python -m pipeline --exp-name your-exp-name --mcp notion --tasks all --models o3 --k 5
-
-# Aggregate results to get pass@1, pass@k, pass^k, avg@k metrics
-python -m src.aggregators.aggregate_results --exp-name your-exp-name
-
-# Multiple models with k runs
-python -m pipeline --exp-name your-exp-name --mcp github --tasks all --models gpt-4,claude-3 --k 3
-```
-
-### Using Docker
-```bash
-# Run all tasks for a service
-./run-task.sh --mcp notion --models o3 --exp-name your-exp-name --tasks all
-
-# Run comprehensive benchmark across all services
-./run-benchmark.sh --models o3,gpt-4.1 --exp-name your-exp-name --docker
-```
-
-**Auto-resume is supported:** When you rerun an evaluation command, only unfinished tasks will be executed. Tasks that previously failed due to pipeline errors (such as `State Duplication Error` or `MCP Network Error`) will also be retried automatically.
-
-Results are written to `./results/` (JSON + CSV).
-
-### Aggregate Results
-
-After your evaluations are done, generate a comprehensive summary with:
-
-```bash
-python -m src.aggregators.aggregate_results --exp-name your-exp-name
-```
-
-This generates `./results/your-exp-name/summary.json` with detailed metrics including pass@k metrics for multiple runs.
+- **Evaluate real tool usage** across multiple MCP services: `Notion`, `GitHub`, `Filesystem`, `Postgres`, `Playwright`.
+- **Use ready-to-run tasks** covering practical workflows, each with strict automated verification.
+- **Reliable and reproducible**: isolated environments that do not pollute your accounts/data; failed tasks auto-retry and resume.
+- **Unified metrics and aggregation**: single/multi-run (pass@k, avg@k, etc.) with automated results aggregation.
+- **Flexible deployment**: local or Docker; fully validated on macOS and Linux.
 
 ---
 
-## 6 · Contributing
+## Quickstart (5 minutes)
 
-1. Fork the repository and create a feature branch.
-2. Add new tasks inside `tasks/<category>/<task_n>/` with a `description.md` and a `verify.py`.
-3. Ensure all tests pass.
-4. Submit a pull request — contributions are welcome!
+### 1) Clone the repository
+```bash
+git clone https://github.com/eval-sys/mcpmark.git
+cd mcpmark
+```
+
+### 2) Set environment variables (create `.mcp_env` at repo root)
+Only set what you need. Add service credentials when running tasks for that service.
+
+```env
+# Example: OpenAI
+OPENAI_BASE_URL="https://api.openai.com/v1"
+OPENAI_API_KEY="sk-..."
+
+# Optional: Notion (only for Notion tasks)
+SOURCE_NOTION_API_KEY="your-source-notion-api-key"
+EVAL_NOTION_API_KEY="your-eval-notion-api-key"
+EVAL_PARENT_PAGE_TITLE="MCPMark Eval Hub"
+PLAYWRIGHT_BROWSER="chromium"   # chromium | firefox
+PLAYWRIGHT_HEADLESS="True"
+
+# Optional: GitHub (only for GitHub tasks)
+GITHUB_TOKENS="token1,token2"   # token pooling for rate limits
+GITHUB_EVAL_ORG="your-eval-org"
+
+# Optional: Postgres (only for Postgres tasks)
+POSTGRES_HOST="localhost"
+POSTGRES_PORT="5432"
+POSTGRES_USERNAME="postgres"
+POSTGRES_PASSWORD="password"
+```
+
+See `docs/introduction.md` and the service guides below for more details.
+
+### 3) Install and run a minimal example
+
+Local (Recommended)
+```bash
+pip install -e .
+# If you'll use browser-based tasks, install Playwright browsers first
+playwright install
+```
+
+Docker
+```bash
+./build-docker.sh
+```
+
+Run a filesystem task (no external accounts required):
+```bash
+python -m pipeline \
+  --exp-name quickstart \
+  --mcp filesystem \
+  --tasks file_property/size_classification \
+  --models gpt-5   # or any model you configured
+```
+
+Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}`.
+
+---
+
+## Run your evaluations
+
+### Single run (k=1)
+```bash
+# Run ALL tasks for a service
+python -m pipeline --exp-name exp --mcp notion --tasks all --models o3
+
+# Run a task group
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume --models o3
+
+# Run a specific task
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume/task_1 --models o3
+
+# Evaluate multiple models
+python -m pipeline --exp-name exp --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet
+```
+
+### Multiple runs (k>1) for pass@k
+```bash
+# Run k=5 to compute stability metrics (requires --exp-name)
+python -m pipeline --exp-name exp --mcp notion --tasks all --models o3 --k 5
+
+# Aggregate results (pass@1 / pass@k / pass^k / avg@k)
+python -m src.aggregators.aggregate_results --exp-name exp
+```
+
+### Run with Docker
+```bash
+# Run all tasks for a service
+./run-task.sh --mcp notion --models o3 --exp-name exp --tasks all
+
+# Cross-service benchmark
+./run-benchmark.sh --models o3,gpt-4.1 --exp-name exp --docker
+```
+
+Tip: MCPMark supports **auto-resume**. When re-running commands, only unfinished tasks will execute. Tasks previously failed due to pipeline errors (e.g., `State Duplication Error`, `MCP Network Error`) will be retried automatically.
+
+---
+
+## Service setup and authentication
+
+- **Notion**: environment isolation (Source Hub / Eval Hub), integration creation and grants, browser login verification.
+  - Guide: `docs/mcp/notion.md`
+  - Env setup: `docs/setup/notion-env-setup.md`
+
+- **GitHub**: multi-account token pooling recommended; import pre-exported repo state if needed.
+  - Guide: `docs/mcp/github.md`
+  - Env setup: `docs/setup/github-env-setup.md`
+
+- **Postgres**: start via Docker and import sample databases.
+  - Env setup: `docs/setup/postgres-env-setup.md`
+
+- **Playwright**: install browsers before first run; defaults to `chromium`.
+  - Env setup: `docs/setup/playwright-env-setup.md`
+
+- **Filesystem**: zero-configuration, run directly.
+
+You can also follow `docs/quickstart.md` for the shortest end-to-end path.
+
+---
+
+## Results and metrics
+
+- Results are written to `./results/` (JSON + CSV).
+- Generate a summary with:
+```bash
+python -m src.aggregators.aggregate_results --exp-name exp
+```
+- Includes multi-run metrics (e.g., pass@k) for stability comparisons.
+
+---
+
+## Models and tasks
+
+- See supported models in `docs/introduction.md`.
+- Task catalog and design principles in `docs/datasets/task.md`. Each task ships with an automated `verify.py` for objective, reproducible evaluation.
+
+---
+
+## Contributing
+
+Contributions are welcome:
+1. Add a new task under `tasks/<category>/<task_n>/` with `description.md` and `verify.py`.
+2. Ensure local checks pass and open a PR.
+3. See `docs/contributing/make-contribution.md` and `docs/contributing/add-new-mcp-service.md`.
+
+---
+
+## License
+
+This project is licensed under the Apache License 2.0 — see `LICENSE`.
