@@ -14,9 +14,9 @@
     "playwright"
   ],
   "meta_data": {
-    "stateType": "url",
+    "stateType": "video",
     "stateContent": null,
-    "stateUrl": "https://eval-web.mcpmark.ai/extraction",
+    "stateUrl": "https://storage.mcpmark.ai/tasks_state/playwright_video/mcpmark-eval-website.mp4",
     "stateOriginalUrl": "https://eval-web.mcpmark.ai/extraction"
   }
 }
