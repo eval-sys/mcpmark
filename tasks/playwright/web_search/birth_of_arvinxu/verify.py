@@ -18,7 +18,6 @@ from typing import Dict, Any
 
 # Expected ground truth answer (case insensitive)
 EXPECTED_GROUND_TRUTH = "1995"
-ACCEPTED_ANSWERS = []
 
 # =============================================================================
 # MCP RESULT PARSING
@@ -79,7 +78,7 @@ def parse_ai_results(work_dir: Path) -> Dict[str, Any]:
             content_lower = content.lower()
 
             # Check if expected answer was found (case insensitive)
-            if any(answer in content_lower for answer in ACCEPTED_ANSWERS):
+            if EXPECTED_GROUND_TRUTH.lower() in content_lower:
                 found_answer = True
 
     return {
