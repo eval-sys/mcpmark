@@ -12,7 +12,7 @@ def verify_security_audit():
     db_params = {
         'host': os.getenv('POSTGRES_HOST', 'localhost'),
         'port': os.getenv('POSTGRES_PORT', '5432'),
-        'user': os.getenv('POSTGRES_USER', 'postgres'),
+        'user': os.getenv('POSTGRES_USERNAME', 'postgres'),
         'password': os.getenv('POSTGRES_PASSWORD', 'password'),
         'database': os.getenv('POSTGRES_DATABASE', 'postgres')
     }

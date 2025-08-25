@@ -78,7 +78,7 @@ Add the following PostgreSQL configuration to your `.mcp_env` file in the projec
 ## PostgreSQL Configuration
 POSTGRES_HOST="localhost"
 POSTGRES_PORT="5432"
-POSTGRES_USER="postgres"
+POSTGRES_USERNAME="postgres"
 POSTGRES_PASSWORD="password"
 ```
 
@@ -132,7 +132,7 @@ docker run -d \
      -e POSTGRES_PASSWORD=password \
      -e POSTGRES_USER=postgres \
      -p 5433:5432 \
-     postgres
+     pgvector/pgvector:0.8.0-pg17-bookworm
    ```
 Remember to update `POSTGRES_PORT="5433"` in your `.mcp_env` file.
 

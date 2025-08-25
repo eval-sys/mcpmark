@@ -127,7 +127,7 @@ class PostgresStateManager(BaseStateManager):
                         str(backup_file)
                     ], env=env, capture_output=True, text=True)
                     
-                    if result.returncode != 0 and "ERROR" in result.stderr:
+                    if result.returncode != 0:
                         logger.warning(f"pg_restore had errors for {db_name}: {result.stderr}")
                     else:
                         logger.info(f"{db_name} database restored successfully")
