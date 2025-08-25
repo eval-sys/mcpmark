@@ -28,10 +28,6 @@ USER_ROLE = {
     'security_auditor': 'Security Team',
     'developer_user': 'Development Team',
     'backup_user': 'Backup Service',
-    # Inactive/dangling users
-    'temp_contractor': 'Inactive/Temporary',
-    'old_employee': 'Inactive/Temporary',
-    'test_account': 'Inactive/Temporary'
 }
 
 # each role has its permissions
@@ -85,8 +81,7 @@ ROLE_EXPECTED_PERMISSIONS = {
         ('user_stat_analysis', 'SELECT'),
         ('audit_logs', 'SELECT'),
         ('user_credentials', 'SELECT'),
-    ],
-    'Inactive/Temporary': []  # Should have no permissions
+    ]
 }
 ```
 
