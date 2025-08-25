@@ -4,7 +4,7 @@ Use Playwright MCP tools to complete Cloudflare Turnstile authentication challen
 
 ## Requirements:
 
-1. Navigate to https://mcp-eval-website.vercel.app/auth/turnstile
+1. Navigate to https://eval-web.mcpmark.ai/auth/turnstile
 2. Fill in the authentication form with provided test credentials:
    - Username: "testuser"
    - Password: "password123"

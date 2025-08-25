@@ -20,7 +20,7 @@ def verify_security_audit():
         conn = psycopg2.connect(**db_params)
         cur = conn.cursor()
 
-        print("Verifying security audit findings...")
+        print("| Verifying security audit findings...")
 
         # Check if security_audit_results table exists
         cur.execute("""
@@ -54,7 +54,7 @@ def verify_security_audit():
             print("FAIL: No findings in security_audit_details table")
             return False
 
-        print(f"Found {len(findings)} audit findings")
+        print(f"| Found {len(findings)} audit findings")
 
         # Expected findings based on the ground truth:
         expected_findings = {
@@ -121,40 +121,36 @@ def verify_security_audit():
         missing_dangling = expected_findings['dangling_users'] - found_dangling
         extra_dangling = found_dangling - expected_findings['dangling_users']
 
-        print(f"Expected: {expected_findings['dangling_users']}")
-        print(f"Found: {found_dangling}")
 
         # Verify missing permissions
         missing_missing_perms = expected_findings['missing_permissions'] - found_missing_permissions
         extra_missing_perms = found_missing_permissions - expected_findings['missing_permissions']
 
-        print(f"Expected: {len(expected_findings['missing_permissions'])}")
-        print(f"Found: {len(found_missing_permissions)}")
-
         # Verify excessive permissions
         missing_excessive_perms = expected_findings['excessive_permissions'] - found_excessive_permissions
         extra_excessive_perms = found_excessive_permissions - expected_findings['excessive_permissions']
 
-        print(f"Expected: {len(expected_findings['excessive_permissions'])}")
-        print(f"Found: {len(found_excessive_permissions)}")
 
         # Check for missing findings
         all_correct = True
 
+        print(f"| Expected dangling users: {expected_findings['dangling_users']} Found: {found_dangling}")
         if missing_dangling:
-            print(f"Missing dangling users: {missing_dangling}")
+            print(f"| Missing dangling users: {missing_dangling}")
             all_correct = False
 
+        print(f"| Expected missing permissions: {len(expected_findings['missing_permissions'])} Found: {len(found_missing_permissions)}")
         if missing_missing_perms:
-            print(f"Missing 'missing permission' findings:")
+            print(f"| Missing 'missing permission' findings:")
             for perm in sorted(missing_missing_perms):
-                print(f"   - {perm[0]} should be granted {perm[2]} on {perm[1]}")
+                print(f"|   - {perm[0]} should be granted {perm[2]} on {perm[1]}")
             all_correct = False
 
+        print(f"| Expected excessive permissions: {len(expected_findings['excessive_permissions'])} Found: {len(found_excessive_permissions)}")
         if missing_excessive_perms:
-            print(f"Missing 'excessive permission' findings:")
+            print(f"| Missing 'excessive permission' findings:")
             for perm in sorted(missing_excessive_perms):
-                print(f"   - {perm[0]} should have {perm[2]} revoked on {perm[1]}")
+                print(f"|   - {perm[0]} should have {perm[2]} revoked on {perm[1]}")
             all_correct = False
 
         # Check audit summary table
