@@ -14,6 +14,82 @@ You've been hired as a security consultant to audit the PostgreSQL database perm
    - **Missing permissions**: Users lacking permissions required for their business role
    - **Excessive permissions**: Users with unnecessary permissions that should be revoked
 
+## Expected permissions by role (what they SHOULD have)
+
+```python
+# users's role
+USER_ROLE = {
+    # Active functional users
+    'analytics_user': 'Analytics Team',
+    'marketing_user': 'Marketing Department',
+    'customer_service': 'Customer Service',
+    'finance_user': 'Finance Team',
+    'product_manager': 'Product Management',
+    'security_auditor': 'Security Team',
+    'developer_user': 'Development Team',
+    'backup_user': 'Backup Service',
+    # Inactive/dangling users
+    'temp_contractor': 'Inactive/Temporary',
+    'old_employee': 'Inactive/Temporary',
+    'test_account': 'Inactive/Temporary'
+}
+
+# each role has its permissions
+ROLE_EXPECTED_PERMISSIONS = {
+    'Analytics Team': [
+        ('user_profiles', 'SELECT'),
+        ('user_stat_analysis', 'SELECT'),
+        ('product_catalog', 'SELECT'),
+        ('order_management', 'SELECT'),
+    ],
+    'Marketing Department': [
+        ('user_profiles', 'SELECT'),
+        ('user_stat_analysis', 'SELECT'),
+        ('product_catalog', 'SELECT'),
+    ],
+    'Customer Service': [
+        ('user_profiles', 'SELECT'),
+        ('user_profiles', 'UPDATE'),
+        ('order_management', 'SELECT'),
+        ('order_management', 'INSERT'),
+        ('order_management', 'UPDATE'),
+        ('product_catalog', 'SELECT'),
+    ],
+    'Finance Team': [
+        ('financial_transactions', 'SELECT'),
+        ('order_management', 'SELECT'),
+        ('user_profiles', 'SELECT'),
+    ],
+    'Product Management': [
+        ('product_catalog', 'SELECT'),
+        ('product_catalog', 'INSERT'),
+        ('product_catalog', 'UPDATE'),
+        ('product_catalog', 'DELETE'),
+        ('order_management', 'SELECT'),
+        ('user_stat_analysis', 'SELECT'),
+    ],
+    'Security Team': [
+        ('audit_logs', 'SELECT'),
+        ('user_credentials', 'SELECT'),
+        ('user_profiles', 'SELECT'),
+    ],
+    'Development Team': [
+        ('user_profiles', 'SELECT'),
+        ('product_catalog', 'SELECT'),
+    ],
+    'Backup Service': [
+        ('user_profiles', 'SELECT'),
+        ('product_catalog', 'SELECT'),
+        ('order_management', 'SELECT'),
+        ('financial_transactions', 'SELECT'),
+        ('user_stat_analysis', 'SELECT'),
+        ('audit_logs', 'SELECT'),
+        ('user_credentials', 'SELECT'),
+    ],
+    'Inactive/Temporary': []  # Should have no permissions
+}
+```
+
 ## Expected Deliverables:
 
 Your audit must produce findings in a structured format that can be verified. Create two tables to store your audit results:
