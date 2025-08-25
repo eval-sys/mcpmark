@@ -69,10 +69,10 @@ Docker
 Run a filesystem task (no external accounts required):
 ```bash
 python -m pipeline \
-  --exp-name quickstart \
   --mcp filesystem \
-  --tasks file_property/size_classification \
-  --models gpt-5   # or any model you configured
+  --k 1 \ # run once to quick start
+  --models gpt-5  \ # or any model you configured
+  --tasks file_property/size_classification
 ```
 
 Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}`.
