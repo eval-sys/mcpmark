@@ -865,7 +865,6 @@ def generate_task_results(
                 model_summary = {
                     "total_runs": num_runs,
                     "successful_runs": model_successes,
-                    "pass@1": round(model_successes / num_runs, 4),
                     "avg_agent_execution_time": round(model_agent_time / num_runs, 2),
                     "avg_input_tokens": round(model_input_tokens / num_runs, 2),
                     "avg_output_tokens": round(model_output_tokens / num_runs, 2),
