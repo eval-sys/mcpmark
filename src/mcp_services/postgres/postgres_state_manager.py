@@ -76,19 +76,19 @@ class PostgresStateManager(BaseStateManager):
         """Test database connection."""
         conn = psycopg2.connect(**self.conn_params, database="postgres")
         conn.close()
-    
+
     def _setup_database(self):
         """Setup all required databases by downloading and restoring from backup."""
         databases = ['employees', 'chinook', 'dvdrental', 'sports', 'lego']
-        
+
         for db_name in databases:
             if not self._database_exists(db_name):
                 logger.info(f"Setting up {db_name} database...")
-                
+
                 # Path to backup file
                 backup_dir = Path(__file__).parent.parent.parent.parent / "postgres_state"
                 backup_file = backup_dir / f"{db_name}.backup"
-                
+
                 # Download backup if not exists
                 if not backup_file.exists():
                     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -103,7 +103,7 @@ class PostgresStateManager(BaseStateManager):
                     except Exception as e:
                         logger.warning(f"Failed to download {db_name} backup: {e}")
                         continue
-                
+
                 # Create database
                 try:
                     self._create_empty_database(db_name)
@@ -111,11 +111,11 @@ class PostgresStateManager(BaseStateManager):
                 except Exception as e:
                     logger.warning(f"Failed to create {db_name} database: {e}")
                     continue
-                
+
                 # Restore from backup
                 env = os.environ.copy()
                 env['PGPASSWORD'] = self.password
-                
+
                 try:
                     result = subprocess.run([
                         'pg_restore',
@@ -126,7 +126,7 @@ class PostgresStateManager(BaseStateManager):
                         '-v',
                         str(backup_file)
                     ], env=env, capture_output=True, text=True)
-                    
+
                     if result.returncode != 0 and "ERROR" in result.stderr:
                         logger.warning(f"pg_restore had errors for {db_name}: {result.stderr}")
                     else:
@@ -295,7 +295,7 @@ class PostgresStateManager(BaseStateManager):
             logger.debug(f"No prepare_environment.py found for task {task.name}")
             return
 
-        logger.info(f"Running prepare_environment.py for task {task.name}")
+        logger.info(f"| Running prepare_environment.py for task {task.name}")
 
         # Set up environment variables for the script
         env = os.environ.copy()
@@ -319,12 +319,12 @@ class PostgresStateManager(BaseStateManager):
             )
 
             if result.returncode == 0:
-                logger.info(f"✅ Environment preparation completed for {task.name}")
+                logger.info(f"| ✓ Environment preparation completed for {task.name}")
                 if result.stdout.strip():
-                    logger.debug(f"prepare_environment.py output: {result.stdout}")
+                    logger.debug(f"| prepare_environment.py output: {result.stdout}")
             else:
-                logger.error(f"❌ Environment preparation failed for {task.name}")
-                logger.error(f"Error output: {result.stderr}")
+                logger.error(f"| ❌ Environment preparation failed for {task.name}")
+                logger.error(f"| Error output: {result.stderr}")
                 raise RuntimeError(f"prepare_environment.py failed with exit code {result.returncode}")
 
         except subprocess.TimeoutExpired:
