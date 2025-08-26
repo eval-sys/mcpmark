@@ -42,36 +42,22 @@ Our code automatically downloads test folders to your specified `FILESYSTEM_TEST
 **Basic Command**:
 
 ```bash
-python -m pipeline --mcp filesystem --k 4 --models gpt-5 --exp-name test_run_1
+python -m pipeline --exp-name EXPNAME --mcp filesystem --tasks FILESYSTEMTASK --models MODEL --k K
 ```
 
-**Parameters**:
+**Docker Usage (Recommended)**
 
-- `--mcp filesystem`: Specifies the filesystem MCP service
-- `--k 4`: Number of parallel task executions
-- `--models gpt-5`: AI model to use
-- `--exp-name test_run_1`: Custom experiment name
-
----
-
-## 4 · Docker Usage (Recommended)
-
-Use Docker to avoid library version conflicts:
-
-**Build and Run**:
+Docker is recommended to avoid library version conflicts:
 
 ```bash
-# Build
+# Build Docker image
 ./build-docker.sh
 
-# Run
-docker run --rm -it \
-  -v $(pwd):/workspace \
-  -v $(pwd)/.mcp_env:/workspace/.mcp_env \
-  -w /workspace \
-  mcpmark:latest \
-  python -m pipeline --mcp filesystem --k 4 --models gpt-5 --exp-name test_run_1
+# Run with Docker
+./run-task.sh --mcp filesystem --models MODEL --exp-name EXPNAME --tasks FILESYSTEMTASK --k K
 ```
+
+Here *EXPNAME* refers to customized experiment name, *FILESYSTEMTASK* refers to the github task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.
 
 ---
 
@@ -80,7 +66,5 @@ docker run --rm -it \
 **Common Issues**:
 
 - **Test Environment Not Found**: Ensure `FILESYSTEM_TEST_ROOT` is set correctly
-
 - **Prerequisites**: Make sure your terminal has `wget` and `unzip` commands available
-
-- **Best Practice**: Use Docker to prevent library version conflicts
+- **Recommended**: Use Docker to prevent library version conflicts

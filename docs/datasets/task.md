@@ -4,26 +4,44 @@ The tasks in MCPMark follows two major principles
 - The tasks are based on realistic digital environments that are also used by human programmers.
 - The task outcome can be robustly verified in python scripts.
 
-Therefore, each MCPMark task consists of two files
-
+Therefore, each MCPMark task consists of three files
+- `meta.json`
 - `description.md`
 - `verify.py`
 
-Here, `description.md` describes the purpose and setting of the task, as well as the instruction to complete the task. `verify.py` checks whether the task is completed successfully.
+Here, `metadata.json` includes the meta information of the task, `description.md` describes the purpose and setting of the task, as well as the instruction to complete the task. `verify.py` checks whether the task is completed successfully.
 
-For example, you can ask the model agent to create a file with specific name and write specific content to the file. The structure looks like
+For example, you can ask the model agent to create a file with specific name and write specific content to the file, which belongs to the cateogry of operating the file context. The structure looks like
 
 ```
 tasks 
 │
 └───filesystem
    │
-   └───create_file_write
-       │   description.md
-       │   verify.py
+   └───file_context
+      │
+      └───create_file_write
+         │   meta.json 
+         │   description.md
+         │   verify.py
 ```
 
 Note that all tasks are placed under `tasks/`. `filesystem` refers to the environment for the MCP service.
+
+`meta.json` includes the meta information about the task, including the following key
+- task_id: the id of the task.
+- task_name: full name of the task.
+- description: task description.
+- cateogry_id: the id of task category.
+- cateogry_name: the full name of task categeory.
+- author: the author of the task.
+- difficulty: the task difficulty level.
+- created_at: the timestamp of task creation.
+- tags: a list of tags that describe the task.
+- mcp: a list of MCP services it belongs to.
+- metadata: other meta information.
+
+Here `cateogry_name` describes the shared feature or the environment across different tasks (e.g. the github repository or notion page the task is built on). In this running example, `category_name` refers to `file_context`.
 
 `description.md` could include the following information
 

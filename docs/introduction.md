@@ -7,6 +7,7 @@ MCPMark includes Model Context Protocol (MCP) service in following environments
 - Filesystem
 - Postgres
 - Playwright
+- Playwright-WebArena
 
 ### General Procedure
 MCPMark is designed to run agentic tasks in complex environment **safely**. Specifically, it sets up an isolated environment for the experiment, completing the task, and then destroy the environment without affecting existing user profile or information.
@@ -17,25 +18,25 @@ MCPMark is designed to run agentic tasks in complex environment **safely**. Spec
 3. Configure the environment variables in `.mcp_env`.
 4. Run MCPMark experiment.
 
-Please refer to [Quick Start](./quickstart.md) for details regarding how to start experiment properly, and [Task Page](./datasets/task.md) for task details.
+Please refer to [Quick Start](./quickstart.md) for details regarding how to start a sample filesystem experiment in properly, and [Task Page](./datasets/task.md) for task details. Please visit [Installation and Docker Uusage](./installation_and_docker_usage.md) information of full MCPMark setup.
 
 ### Running MCPMark
 
-MCPMark supports the following mode to run experiments (suppose the experiment is named as new_exp, and the model used are o3 and gpt-4.1 and the environment is notion)
+MCPMark supports the following mode to run experiments (suppose the experiment is named as new_exp, and the model used are o3 and gpt-4.1 and the environment is notion), with Pass@K as the evaluation metric.
 
 #### MCPMark in Pip Installation
 ```bash
 # Evaluate ALL tasks
-python -m pipeline --exp-name new_exp --mcp notion --tasks all --models o3
+python -m pipeline --exp-name new_exp --mcp notion --tasks all --models o3 --k K
 
 # Evaluate a single task group (online_resume)
-python -m pipeline --exp-name new_exp --mcp notion --tasks online_resume --models o3
+python -m pipeline --exp-name new_exp --mcp notion --tasks online_resume --models o3 --k K
 
 # Evaluate one specific task (task_1 in online_resume)
-python -m pipeline --exp-name new_exp --mcp notion --tasks online_resume/task_1 --models o3
+python -m pipeline --exp-name new_exp --mcp notion --tasks online_resume/task_1 --models o3 --k K
 
 # Evaluate multiple models
-python -m pipeline --exp-name new_exp --mcp notion --tasks all --models o3,gpt-4.1
+python -m pipeline --exp-name new_exp --mcp notion --tasks all --models o3,gpt-4.1 --k K
 ```
 
 #### MCPMark in Docker Installation
@@ -53,50 +54,10 @@ For re-run experiments, only unfinished tasks will be executed. Tasks that previ
 ### Results
 The experiment results are written to `./results/` (JSON + CSV).
 
-#### Visualization
-Quickly get to know model success rate and token comsumption through one line of command
-
+#### Reult Aggregation (for K > 1)
+MCP supports aggreated metrics of pass@1, pass@K, $\text{pass}^{K}$, avg@K.
 ```bash
-python -m examples.results_parser --exp-name exp_name --mcp SERVICE
-```
-
-This command scans `./results/{args.exp_name}/` for all model folders that start with the given service prefix.
-
-Only models that finished all tasks without pipeline errors are visualized. Incomplete models are listed with a resume command so you can easily continue evaluation.
-
-The generated plot is saved next to the experiment folder, e.g. `./results/{args.exp_name}/summary_{SERVICE}.png`.
-
-### Model Support
-MCPMark supports frontier models from various organizations, specifically
-```env
-# OpenAI
-gpt-4o
-gpt-4.1
-gpt-4.1-mini
-gpt-5
-gpt-5-mini
-gpt-5-nano
-o3
-o4-mini
-
-# xAI
-grok-4
-
-# Google
-gemini-2.5-pro
-gemini-2.5-flash
-
-# Anthropic
-claude-3-7-sonnet
-claude-4-sonnet
-calude-4-opus
-
-# DeepSeek
-deepseek-chat
-deepseek-reasoner
-
-# Moonshot
-k2
+python -m src.aggregators.aggregate_results --exp-name new_exp
 ```
 
 ### Want to contribute?

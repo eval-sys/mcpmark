@@ -46,7 +46,7 @@ The verification script will tell you which browser is working properly. The pip
 
 ## 3. Running Notion Tasks
 
-1. Make sure the following service credentials are added in `.mcp_env`.
+1. Configure environment variables: make sure the following service credentials are added in `.mcp_env`.
 ```env
 ## Notion
 SOURCE_NOTION_API_KEY="your-source-notion-api-key"   # For Source Hub (templates)
@@ -58,6 +58,6 @@ PLAYWRIGHT_HEADLESS="True"
 
 2. For single task or task group, run 
 ```bash
-python -m pipeline --exp-name EXPNAME --mcp notion --tasks NOTIONTASK --models MODEL
+python -m pipeline --exp-name EXPNAME --mcp notion --tasks NOTIONTASK --models MODEL --k K
 ```
-Here *EXPNAME* refers to customized experiment name, *NOTIONTASK* refers to the notion task or task group selected (see [Task Page](../datasets/task.md) for specific task information) and *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported).
+Here *EXPNAME* refers to customized experiment name, *NOTIONTASK* refers to the notion task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.

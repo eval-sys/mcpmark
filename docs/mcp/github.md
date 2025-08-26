@@ -109,10 +109,10 @@ MCPMark places a cap on the number of PRs and issues (≤ 50 in total) per repos
 
 ## 2. Running Github Tasks
 
-1. Make sure `GITHUB_TOKENS` and `GITHUB_EVAL_ORG` are properly set in `.mcp_env`.
+1. Configure environment variables: make sure `GITHUB_TOKENS` and `GITHUB_EVAL_ORG` are properly set in `.mcp_env`.
 
 2. For single task or task group, run 
 ```bash
-python -m pipeline --exp-name EXPNAME --mcp github --tasks GITHUBTASK --models MODEL
+python -m pipeline --exp-name EXPNAME --mcp github --tasks GITHUBTASK --models MODEL --k K
 ```
-Here *EXPNAME* refers to customized experiment name, *GITHUBTASK* refers to the github task or task group selected (see [Task Page](../datasets/task.md) for specific task information) and *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported).
+Here *EXPNAME* refers to customized experiment name, *GITHUBTASK* refers to the github task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.

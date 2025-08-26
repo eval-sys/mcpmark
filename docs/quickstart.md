@@ -39,7 +39,7 @@ XAI_API_KEY="your-xai-api-key"
 ```
 
 ### 3. Run Quick Example in MCPMark
-Suppose you are running the employee query task with gemini-2.5-flash, and name your experiment as mcpmark_quickstart, you can use the following command to test the `size_classification` task in `file_property`, which categorizes files by their sizes.
+Suppose you are running the employee query task with gemini-2.5-flash, and name your experiment as test-run-1, you can use the following command to test the `size_classification` task in `file_property`, which categorizes files by their sizes.
 
 ```bash
 python -m pipeline 
@@ -52,6 +52,8 @@ python -m pipeline
 Here is the expected output (the verification may encounter failure due to model choices). 
 ![Sample Experiment Output](../asset/task_sample/task_sample_file_property_size_classification.png)
 
-The reuslts is saved at `restuls/{exp_name}/{mcp}_{model}/{tasks}`, if `exp-name` is not specified, the default name would be timestamp of the experiment. 
+The reuslts are saved under `restuls/{exp_name}/{mcp}_{model}/{tasks}`, if `exp-name` is not specified, the default name would be timestamp of the experiment (but specifying the `exp-name` is useful for resuming experiments).
+
+For other MCP services, please refers to the [Installation and Docker Usage Page](./installation_and_docker_usage.md) for detailed instruction. 
 
 
