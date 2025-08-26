@@ -1,8 +1,10 @@
-# Playwright-WebArena
+# Playwright
 
 This guide walks you through setting up WebArena environments for Playwright MCP automated testing, including Shopping, Shopping Admin, and Reddit instances.
 
-## 1. Setup Playwright-WebArena Environment
+Section 1 is designed mainly for completing the Playwright-WebArena tasks.
+
+## 1. Setup WebArena Environment (For Playwright-WebArena Tasks)
 ### 1.1 Download Docker Images
 
 [WebArena](https://github.com/web-arena-x/webarena/tree/main/environment_docker) provides Docker images from multiple sources. Choose the fastest one for your network:
@@ -164,7 +166,7 @@ sudo mv ngrok /usr/local/bin
 ngrok http 7770  # For Shopping
 ```
 
-## 2. Running Playwright-WebArena Tasks
+## 2. Running Playwright Tasks
 
 1. Configure environment variables: make sure the following service credentials are added in `.mcp_env`.
 ```env
@@ -174,9 +176,9 @@ PLAYWRIGHT_HEADLESS="True"
 
 2. For single task or task group, run 
 ```bash
-python -m pipeline --exp-name EXPNAME --mcp playwright_webarena --tasks  PLAYWRIGHTTASK --models MODEL
+python -m pipeline --exp-name EXPNAME --mcp MCP --tasks  PLAYWRIGHTTASK --models MODEL
 ```
-Here *EXPNAME* refers to customized experiment name, *PLAYWRIGHTTASK* refers to the playwright-webarena task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.
+Here *EXPNAME* refers to customized experiment name, *MCP* refers to playwright or playwright_webarena denpending on the task, *PLAYWRIGHTTASK* refers to the task or task group selected (see [Task Page](../datasets/task.md) for specific task information), *MODEL* refers to the selected model (see [Introduction Page](../introduction.md) for model supported), *K* refers to the time of independent experiments.
 
 ## 3. Troubleshooting
 
