@@ -94,22 +94,22 @@ Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}`.
 ### Single run (k=1)
 ```bash
 # Run ALL tasks for a service
-python -m pipeline --exp-name exp --mcp notion --tasks all --models o3
+python -m pipeline --exp-name exp --mcp notion --tasks all --models o3 --k 1
 
 # Run a task group
-python -m pipeline --exp-name exp --mcp notion --tasks online_resume --models o3
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume --models o3 --k 1
 
 # Run a specific task
-python -m pipeline --exp-name exp --mcp notion --tasks online_resume/daily_itinerary_overview --models o3
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume/daily_itinerary_overview --models o3 --k 1
 
 # Evaluate multiple models
-python -m pipeline --exp-name exp --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet
+python -m pipeline --exp-name exp --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet --k 1
 ```
 
 ### Multiple runs (k>1) for pass@k
 ```bash
-# Run k=5 to compute stability metrics (requires --exp-name)
-python -m pipeline --exp-name exp --mcp notion --tasks all --models o3 --k 5
+# Run k=4 to compute stability metrics (requires --exp-name to aggregate final results)
+python -m pipeline --exp-name exp --mcp notion --tasks all --models o3
 
 # Aggregate results (pass@1 / pass@k / pass^k / avg@k)
 python -m src.aggregators.aggregate_results --exp-name exp
