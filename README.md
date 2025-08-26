@@ -13,6 +13,9 @@ An evaluation suite for agentic models in real MCP tool environments (Notion / G
 
 MCPMark provides a reproducible, extensible benchmark for researchers and engineers: one-command tasks, isolated sandboxes, auto-resume for failures, unified metrics, and aggregated reports.
 
+[![MCPMark](https://github-production-user-asset-6210df.s3.amazonaws.com/17870709/481908972-e4bdb51c-ffab-409e-8e27-d2c61fafe1db.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250826%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250826T043403Z&X-Amz-Expires=300&X-Amz-Signature=bdfe33bc1641385c0b25d5c6e5bf8b06aeff11f081261712131e4a5f7592d745&X-Amz-SignedHeaders=host)](https://mcpmark.ai)
+
+
 ## What you can do with MCPMark
 
 - **Evaluate real tool usage** across multiple MCP services: `Notion`, `GitHub`, `Filesystem`, `Postgres`, `Playwright`.
@@ -128,18 +131,18 @@ Tip: MCPMark supports **auto-resume**. When re-running commands, only unfinished
 ## Service setup and authentication
 
 - **Notion**: environment isolation (Source Hub / Eval Hub), integration creation and grants, browser login verification.
-  - Guide: `docs/mcp/notion.md`
-  - Env setup: `docs/setup/notion-env-setup.md`
+    - Guide: `docs/mcp/notion.md`
+    - Env setup: `docs/setup/notion-env-setup.md`
 
 - **GitHub**: multi-account token pooling recommended; import pre-exported repo state if needed.
-  - Guide: `docs/mcp/github.md`
-  - Env setup: `docs/setup/github-env-setup.md`
+    - Guide: `docs/mcp/github.md`
+    - Env setup: `docs/setup/github-env-setup.md`
 
 - **Postgres**: start via Docker and import sample databases.
-  - Env setup: `docs/setup/postgres-env-setup.md`
+    - Env setup: `docs/setup/postgres-env-setup.md`
 
 - **Playwright**: install browsers before first run; defaults to `chromium`.
-  - Env setup: `docs/setup/playwright-env-setup.md`
+    - Env setup: `docs/setup/playwright-env-setup.md`
 
 - **Filesystem**: zero-configuration, run directly.
 
