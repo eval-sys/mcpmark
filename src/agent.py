@@ -132,9 +132,9 @@ class MCPAgent:
             base_url=self.base_url,
             api_key=self.api_key,
             default_headers={
-                "App-Code": "LobeHub",
-                "HTTP-Referer": "https://lobehub.com",
-                "X-Title": "LobeHub",
+                "App-Code": "MCPMark",
+                "HTTP-Referer": "https://mcpmark.ai",
+                "X-Title": "MCPMark",
             },
         )
         agent_model_name = self.model_name  # Capture the model name from the agent
