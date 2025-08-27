@@ -32,7 +32,7 @@ cd mcpmark
 ```
 
 ### 2) Set environment variables (create `.mcp_env` at repo root)
-Only set what you need. Add service credentials when running tasks for that service.
+Only set what you need (suppose using models from OpenAI). Add service credentials when running tasks for that service.
 
 ```env
 # Example: OpenAI
@@ -78,11 +78,12 @@ Run a filesystem task (no external accounts required):
 python -m pipeline \
   --mcp filesystem \
   --k 1 \ # run once to quick start
+  --exp-name test-run
   --models gpt-5  \ # or any model you configured
   --tasks file_property/size_classification
 ```
 
-Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}`.
+Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}` (in this example `./results/test-run/filesystem__gpt-5/file_property_size_classification`).
 
 ---
 
@@ -128,20 +129,19 @@ Tip: MCPMark supports **auto-resume**. When re-running commands, only unfinished
 ## Service setup and authentication
 
 - **Notion**: environment isolation (Source Hub / Eval Hub), integration creation and grants, browser login verification.
-  - Guide: `docs/mcp/notion.md`
-  - Env setup: `docs/setup/notion-env-setup.md`
+  - Guide and Setup: `docs/mcp/notion.md`
 
 - **GitHub**: multi-account token pooling recommended; import pre-exported repo state if needed.
-  - Guide: `docs/mcp/github.md`
-  - Env setup: `docs/setup/github-env-setup.md`
+  -Guide and Setup: `docs/mcp/github.md`
 
 - **Postgres**: start via Docker and import sample databases.
-  - Env setup: `docs/setup/postgres-env-setup.md`
+  - Env setup: `docs/mcp/postgres.md`
 
 - **Playwright**: install browsers before first run; defaults to `chromium`.
-  - Env setup: `docs/setup/playwright-env-setup.md`
+  - Env setup: `docs/mcp/playwright.md`
 
 - **Filesystem**: zero-configuration, run directly.
+  - Configuration: `docs/mcp/filesystem.md`
 
 You can also follow `docs/quickstart.md` for the shortest end-to-end path.
 
@@ -161,22 +161,22 @@ python -m src.aggregators.aggregate_results --exp-name exp
 ## Models and tasks
 
 - See supported models in `docs/introduction.md`.
-- Task catalog and design principles in `docs/datasets/task.md`. Each task ships with an automated `verify.py` for objective, reproducible evaluation.
+- Task design principles in `docs/datasets/task.md`. Each task ships with an automated `verify.py` for objective, reproducible evaluation, see `docs/task.md` for details.
 
 ---
 
 ## Contributing
 
 Contributions are welcome:
-1. Add a new task under `tasks/<category_id>/<task_id>/` with `description.md` and `verify.py`.
+1. Add a new task under `tasks/<category_id>/<task_id>/` with `meta.json`, `description.md` and `verify.py`.
 2. Ensure local checks pass and open a PR.
-3. See `docs/contributing/make-contribution.md` and `docs/contributing/add-new-mcp-service.md`.
+3. See `docs/contributing/make-contribution.md`.
 
 ---
 
 ## Citation
 
-If you find our works useful for your research, please consider citing:
+If you find our works useful for your research, please use the following reference:
 
 ```bibtex
 @misc{mcpmark_2025,
