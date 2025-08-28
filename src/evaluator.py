@@ -29,6 +29,7 @@ class MCPEvaluator:
         timeout: int = 300,
         exp_name: str = "test-run",
         output_dir: Path = None,
+        stream: bool = False,
     ):
         # Main configuration
         self.mcp_service = mcp_service
@@ -60,6 +61,7 @@ class MCPEvaluator:
             timeout=timeout,
             service_config=self.service_config,
             service_config_provider=self.state_manager.get_service_config_for_agent,
+            stream=stream,
         )
 
         # Initialize results reporter
