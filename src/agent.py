@@ -498,7 +498,7 @@ class MCPAgent:
                     )
                 
                 # Extract turn count consistently (use current_turn like streaming)
-                turn_count = getattr(result, "current_turn", 0)
+                turn_count = len(result.raw_responses if hasattr(result, "raw_responses") else [])
                 if turn_count:
                     logger.info(f"| Turns: {turn_count}")
                 
@@ -805,21 +805,6 @@ class MCPAgent:
                         "error": str(stream_error),
                     }
 
-                # Debug: Log the result attributes
-                logger.debug(f"Result attributes: {dir(result)}")
-                logger.debug(f"Has raw_responses: {hasattr(result, 'raw_responses')}")
-                logger.debug(f"Has current_turn: {hasattr(result, 'current_turn')}")
-                if hasattr(result, "raw_responses"):
-                    logger.debug(
-                        f"Raw responses count: {len(result.raw_responses) if result.raw_responses else 0}"
-                    )
-
-                # Check if max_turns was exceeded
-                # The result object may have completed normally but hit the turn limit
-                if hasattr(result, "current_turn") and result.current_turn > self.MAX_TURNS:
-                    max_turns_exceeded = True
-                    logger.warning(f"| Max turns ({result.current_turn - 1}) reached")
-
                 # Extract token usage from raw responses using helper
                 token_usage = self._extract_token_usage(result.raw_responses if hasattr(result, "raw_responses") else [])
                 if token_usage:
@@ -832,7 +817,7 @@ class MCPAgent:
                     )
 
                 # Extract turn count
-                turn_count = getattr(result, "current_turn", None)
+                turn_count = len(result.raw_responses if hasattr(result, "raw_responses") else [])
                 if turn_count:
                     partial_turn_count = turn_count
 
