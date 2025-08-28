@@ -28,7 +28,9 @@ class TaskResult:
         success: Whether the task completed successfully.
         category_id: The task category ID.
         task_id: The task identifier (number or slug).
-        error_message: Error message if the task failed.
+        error_message: Error message from agent execution if it failed.
+        verification_error: Error message from verification if it failed.
+        verification_output: Captured stdout from verification script.
         model_output: Agent conversation trajectory (messages).
         token_usage: Token usage statistics.
         turn_count: Number of turns taken during task execution.
@@ -40,7 +42,9 @@ class TaskResult:
     success: bool
     category_id: Optional[str] = None
     task_id: Optional[str] = None
-    error_message: Optional[str] = None
+    error_message: Optional[str] = None  # Agent execution error
+    verification_error: Optional[str] = None  # Verification error (separate from agent error)
+    verification_output: Optional[str] = None  # Verification stdout/stderr
     model_output: Optional[Any] = None  # Agent conversation trajectory
     token_usage: Optional[Dict[str, int]] = None  # Token usage statistics
     turn_count: Optional[int] = None  # Number of turns taken during task execution
@@ -246,6 +250,8 @@ class ResultsReporter:
             "execution_result": {
                 "success": task_result.success,
                 "error_message": task_result.error_message,
+                "verification_error": task_result.verification_error,
+                "verification_output": task_result.verification_output,
             },
             "token_usage": task_result.token_usage or {},
             "turn_count": task_result.turn_count,

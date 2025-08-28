@@ -174,56 +174,55 @@ class BaseTaskManager(ABC):
         """Execute task verification (template method)."""
         logger.info(f"| Verifying task ({self.mcp_service.title()}): {task.name}")
 
+        # Track agent success separately
+        agent_success = agent_result.get("success", False)
+        agent_error = None
+        verification_success = False
+        verification_error = None
+        verification_output = None
+
+        # Handle agent failure (but still continue to verification)
+        if not agent_success:
+            agent_error = agent_result.get("error", "Agent execution failed")
+            # Standardize MCP network errors
+            agent_error = self._standardize_error_message(agent_error)
+            
+            logger.error(f"| ✗ Agent execution failed for task")
+            logger.error(f"| ⚠️ Error: {agent_error}")
+            logger.info(f"| - Proceeding with verification despite agent failure")
+
         try:
-            # If agent execution failed, return the failure
-            logger.debug(f"| DEBUG: agent_result = {agent_result}")
-            if not agent_result.get("success", False):
-                error_message = agent_result.get("error", "Agent execution failed")
-                logger.debug(f"| DEBUG: Agent failed, error_message = {error_message}")
-
-                # Standardize MCP network errors
-                error_message = self._standardize_error_message(error_message)
-                logger.debug(f"| DEBUG: Standardized error_message = {error_message}")
-
-                # Log the agent failure so users can distinguish it from verification errors
-                logger.error(f"| ✗ Agent execution failed for task")
-                logger.error(f"| ⚠️ Error: {error_message}")
-                logger.warning(
-                    f"| - Skipping verification for task: {task.name} due to agent failure"
-                )
-
-                return TaskResult(
-                    task_name=task.name,
-                    success=False,
-                    error_message=error_message,
-                    category_id=task.category_id,
-                    task_id=task.task_id,
-                    model_output=agent_result.get("output", ""),
-                    token_usage=agent_result.get("token_usage", {}),
-                    turn_count=agent_result.get("turn_count", 0),
-                )
-
-            # Run verification using service-specific command
+            # Always run verification regardless of agent success
             verify_result = self.run_verification(task)
 
-            # Process results
-            success = verify_result.returncode == 0
-            print(verify_result.stdout)
-            error_message = (
-                verify_result.stderr if not success and verify_result.stderr else None
-            )
+            # Process verification results
+            verification_success = verify_result.returncode == 0
+            verification_output = verify_result.stdout
+            
+            # Log verification output
+            if verification_output:
+                print(verification_output)
+            
+            # Capture verification error if failed
+            if not verification_success:
+                verification_error = verify_result.stderr if verify_result.stderr else "Verification failed with no error message"
 
-            if success:
+            if verification_success:
                 logger.info(f"| Verification Result: \033[92m✓ PASSED\033[0m")
             else:
                 logger.error(f"| Verification Result: \033[91m✗ FAILED\033[0m")
-                if error_message:
-                    logger.error(f"| Error: {error_message}")
+                if verification_error:
+                    logger.error(f"| Verification Error: {verification_error}")
+
+            # Overall task success: BOTH agent AND verification must succeed
+            overall_success = agent_success and verification_success
 
             return TaskResult(
                 task_name=task.name,
-                success=success,
-                error_message=error_message,
+                success=overall_success,
+                error_message=agent_error,  # Agent execution error
+                verification_error=verification_error,  # Verification error
+                verification_output=verification_output,  # Verification output
                 model_output=agent_result.get("output", ""),
                 category_id=task.category_id,
                 task_id=task.task_id,
@@ -236,7 +235,9 @@ class BaseTaskManager(ABC):
             return TaskResult(
                 task_name=task.name,
                 success=False,
-                error_message=str(e),
+                error_message=agent_error,  # Keep agent error if any
+                verification_error=str(e),  # Verification exception
+                verification_output=None,
                 category_id=task.category_id,
                 task_id=task.task_id,
                 model_output=agent_result.get("output", ""),
@@ -252,7 +253,7 @@ class BaseTaskManager(ABC):
         """
         return subprocess.run(
             self._get_verification_command(task),
-            # capture_output=True,
+            capture_output=True,  # Capture stdout and stderr for logging
             text=True,
             timeout=300,
         )

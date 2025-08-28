@@ -124,7 +124,7 @@ class NotionStateManager(BaseStateManager):
 
             if not parent_page_id:
                 logger.debug(
-                    "Parent page '%s' not found in eval workspace, skipping cleanup",
+                    "| ✗ Parent page '%s' not found in eval workspace, skipping cleanup",
                     self.eval_parent_page_title,
                 )
                 return
@@ -141,15 +141,15 @@ class NotionStateManager(BaseStateManager):
                             page_id=child["id"], archived=True
                         )
                         orphan_count += 1
-                        logger.debug("Archived orphan page: %s", child["id"])
+                        logger.debug("| ✓ Archived orphan page: %s", child["id"])
                     except Exception as e:
                         logger.warning(
-                            "Failed to archive orphan page %s: %s", child["id"], e
+                            "| ✗ Failed to archive orphan page %s: %s", child["id"], e
                         )
 
             if orphan_count > 0:
                 logger.info(
-                    "Cleaned up %d orphan page(s) from MCPMark Eval Hub", orphan_count
+                    "| ✓ Cleaned up %d orphan page(s) from MCPMark Eval Hub", orphan_count
                 )
 
         except Exception as e:
@@ -193,7 +193,7 @@ class NotionStateManager(BaseStateManager):
                         
             except Exception as e:
                 logger.debug(
-                    "Database not ready yet (attempt %d/%d): %s", 
+                    "| ✗ Database not ready yet (attempt %d/%d): %s", 
                     attempt + 1, 
                     max_retries, 
                     str(e)
@@ -204,7 +204,7 @@ class NotionStateManager(BaseStateManager):
                 time.sleep(retry_delay)
         
         logger.error(
-            "Database backend failed to become ready after %d attempts", 
+            "| ✗ Database backend failed to become ready after %d attempts", 
             max_retries
         )
         return False
@@ -224,7 +224,7 @@ class NotionStateManager(BaseStateManager):
 
             if not initial_state_info:
                 logger.error(
-                    "Initial state not found for category '%s' (title: '%s')",
+                    "| ✗ Initial state not found for category '%s' (title: '%s')",
                     task.category_id,
                     initial_state_title,
                 )
@@ -240,7 +240,7 @@ class NotionStateManager(BaseStateManager):
             logger.info("| ○ Checking database backend accessibility for duplicated page...")
             if not self._wait_for_database_ready(duplicated_id):
                 logger.error(
-                    "Database backend is not accessible after duplication for task %s",
+                    "| ✗ Database backend is not accessible after duplication for task %s",
                     task.name
                 )
                 # Clean up the duplicated page if database is not ready
@@ -250,10 +250,10 @@ class NotionStateManager(BaseStateManager):
                     )
                     logger.info("| ✓ Cleaned up inaccessible duplicated page: %s", duplicated_id)
                 except Exception as cleanup_error:
-                    logger.error("Failed to clean up duplicated page: %s", cleanup_error)
+                    logger.error("| ✗ Failed to clean up duplicated page: %s", cleanup_error)
                 
                 raise RuntimeError(
-                    f"Database backend failed to become ready for duplicated page {duplicated_id}"
+                    f"| ✗ Database backend failed to become ready for duplicated page {duplicated_id}"
                 )
 
             time.sleep(5) # allow the page to fully load
@@ -269,7 +269,7 @@ class NotionStateManager(BaseStateManager):
             )
 
         except Exception as e:
-            logger.error(f"Failed to create initial state for {task.name}: {e}")
+            logger.error(f"| ✗ Failed to create initial state for {task.name}: {e}")
             return None
 
     def _store_initial_state_info(
@@ -292,7 +292,7 @@ class NotionStateManager(BaseStateManager):
         initial_state_id = task.duplicated_initial_state_id
         if not initial_state_id:
             logger.warning(
-                "No duplicated initial state ID found for task %s, skipping cleanup.",
+                "| ✗ No duplicated initial state ID found for task %s, skipping cleanup.",
                 task.name,
             )
             return False
@@ -313,7 +313,7 @@ class NotionStateManager(BaseStateManager):
 
             return True
         except Exception as e:
-            logger.error("Failed to archive initial state %s: %s", initial_state_id, e)
+            logger.error("| ✗ Failed to archive initial state %s: %s", initial_state_id, e)
             return False
 
     def _cleanup_single_resource(self, resource: Dict[str, Any]) -> bool:
@@ -323,13 +323,13 @@ class NotionStateManager(BaseStateManager):
                 self.eval_notion_client.pages.update(
                     page_id=resource["id"], archived=True
                 )
-                logger.info(f"Archived Notion page: {resource['id']}")
+                logger.info(f"| ✓ Archived Notion page: {resource['id']}")
                 return True
             except Exception as e:
-                logger.error(f"Failed to archive Notion page {resource['id']}: {e}")
+                logger.error(f"| ✗ Failed to archive Notion page {resource['id']}: {e}")
                 return False
 
-        logger.warning(f"Unknown resource type for cleanup: {resource['type']}")
+        logger.warning(f"| ? Unknown resource type for cleanup: {resource['type']}")
         return False
 
     # =========================================================================
@@ -346,7 +346,7 @@ class NotionStateManager(BaseStateManager):
                 properties={"title": {"title": [{"text": {"content": new_title}}]}},
             )
         except Exception as e:
-            logger.error("Failed to rename page via API: %s", e)
+            logger.error("| ✗ Failed to rename page via API: %s", e)
 
     # ------------------------------------------------------------------
     # Playwright helpers
@@ -419,11 +419,11 @@ class NotionStateManager(BaseStateManager):
             time.sleep(3)
         except PlaywrightTimeoutError as e:
             logger.error(
-                "Playwright timed out while moving page to evaluation parent – move may have failed."
+                "| ✗ Playwright timed out while moving page to evaluation parent – move may have failed."
             )
             raise RuntimeError("Playwright timeout during move-to operation") from e
         except Exception as exc:
-            logger.error("Unexpected error during move-to operation: %s", exc)
+            logger.error("| ✗ Unexpected error during move-to operation: %s", exc)
             # Propagate the error to allow retry logic at higher level if necessary
             raise
 
@@ -479,7 +479,7 @@ class NotionStateManager(BaseStateManager):
                 ):
                     return result.get("id"), result.get("url")
         except Exception as e:
-            logger.error("Error searching for initial state '%s': %s", title, e)
+            logger.error("| ✗ Error searching for initial state '%s': %s", title, e)
         return None
 
     # =========================================================================
@@ -521,7 +521,7 @@ class NotionStateManager(BaseStateManager):
             # Validate that the resulting URL is a genuine duplicate of the original template.
             if not self._is_valid_duplicate_url(original_url, duplicated_url):
                 logger.error(
-                    "Unexpected URL after duplication – URL does not match expected duplicate pattern.\n  Original: %s\n  Observed: %s",
+                    "| ✗ Unexpected URL after duplication – URL does not match expected duplicate pattern.\n  Original: %s\n  Observed: %s",
                     original_url,
                     duplicated_url,
                 )
@@ -553,7 +553,7 @@ class NotionStateManager(BaseStateManager):
                 )
                 if not result or not isinstance(result, dict):
                     logger.error(
-                        "Playwright move to error: Notion API did not return a valid page dict after move."
+                        "| ✗ Playwright move to error: Notion API did not return a valid page dict after move."
                     )
                     raise RuntimeError(
                         "Playwright move to error: Notion API did not return a valid page dict after move."
@@ -615,10 +615,10 @@ class NotionStateManager(BaseStateManager):
                     self.source_notion_client.pages.update(
                         page_id=dup_id, archived=True
                     )
-                    logger.info("Archived orphan duplicate (%s): %s", "page", dup_id)
+                    logger.info("| ✓ Archived orphan duplicate (%s): %s", "page", dup_id)
                     archived_any = True
                 except Exception as exc:
-                    logger.warning("Failed to archive orphan page %s: %s", dup_id, exc)
+                    logger.warning("| ✗ Failed to archive orphan page %s: %s", dup_id, exc)
             return archived_any
         except Exception as exc:
             logger.warning(
@@ -688,7 +688,7 @@ class NotionStateManager(BaseStateManager):
                 last_exc = e
                 if attempt < max_retries:
                     logger.warning(
-                        "⚠️ Duplication attempt %d failed: %s. Retrying...",
+                        "| ⚠️ Duplication attempt %d failed: %s. Retrying...",
                         attempt + 1,
                         e,
                     )
