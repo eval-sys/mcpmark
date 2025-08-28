@@ -30,6 +30,8 @@ from agents import (
     Runner,
     set_tracing_disabled,
 )
+from agents.exceptions import AgentsException
+from agents.items import ItemHelpers
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseTextDeltaEvent
 
@@ -504,17 +506,6 @@ class MCPAgent:
                 
                 execution_time = time.time() - start_time
                 
-                # Check if max_turns was exceeded
-                if turn_count > self.MAX_TURNS:
-                    self._update_statistics(False, token_usage, turn_count - 1, execution_time)
-                    return self._create_error_response(
-                        execution_time, 
-                        f"Max turns ({turn_count - 1}) exceeded",
-                        conversation_output,
-                        token_usage,
-                        turn_count - 1
-                    )
-                
                 # Update statistics and return success
                 self._update_statistics(True, token_usage, turn_count, execution_time)
                 return self._create_success_response(
@@ -523,16 +514,54 @@ class MCPAgent:
                 
         except Exception as e:
             execution_time = time.time() - start_time
-            self._update_statistics(False, {}, 0, execution_time)
-            
+
+            conversation_output = []
+            token_usage: Dict[str, int] = {}
+            turn_count = 0
+
+            # If this is an AgentsException with run_data, extract partials
+            if isinstance(e, AgentsException) and getattr(e, "run_data", None):
+                try:
+                    rd = e.run_data  # type: ignore[attr-defined]
+                    # Reconstruct conversation similar to RunResult.to_input_list()
+                    original_items = ItemHelpers.input_to_new_input_list(rd.input)
+                    new_items = [item.to_input_item() for item in rd.new_items]
+                    conversation_output = original_items + new_items
+
+                    # Prefer aggregated usage from context_wrapper
+                    usage = getattr(getattr(rd, "context_wrapper", None), "usage", None)
+                    if usage:
+                        token_usage = {
+                            "input_tokens": usage.input_tokens or 0,
+                            "output_tokens": usage.output_tokens or 0,
+                            "total_tokens": usage.total_tokens or 0,
+                        }
+                    else:
+                        # Fallback: aggregate from raw_responses
+                        token_usage = self._extract_token_usage(rd.raw_responses)
+
+                    # Completed turns are the number of model_responses collected
+                    turn_count = len(getattr(rd, "raw_responses", []) or [])
+                except Exception as extract_err:
+                    logger.debug(f"Failed to extract run_data on error: {extract_err}")
+
+            # Update aggregate statistics using whatever we extracted
+            self._update_statistics(False, token_usage, turn_count, execution_time)
+
             error_msg = f"Agent execution failed: {e}"
             logger.error(error_msg, exc_info=True)
-            
+
             # Log error to file if specified
             if tool_call_log_file:
                 self._write_to_log_file(tool_call_log_file, f"\n| ERROR: {error_msg}\n")
-            
-            return self._create_error_response(execution_time, str(e))
+
+            return self._create_error_response(
+                execution_time,
+                str(e),
+                conversation_output if conversation_output else [],
+                token_usage if token_usage else {},
+                turn_count,
+            )
     
     def _log_tool_calls_from_conversation(
         self, conversation: list, log_file_path: str
