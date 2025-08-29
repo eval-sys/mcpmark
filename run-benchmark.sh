@@ -11,7 +11,8 @@ EXP_NAME=""
 USE_DOCKER=false
 SERVICES="filesystem,notion,github,postgres,playwright"
 PARALLEL=false
-TIMEOUT=300
+TIMEOUT=1000
+K=4
 
 # Color codes for output
 RED='\033[0;31m'
@@ -64,6 +65,10 @@ while [[ $# -gt 0 ]]; do
             TIMEOUT="$2"
             shift 2
             ;;
+        --k)
+            K="$2"
+            shift 2
+            ;;
         --help)
             cat << EOF
 Usage: $0 --models MODELS --exp-name NAME [OPTIONS]
@@ -81,6 +86,7 @@ Optional Options:
                         Default: filesystem,notion,github,postgres,playwright
     --parallel          Run services in parallel (experimental)
     --timeout SECONDS   Timeout per task in seconds (default: 300)
+    --k RUNS            Repeat runs per service for pass@k (default: 1)
 
 Examples:
     # Run all services with Docker
@@ -171,6 +177,7 @@ echo "Services:    ${SERVICE_ARRAY[*]}"
 echo "Docker:      $USE_DOCKER"
 echo "Parallel:    $PARALLEL"
 echo "Timeout:     ${TIMEOUT}s per task"
+echo "K-Runs:      $K"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -200,7 +207,8 @@ run_service() {
             --models "$MODELS" \
             --exp-name "$EXP_NAME" \
             --tasks all \
-            --timeout "$TIMEOUT" 2>&1 | tee -a "$LOG_FILE"
+            --timeout "$TIMEOUT" \
+            --k "$K" 2>&1 | tee -a "$LOG_FILE"
     else
         # Run locally
         python3 -m pipeline \
@@ -208,7 +216,8 @@ run_service() {
             --models "$MODELS" \
             --exp-name "$EXP_NAME" \
             --tasks all \
-            --timeout "$TIMEOUT" 2>&1 | tee -a "$LOG_FILE"
+            --timeout "$TIMEOUT" \
+            --k "$K" 2>&1 | tee -a "$LOG_FILE"
     fi
 
     local exit_code=$?

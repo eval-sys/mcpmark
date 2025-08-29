@@ -74,6 +74,9 @@ COPY --from=builder /root/.local /root/.local
 RUN python3 -m playwright install chromium && \
     npx -y playwright install chromium
 
+# Layer 9: Install PostgreSQL MCP server (Python, used via `pipx run postgres-mcp`)
+RUN pipx install postgres-mcp
+
 # Set working directory
 WORKDIR /app
 
