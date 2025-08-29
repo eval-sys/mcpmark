@@ -128,7 +128,7 @@ if [ "$SERVICE" = "postgres" ]; then
         -v "$(pwd)/postgres_state:/app/postgres_state" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         "$DOCKER_IMAGE" \
-        python3 -m pipeline --mcp "$SERVICE" "$@"
+        python3 -m pipeline --mcp "$SERVICE" --k 1 "$@"
 elif [ "$SERVICE" = "filesystem" ]; then
     # For filesystem service, mount test_environments
     docker run --rm \
@@ -138,7 +138,7 @@ elif [ "$SERVICE" = "filesystem" ]; then
         -v "$(pwd)/test_environments:/app/test_environments" \
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         "$DOCKER_IMAGE" \
-        python3 -m pipeline --mcp "$SERVICE" "$@"
+        python3 -m pipeline --mcp "$SERVICE" --k 1 "$@"
 else
     # For other services (notion, github, playwright, etc.)
     docker run --rm \
@@ -149,7 +149,7 @@ else
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         $([ -f notion_state.json ] && echo "-v $(pwd)/notion_state.json:/app/notion_state.json") \
         "$DOCKER_IMAGE" \
-        python3 -m pipeline --mcp "$SERVICE" "$@"
+        python3 -m pipeline --mcp "$SERVICE" --k 1 "$@"
 fi
 
 echo "Task completed!"

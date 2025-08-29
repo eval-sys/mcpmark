@@ -86,7 +86,7 @@ Optional Options:
                         Default: filesystem,notion,github,postgres,playwright
     --parallel          Run services in parallel (experimental)
     --timeout SECONDS   Timeout per task in seconds (default: 300)
-    --k RUNS            Repeat runs per service for pass@k (default: 1)
+    --k RUNS            Repeat runs per service for pass@k (default: 4)
 
 Examples:
     # Run all services with Docker
@@ -292,13 +292,6 @@ echo "Results saved to:  $RESULTS_DIR"
 echo "Log file:          $LOG_FILE"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Check if results parser is available and generate dashboard
-if [ -f "examples/results_parser.py" ]; then
-    print_status "Generating performance dashboard..."
-    python3 -m examples.results_parser --exp-name "$EXP_NAME" --mcp all 2>/dev/null || {
-        print_warning "Could not generate dashboard"
-    }
-fi
 
 # Final status
 if [ $FAILED_SERVICES -eq 0 ]; then
