@@ -29,7 +29,7 @@ class MCPEvaluator:
         timeout: int = 300,
         exp_name: str = "test-run",
         output_dir: Path = None,
-        reasoning_effort: Optional[str] = None,
+        reasoning_effort: Optional[str] = "default",
     ):
         # Main configuration
         self.mcp_service = mcp_service

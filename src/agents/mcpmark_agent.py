@@ -39,7 +39,7 @@ class MCPMarkAgent:
     """
     
     # Constants
-    MAX_TURNS = 100
+    MAX_TURNS = 2
     DEFAULT_TIMEOUT = 600
     
     # Service categories
@@ -54,7 +54,7 @@ class MCPMarkAgent:
         timeout: int = DEFAULT_TIMEOUT,
         service_config: Optional[Dict[str, Any]] = None,
         service_config_provider: Optional[Callable[[], Dict]] = None,
-        reasoning_effort: Optional[str] = None,
+        reasoning_effort: Optional[str] = "default",
     ):
         """
         Initialize the MCPMark agent.
@@ -66,7 +66,7 @@ class MCPMarkAgent:
             timeout: Execution timeout in seconds
             service_config: Service-specific configuration
             service_config_provider: Optional provider for dynamic config
-            reasoning_effort: Reasoning effort level (None, "minimal", "low", "medium", "high")
+            reasoning_effort: Reasoning effort level ("default", "minimal", "low", "medium", "high")
         """
         self.model_name = model_name
         self.api_key = api_key
@@ -221,7 +221,7 @@ class MCPMarkAgent:
             }
             
             # Add reasoning_effort if specified
-            if self.reasoning_effort is not None:
+            if self.reasoning_effort != "default":
                 completion_kwargs["reasoning_effort"] = self.reasoning_effort
             
             response = await litellm.acompletion(**completion_kwargs)
@@ -433,7 +433,7 @@ class MCPMarkAgent:
             }
             
             # Add reasoning_effort if specified
-            if self.reasoning_effort is not None:
+            if self.reasoning_effort != "default":
                 completion_kwargs["reasoning_effort"] = self.reasoning_effort
             
             # Call LiteLLM with tools
