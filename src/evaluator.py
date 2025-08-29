@@ -29,6 +29,7 @@ class MCPEvaluator:
         timeout: int = 300,
         exp_name: str = "test-run",
         output_dir: Path = None,
+        stream: bool = False,
     ):
         # Main configuration
         self.mcp_service = mcp_service
@@ -60,6 +61,7 @@ class MCPEvaluator:
             timeout=timeout,
             service_config=self.service_config,
             service_config_provider=self.state_manager.get_service_config_for_agent,
+            stream=stream,
         )
 
         # Initialize results reporter
@@ -103,7 +105,9 @@ class MCPEvaluator:
             return TaskResult(
                 task_name=meta_data["task_name"],
                 success=meta_data["execution_result"]["success"],
-                error_message=meta_data["execution_result"]["error_message"],
+                error_message=meta_data["execution_result"].get("error_message"),
+                verification_error=meta_data["execution_result"].get("verification_error"),
+                verification_output=meta_data["execution_result"].get("verification_output"),
                 category_id=task.category_id,
                 task_id=task.task_id,
                 model_output=None,
@@ -137,7 +141,9 @@ class MCPEvaluator:
                 result = TaskResult(
                     task_name=meta_data["task_name"],
                     success=meta_data["execution_result"]["success"],
-                    error_message=meta_data["execution_result"]["error_message"],
+                    error_message=meta_data["execution_result"].get("error_message"),
+                    verification_error=meta_data["execution_result"].get("verification_error"),
+                    verification_output=meta_data["execution_result"].get("verification_output"),
                     category_id=category_id,
                     task_id=task_id,
                     model_output=None,
@@ -177,6 +183,8 @@ class MCPEvaluator:
                 task_name=task.name,
                 success=False,
                 error_message="State Duplication Error",
+                verification_error=None,
+                verification_output=None,
                 category_id=task.category_id,
                 task_id=task.task_id,
                 agent_execution_time=0.0,

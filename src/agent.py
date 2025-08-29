@@ -30,6 +30,8 @@ from agents import (
     Runner,
     set_tracing_disabled,
 )
+from agents.exceptions import AgentsException
+from agents.items import ItemHelpers
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseTextDeltaEvent
 
@@ -66,6 +68,16 @@ class MCPAgent:
     - Agent Framework: Currently supports OpenAI Agents SDK
     - Service: MCP service type (notion, github, postgres)
     """
+    
+    # Constants
+    MAX_TURNS = 100
+    DEFAULT_TIMEOUT = 600
+    DEFAULT_MAX_RETRIES = 3
+    DEFAULT_RETRY_BACKOFF = 5.0
+    
+    # Service categories
+    NPX_BASED_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena"]
+    PIPX_BASED_SERVICES = ["postgres"]
 
     def __init__(
         self,
@@ -74,11 +86,12 @@ class MCPAgent:
         base_url: str,
         mcp_service: str,
         agent_framework: str = "openai_agents",
-        timeout: int = 600,
-        max_retries: int = 3,
-        retry_backoff: float = 5.0,
+        timeout: int = DEFAULT_TIMEOUT,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_backoff: float = DEFAULT_RETRY_BACKOFF,
         service_config: dict | None = None,
         service_config_provider: "Callable[[], dict] | None" = None,
+        stream: bool = False,
     ):
         """
         Initialize the MCP agent.
@@ -92,6 +105,7 @@ class MCPAgent:
             timeout: Execution timeout in seconds
             max_retries: Maximum number of retries for transient errors
             retry_backoff: Backoff time for retries in seconds
+            stream: Whether to use streaming execution (default: False)
         """
         self.model_name = model_name
         self.api_key = api_key
@@ -101,6 +115,7 @@ class MCPAgent:
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
+        self.stream = stream
         # Persisted service-specific configuration (e.g., notion_key, browser, test_directory)
         self.service_config: dict[str, Any] = service_config or {}
         # Store optional provider for dynamic config refresh
@@ -126,16 +141,21 @@ class MCPAgent:
         # Disable tracing to avoid warnings and unnecessary uploads
         set_tracing_disabled(True)
 
+    @property
+    def _default_headers(self) -> dict:
+        """Get default headers for the model provider."""
+        return {
+            "App-Code": "MCPMark",
+            "HTTP-Referer": "https://mcpmark.ai",
+            "X-Title": "MCPMark",
+        }
+    
     def _create_model_provider(self) -> ModelProvider:
         """Create and return a model provider for the specified model."""
         client = AsyncOpenAI(
             base_url=self.base_url,
             api_key=self.api_key,
-            default_headers={
-                "App-Code": "MCPMark",
-                "HTTP-Referer": "https://mcpmark.ai",
-                "X-Title": "MCPMark",
-            },
+            default_headers=self._default_headers,
         )
         agent_model_name = self.model_name  # Capture the model name from the agent
 
@@ -158,185 +178,266 @@ class MCPAgent:
             self.service_config.update(latest_cfg)
         except Exception as exc:
             logger.warning("Failed to refresh service config via provider: %s", exc)
+    
+    # ========== Helper Methods ==========
+    
+    def _extract_token_usage(self, raw_responses) -> Dict[str, int]:
+        """Extract token usage from raw responses."""
+        if not raw_responses:
+            return {}
+        
+        total_input = 0
+        total_output = 0
+        total = 0
+        
+        for response in raw_responses:
+            if hasattr(response, "usage") and response.usage:
+                total_input += response.usage.input_tokens or 0
+                total_output += response.usage.output_tokens or 0
+                total += response.usage.total_tokens or 0
+        
+        return {
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "total_tokens": total,
+        }
+    
+    def _update_statistics(self, success: bool, token_usage: dict, turn_count: int, execution_time: float):
+        """Update usage statistics in a single place."""
+        if success:
+            self._usage_stats["successful_executions"] += 1
+        else:
+            self._usage_stats["failed_executions"] += 1
+        
+        self._usage_stats["total_input_tokens"] += token_usage.get("input_tokens", 0)
+        self._usage_stats["total_output_tokens"] += token_usage.get("output_tokens", 0)
+        self._usage_stats["total_tokens"] += token_usage.get("total_tokens", 0)
+        self._usage_stats["total_turns"] += turn_count
+        self._usage_stats["total_execution_time"] += execution_time
+    
+    def _create_error_response(self, execution_time: float, error: str, 
+                               output: list = None, token_usage: dict = None, 
+                               turn_count: int = 0) -> Dict[str, Any]:
+        """Create standardized error response."""
+        return {
+            "success": False,
+            "output": output or [],
+            "token_usage": token_usage or {},
+            "turn_count": turn_count,
+            "execution_time": execution_time,
+            "error": error,
+        }
+    
+    def _create_success_response(self, output: list, token_usage: dict, 
+                                 turn_count: int, execution_time: float) -> Dict[str, Any]:
+        """Create standardized success response."""
+        return {
+            "success": True,
+            "output": output,
+            "token_usage": token_usage,
+            "turn_count": turn_count,
+            "execution_time": execution_time,
+            "error": None,
+        }
+    
+    async def _prepare_agent_execution(self, instruction: str):
+        """Common setup for both streaming and non-streaming execution."""
+        self._refresh_service_config()
+        server = await self._create_mcp_server()
+        
+        agent = Agent(
+            name=f"{self.mcp_service.title()} Agent",
+            mcp_servers=[server]
+        )
+        ModelSettings.tool_choice = "required"
+        
+        conversation = [{"content": instruction, "role": "user"}]
+        return server, agent, conversation
+    
+    def _needs_startup_delay(self) -> bool:
+        """Check if the service needs a startup delay."""
+        return (self.mcp_service in self.NPX_BASED_SERVICES or 
+                self.mcp_service in self.PIPX_BASED_SERVICES)
 
     async def _create_mcp_server(self) -> Any:
         """Create and return an MCP server instance for the current service using self.service_config."""
-
-        cfg = self.service_config  # shorthand
-
-        # Services that use npx or pipx and need startup delay
-        NPX_BASED_SERVICES = [
-            "notion",
-            "filesystem",
-            "playwright",
-            "playwright_webarena",
-        ]
-        PIPX_BASED_SERVICES = ["postgres"]
-
-        # Add startup delay for npx-based and pipx-based services to ensure proper initialization
-        if (
-            self.mcp_service in NPX_BASED_SERVICES
-            or self.mcp_service in PIPX_BASED_SERVICES
-        ):
+        
+        # Add startup delay if needed
+        if self._needs_startup_delay():
             logger.debug(f"Adding startup delay for service: {self.mcp_service}")
             await asyncio.sleep(5)
-
-        if self.mcp_service == "notion":
-            notion_key = cfg.get("notion_key")
-            if not notion_key:
-                raise ValueError(
-                    "Notion API key (notion_key) is required for Notion MCP server"
-                )
-
-            return MCPServerStdio(
-                params={
-                    "command": "npx",
-                    "args": ["-y", "@notionhq/notion-mcp-server"],
-                    "env": {
-                        "OPENAPI_MCP_HEADERS": (
-                            '{"Authorization": "Bearer ' + notion_key + '", '
-                            '"Notion-Version": "2022-06-28"}'
-                        )
-                    },
-                },
-                client_session_timeout_seconds=120,
-                cache_tools_list=True,
-            )
-
-        elif self.mcp_service == "github":
-            github_token = cfg.get("github_token")
-            if not github_token:
-                raise ValueError(
-                    "GitHub token (github_token) is required for GitHub MCP server"
-                )
-
-            params = MCPServerStreamableHttpParams(
-                url="https://api.githubcopilot.com/mcp/",
-                headers={
-                    "Authorization": f"Bearer {github_token}",
-                    "User-Agent": "MCPMark/1.0",
-                },
-                timeout_seconds=30,
-            )
-
-            return MCPServerStreamableHttp(
-                params=params,
-                cache_tools_list=True,
-                name="GitHub MCP Server",
-                client_session_timeout_seconds=120,
-            )
-
-        elif self.mcp_service == "filesystem":
-            # Filesystem MCP server
-            test_directory = cfg.get("test_directory")
-            if not test_directory:
-                raise ValueError(
-                    "filesystem service requires 'test_directory' in service_config"
-                )
-
-            return MCPServerStdio(
-                params={
-                    "command": "npx",
-                    "args": [
-                        "-y",
-                        "@modelcontextprotocol/server-filesystem",
-                        str(test_directory),
-                    ],
-                },
-                client_session_timeout_seconds=120,
-                cache_tools_list=True,
-            )
-
-        elif self.mcp_service == "playwright":
-            # Playwright MCP server
-            browser = cfg.get("browser", "chromium")
-            headless = cfg.get("headless", True)
-            viewport_width = cfg.get("viewport_width", 1280)
-            viewport_height = cfg.get("viewport_height", 720)
-
-            args = ["-y", "@playwright/mcp@latest"]
-            if headless:
-                args.append("--headless")
-            args.append("--isolated")
-            args.append("--no-sandbox")  # Required for Docker
-            args.extend(
-                [
-                    "--browser",
-                    browser,
-                    "--viewport-size",
-                    f"{viewport_width},{viewport_height}",
-                ]
-            )
-
-            return MCPServerStdio(
-                params={
-                    "command": "npx",
-                    "args": args,
-                },
-                client_session_timeout_seconds=120,
-                cache_tools_list=True,
-            )
-
-        elif self.mcp_service == "playwright_webarena":
-            # Playwright WebArena MCP server (same as playwright but with base_url support)
-            browser = cfg.get("browser", "chromium")
-            headless = cfg.get("headless", True)
-            viewport_width = cfg.get("viewport_width", 1280)
-            viewport_height = cfg.get("viewport_height", 720)
-
-            args = ["-y", "@playwright/mcp@latest"]
-            if headless:
-                args.append("--headless")
-            args.append("--isolated")
-            args.extend(
-                [
-                    "--browser",
-                    browser,
-                    "--viewport-size",
-                    f"{viewport_width},{viewport_height}",
-                ]
-            )
-
-            return MCPServerStdio(
-                params={
-                    "command": "npx",
-                    "args": args,
-                },
-                client_session_timeout_seconds=120,
-                cache_tools_list=True,
-            )
-
-        elif self.mcp_service == "postgres":
-            host = cfg.get("host", "localhost")
-            port = cfg.get("port", 5432)
-            username = cfg.get("username")
-            password = cfg.get("password")
-
-            database = cfg.get("current_database") or cfg.get("database")
-
-            if not all([username, password, database]):
-                raise ValueError(
-                    "PostgreSQL service requires username, password, and database in service_config"
-                )
-
-            database_url = (
-                f"postgresql://{username}:{password}@{host}:{port}/{database}"
-            )
-
-            return MCPServerStdio(
-                params={
-                    "command": "pipx",
-                    "args": ["run", "postgres-mcp", "--access-mode=unrestricted"],
-                    "env": {
-                        "DATABASE_URI": database_url,
-                    },
-                },
-                client_session_timeout_seconds=120,
-                cache_tools_list=True,
-            )
-
-        else:
+        
+        # Dispatch to service-specific creator
+        service_creators = {
+            "notion": self._create_notion_server,
+            "github": self._create_github_server,
+            "filesystem": self._create_filesystem_server,
+            "playwright": self._create_playwright_server,
+            "playwright_webarena": self._create_playwright_webarena_server,
+            "postgres": self._create_postgres_server,
+        }
+        
+        creator = service_creators.get(self.mcp_service)
+        if not creator:
             raise ValueError(f"Unsupported MCP service: {self.mcp_service}")
+        
+        return creator()
+    
+    def _create_notion_server(self) -> MCPServerStdio:
+        """Create Notion MCP server."""
+        cfg = self.service_config
+        notion_key = cfg.get("notion_key")
+        
+        if not notion_key:
+            raise ValueError(
+                "Notion API key (notion_key) is required for Notion MCP server"
+            )
+
+        return MCPServerStdio(
+            params={
+                "command": "npx",
+                "args": ["-y", "@notionhq/notion-mcp-server"],
+                "env": {
+                    "OPENAPI_MCP_HEADERS": (
+                        '{"Authorization": "Bearer ' + notion_key + '", '
+                        '"Notion-Version": "2022-06-28"}'
+                    )
+                },
+            },
+            client_session_timeout_seconds=120,
+            cache_tools_list=True,
+        )
+    
+    def _create_github_server(self) -> MCPServerStreamableHttp:
+        """Create GitHub MCP server."""
+        cfg = self.service_config
+        github_token = cfg.get("github_token")
+        
+        if not github_token:
+            raise ValueError(
+                "GitHub token (github_token) is required for GitHub MCP server"
+            )
+
+        params = MCPServerStreamableHttpParams(
+            url="https://api.githubcopilot.com/mcp/",
+            headers={
+                "Authorization": f"Bearer {github_token}",
+                "User-Agent": "MCPMark/1.0",
+            },
+            timeout_seconds=30,
+        )
+
+        return MCPServerStreamableHttp(
+            params=params,
+            cache_tools_list=True,
+            name="GitHub MCP Server",
+            client_session_timeout_seconds=120,
+        )
+    
+    def _create_filesystem_server(self) -> MCPServerStdio:
+        """Create Filesystem MCP server."""
+        cfg = self.service_config
+        test_directory = cfg.get("test_directory")
+        
+        if not test_directory:
+            raise ValueError(
+                "filesystem service requires 'test_directory' in service_config"
+            )
+
+        return MCPServerStdio(
+            params={
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "@modelcontextprotocol/server-filesystem",
+                    str(test_directory),
+                ],
+            },
+            client_session_timeout_seconds=120,
+            cache_tools_list=True,
+        )
+    
+    def _create_playwright_server(self) -> MCPServerStdio:
+        """Create Playwright MCP server."""
+        cfg = self.service_config
+        browser = cfg.get("browser", "chromium")
+        headless = cfg.get("headless", True)
+        viewport_width = cfg.get("viewport_width", 1280)
+        viewport_height = cfg.get("viewport_height", 720)
+
+        args = ["-y", "@playwright/mcp@latest"]
+        if headless:
+            args.append("--headless")
+        args.append("--isolated")
+        args.append("--no-sandbox")  # Required for Docker
+        args.extend([
+            "--browser", browser,
+            "--viewport-size", f"{viewport_width},{viewport_height}",
+        ])
+
+        return MCPServerStdio(
+            params={
+                "command": "npx",
+                "args": args,
+            },
+            client_session_timeout_seconds=120,
+            cache_tools_list=True,
+        )
+    
+    def _create_playwright_webarena_server(self) -> MCPServerStdio:
+        """Create Playwright WebArena MCP server."""
+        cfg = self.service_config
+        # Same as playwright but with base_url support
+        browser = cfg.get("browser", "chromium")
+        headless = cfg.get("headless", True)
+        viewport_width = cfg.get("viewport_width", 1280)
+        viewport_height = cfg.get("viewport_height", 720)
+
+        args = ["-y", "@playwright/mcp@latest"]
+        if headless:
+            args.append("--headless")
+        args.append("--isolated")
+        args.extend([
+            "--browser", browser,
+            "--viewport-size", f"{viewport_width},{viewport_height}",
+        ])
+
+        return MCPServerStdio(
+            params={
+                "command": "npx",
+                "args": args,
+            },
+            client_session_timeout_seconds=120,
+            cache_tools_list=True,
+        )
+    
+    def _create_postgres_server(self) -> MCPServerStdio:
+        """Create PostgreSQL MCP server."""
+        cfg = self.service_config
+        host = cfg.get("host", "localhost")
+        port = cfg.get("port", 5432)
+        username = cfg.get("username")
+        password = cfg.get("password")
+        database = cfg.get("current_database") or cfg.get("database")
+
+        if not all([username, password, database]):
+            raise ValueError(
+                "PostgreSQL service requires username, password, and database in service_config"
+            )
+
+        database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+
+        return MCPServerStdio(
+            params={
+                "command": "pipx",
+                "args": ["run", "postgres-mcp", "--access-mode=unrestricted"],
+                "env": {
+                    "DATABASE_URI": database_url,
+                },
+            },
+            client_session_timeout_seconds=120,
+            cache_tools_list=True,
+        )
 
     def _write_to_log_file(self, log_file_path: str, content: str):
         """Write content to log file, creating directory if needed."""
@@ -349,6 +450,159 @@ class MCPAgent:
                     f.write(content)
             except Exception as log_error:
                 logger.debug(f"Failed to write to log file: {log_error}")
+
+    async def _execute_without_streaming(
+        self, instruction: str, tool_call_log_file: str = None
+    ) -> Dict[str, Any]:
+        """
+        Execute instruction with agent using non-streaming (sync) response.
+        
+        Args:
+            instruction: The instruction/prompt to execute
+            tool_call_log_file: Optional path to log tool calls
+            
+        Returns:
+            Dictionary containing execution results
+        """
+        start_time = time.time()
+        
+        try:
+            # Common setup
+            server, agent, conversation = await self._prepare_agent_execution(instruction)
+            
+            async with server:
+                # Run agent with non-streaming sync
+                result = Runner.run_sync(
+                    agent,
+                    max_turns=self.MAX_TURNS,
+                    input=conversation,
+                    run_config=RunConfig(model_provider=self.model_provider),
+                )
+                
+                # Extract conversation output
+                conversation_output = result.to_input_list()
+                
+                # Log tool calls if requested
+                if tool_call_log_file:
+                    self._log_tool_calls_from_conversation(
+                        conversation_output, tool_call_log_file
+                    )
+                
+                # Extract token usage using helper
+                token_usage = self._extract_token_usage(result.raw_responses)
+                
+                # Print token usage if available
+                if token_usage:
+                    logger.info(
+                        f"\n| Token usage: Total: {token_usage['total_tokens']:,} | "
+                        f"Input: {token_usage['input_tokens']:,} | "
+                        f"Output: {token_usage['output_tokens']:,}"
+                    )
+                
+                # Extract turn count consistently (use current_turn like streaming)
+                turn_count = len(result.raw_responses if hasattr(result, "raw_responses") else [])
+                if turn_count:
+                    logger.info(f"| Turns: {turn_count}")
+                
+                execution_time = time.time() - start_time
+                
+                # Update statistics and return success
+                self._update_statistics(True, token_usage, turn_count, execution_time)
+                return self._create_success_response(
+                    conversation_output, token_usage, turn_count, execution_time
+                )
+                
+        except Exception as e:
+            execution_time = time.time() - start_time
+
+            conversation_output = []
+            token_usage: Dict[str, int] = {}
+            turn_count = 0
+
+            # If this is an AgentsException with run_data, extract partials
+            if isinstance(e, AgentsException) and getattr(e, "run_data", None):
+                try:
+                    rd = e.run_data  # type: ignore[attr-defined]
+                    # Reconstruct conversation similar to RunResult.to_input_list()
+                    original_items = ItemHelpers.input_to_new_input_list(rd.input)
+                    new_items = [item.to_input_item() for item in rd.new_items]
+                    conversation_output = original_items + new_items
+
+                    # Prefer aggregated usage from context_wrapper
+                    usage = getattr(getattr(rd, "context_wrapper", None), "usage", None)
+                    if usage:
+                        token_usage = {
+                            "input_tokens": usage.input_tokens or 0,
+                            "output_tokens": usage.output_tokens or 0,
+                            "total_tokens": usage.total_tokens or 0,
+                        }
+                    else:
+                        # Fallback: aggregate from raw_responses
+                        token_usage = self._extract_token_usage(rd.raw_responses)
+
+                    # Completed turns are the number of model_responses collected
+                    turn_count = len(getattr(rd, "raw_responses", []) or [])
+                except Exception as extract_err:
+                    logger.debug(f"Failed to extract run_data on error: {extract_err}")
+
+            # Update aggregate statistics using whatever we extracted
+            self._update_statistics(False, token_usage, turn_count, execution_time)
+
+            error_msg = f"Agent execution failed: {e}"
+            logger.error(error_msg, exc_info=True)
+
+            # Log error to file if specified
+            if tool_call_log_file:
+                self._write_to_log_file(tool_call_log_file, f"\n| ERROR: {error_msg}\n")
+
+            return self._create_error_response(
+                execution_time,
+                str(e),
+                conversation_output if conversation_output else [],
+                token_usage if token_usage else {},
+                turn_count,
+            )
+    
+    def _log_tool_calls_from_conversation(
+        self, conversation: list, log_file_path: str
+    ) -> None:
+        """
+        Parse and log tool calls from the conversation output.
+        
+        Args:
+            conversation: List of conversation messages
+            log_file_path: Path to log file
+        """
+        if not log_file_path:
+            return
+            
+        for msg in conversation:
+            if msg.get("role") == "assistant":
+                # Log text content
+                content = msg.get("content", "")
+                if content:
+                    self._write_to_log_file(log_file_path, f"{content}\n")
+                    
+                # Log tool calls
+                tool_calls = msg.get("tool_calls", [])
+                for tool_call in tool_calls:
+                    if isinstance(tool_call, dict):
+                        tool_name = tool_call.get("function", {}).get("name", "Unknown")
+                        arguments = tool_call.get("function", {}).get("arguments", "")
+                        
+                        # Parse arguments if it's a JSON string
+                        try:
+                            if isinstance(arguments, str):
+                                args_dict = json.loads(arguments)
+                                args_str = json.dumps(args_dict, separators=(",", ": "))
+                            else:
+                                args_str = json.dumps(arguments, separators=(",", ": "))
+                        except:
+                            args_str = str(arguments)
+                        
+                        # Log tool call
+                        logger.info(f"| {tool_name} {args_str[:140]}..." if len(args_str) > 140 else f"| {tool_name} {args_str}")
+                        self._write_to_log_file(log_file_path, f"| {tool_name} {args_str}\n")
 
     async def _execute_with_streaming(
         self, instruction: str, tool_call_log_file: str = None
@@ -371,28 +625,14 @@ class MCPAgent:
         partial_turn_count = 0
 
         try:
-            # Refresh service configuration before each execution
-            self._refresh_service_config()
-
-            # Create MCP server
-            async with await self._create_mcp_server() as server:
-                # Create agent
-                agent = Agent(
-                    name=f"{self.mcp_service.title()} Agent", mcp_servers=[server]
-                )
-
-                # Configure model settings
-                ModelSettings.tool_choice = "required"
-
-                # Service secrets are injected via environment variables inside _create_mcp_server.
-
-                # Prepare conversation
-                conversation = [{"content": instruction, "role": "user"}]
-
+            # Common setup
+            server, agent, conversation = await self._prepare_agent_execution(instruction)
+            
+            async with server:
                 # Run agent with streaming
                 result = Runner.run_streamed(
                     agent,
-                    max_turns=100,
+                    max_turns=self.MAX_TURNS,
                     input=conversation,
                     run_config=RunConfig(model_provider=self.model_provider),
                 )
@@ -594,38 +834,9 @@ class MCPAgent:
                         "error": str(stream_error),
                     }
 
-                # Debug: Log the result attributes
-                logger.debug(f"Result attributes: {dir(result)}")
-                logger.debug(f"Has raw_responses: {hasattr(result, 'raw_responses')}")
-                logger.debug(f"Has current_turn: {hasattr(result, 'current_turn')}")
-                if hasattr(result, "raw_responses"):
-                    logger.debug(
-                        f"Raw responses count: {len(result.raw_responses) if result.raw_responses else 0}"
-                    )
-
-                # Check if max_turns was exceeded
-                # The result object may have completed normally but hit the turn limit
-                if hasattr(result, "current_turn") and result.current_turn > 100:
-                    max_turns_exceeded = True
-                    logger.warning(f"| Max turns ({result.current_turn - 1}) reached")
-
-                # Extract token usage from raw responses
-                token_usage = {}
-                if hasattr(result, "raw_responses") and result.raw_responses:
-                    total_input_tokens = 0
-                    total_output_tokens = 0
-                    total_tokens = 0
-                    for response in result.raw_responses:
-                        if hasattr(response, "usage") and response.usage:
-                            total_input_tokens += response.usage.input_tokens
-                            total_output_tokens += response.usage.output_tokens
-                            total_tokens += response.usage.total_tokens
-
-                    token_usage = {
-                        "input_tokens": total_input_tokens,
-                        "output_tokens": total_output_tokens,
-                        "total_tokens": total_tokens,
-                    }
+                # Extract token usage from raw responses using helper
+                token_usage = self._extract_token_usage(result.raw_responses if hasattr(result, "raw_responses") else [])
+                if token_usage:
                     # Update partial token usage as we go
                     partial_token_usage = token_usage
                 else:
@@ -635,7 +846,7 @@ class MCPAgent:
                     )
 
                 # Extract turn count
-                turn_count = getattr(result, "current_turn", None)
+                turn_count = len(result.raw_responses if hasattr(result, "raw_responses") else [])
                 if turn_count:
                     partial_turn_count = turn_count
 
@@ -691,72 +902,49 @@ class MCPAgent:
                     # but didn't execute, so subtract 1 for actual completed turns
                     turn_count = turn_count - 1
 
-                # Update usage statistics
-                self._usage_stats["total_input_tokens"] += token_usage.get(
-                    "input_tokens", 0
-                )
-                self._usage_stats["total_output_tokens"] += token_usage.get(
-                    "output_tokens", 0
-                )
-                self._usage_stats["total_tokens"] += token_usage.get("total_tokens", 0)
-                self._usage_stats["total_turns"] += turn_count or 0
-                self._usage_stats["total_execution_time"] += execution_time
-
                 # Check if we hit max_turns limit and should report as error
                 if max_turns_exceeded:
-                    self._usage_stats["failed_executions"] += 1
-                    return {
-                        "success": False,
-                        "output": conversation_output,
-                        "token_usage": token_usage if token_usage else {},
-                        "turn_count": turn_count if turn_count else 0,
-                        "execution_time": execution_time,
-                        "error": f"Max turns ({turn_count if turn_count else 0}) exceeded",
-                    }
+                    self._update_statistics(False, token_usage, turn_count or 0, execution_time)
+                    return self._create_error_response(
+                        execution_time,
+                        f"Max turns ({turn_count if turn_count else 0}) exceeded",
+                        conversation_output,
+                        token_usage,
+                        turn_count or 0
+                    )
 
-                self._usage_stats["successful_executions"] += 1
-
-                return {
-                    "success": True,
-                    "output": conversation_output,
-                    "token_usage": token_usage,
-                    "turn_count": turn_count,
-                    "execution_time": execution_time,
-                    "error": None,
-                }
+                # Update statistics and return success
+                self._update_statistics(True, token_usage, turn_count or 0, execution_time)
+                return self._create_success_response(
+                    conversation_output, token_usage, turn_count or 0, execution_time
+                )
 
         except Exception as e:
             execution_time = time.time() - start_time
-            self._usage_stats["failed_executions"] += 1
-            self._usage_stats["total_execution_time"] += execution_time
-
-            # Update usage stats with any partial token usage we collected
-            if partial_token_usage:
-                self._usage_stats["total_input_tokens"] += partial_token_usage.get(
-                    "input_tokens", 0
-                )
-                self._usage_stats["total_output_tokens"] += partial_token_usage.get(
-                    "output_tokens", 0
-                )
-                self._usage_stats["total_tokens"] += partial_token_usage.get(
-                    "total_tokens", 0
-                )
-                self._usage_stats["total_turns"] += partial_turn_count
-
-            error_msg = f"| Agent execution failed: {e}"
-            logger.error(error_msg, exc_info=True)
-            # Also log error to file (ensure proper line break)
-            self._write_to_log_file(tool_call_log_file, f"\n| ERROR: {error_msg}\n")
-            return {
-                "success": False,
-                "output": partial_output
-                if partial_output
-                else [],  # Preserve partial output
-                "token_usage": partial_token_usage if partial_token_usage else {},
-                "turn_count": partial_turn_count,
-                "execution_time": execution_time,
-                "error": str(e),
-            }
+            
+            # Update statistics with partial results
+            self._update_statistics(
+                False, 
+                partial_token_usage, 
+                partial_turn_count, 
+                execution_time
+            )
+            
+            error_msg = f"Agent execution failed: {e}"
+            logger.error(f"| {error_msg}", exc_info=True)
+            
+            # Log error to file if specified
+            if tool_call_log_file:
+                self._write_to_log_file(tool_call_log_file, f"\n| ERROR: {error_msg}\n")
+            
+            # Return error response with partial results preserved
+            return self._create_error_response(
+                execution_time,
+                str(e),
+                partial_output if partial_output else [],
+                partial_token_usage,
+                partial_turn_count
+            )
 
     async def execute(
         self, instruction: str, tool_call_log_file: str = None
@@ -778,10 +966,16 @@ class MCPAgent:
             - error: error message if failed
         """
 
-        result = await asyncio.wait_for(
-            self._execute_with_streaming(instruction, tool_call_log_file),
-            timeout=self.timeout,
-        )
+        if self.stream:
+            result = await asyncio.wait_for(
+                self._execute_with_streaming(instruction, tool_call_log_file),
+                timeout=self.timeout,
+            )
+        else:
+            result = await asyncio.wait_for(
+                self._execute_without_streaming(instruction, tool_call_log_file),
+                timeout=self.timeout,
+            )
 
         return result
 
