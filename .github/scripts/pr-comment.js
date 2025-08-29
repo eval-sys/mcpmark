@@ -49,7 +49,7 @@ module.exports = async ({ github, context, dockerMetaJson, image, version, docke
       'Execute evaluation tasks using the built image:',
       '',
       '```bash',
-      `DOCKER_IMAGE_VERSION=${tagVersion} ./run-task.sh --models gpt-5-mini --tasks file_context/uppercase`,
+      `DOCKER_IMAGE_VERSION=${tagVersion} ./run-task.sh --models gpt-4.1-mini --tasks file_context/uppercase`,
       '```',
       '',
       '> [!IMPORTANT]',
