@@ -50,7 +50,7 @@ python -m pipeline
 ```
 
 Here is the expected output (the verification may encounter failure due to model choices). 
-![Sample Experiment Output](../asset/task_sample/task_sample_file_property_size_classification.png)
+[![Sample Experiment Output](https://i.postimg.cc/4NRDYRS2/task-sample-file-property-size-classification.png)](https://postimg.cc/Yj8nPZkQ)
 
 The reuslts are saved under `restuls/{exp_name}/{mcp}_{model}/{tasks}`, if `exp-name` is not specified, the default name would be timestamp of the experiment (but specifying the `exp-name` is useful for resuming experiments).
 

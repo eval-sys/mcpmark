@@ -64,7 +64,8 @@ Here `cateogry_name` describes the shared feature or the environment across diff
 The entire content of `description.md` will be read by the model agent for completing the task. 
 
 Accordingly, the `verify.py` contains the following functionalities
-- Check whether the target directory exists. ![Check Target Directory](../../asset/task_sample/task_sample_verify_get_test_dir.png)
-- Check whether the target directory contains the file with target file name. ![Check Target File Existence](../../asset/task_sample/task_sample_verify_file_existence.png)
-- Check whether the target file contains the desired content `EXPECTED_PATTERNS = ["Hello Wolrd"]`. ![Check Content in Target File](../../asset/task_sample/task_sample_verify_check_content.png)
+- Check whether the target directory exists. [![Check Target Directory](https://i.postimg.cc/SQfBYvby/task-sample-verify-get-test-dir.png)](https://postimg.cc/4nnLrw3M)
+- Check whether the target directory contains the file with target file name. [![Check Target File Existence](https://i.postimg.cc/Qx0Zwnf6/task-sample-verify-file-existence.png)](https://postimg.cc/7fGRTX87)
+- Check whether the target file contains the desired content `EXPECTED_PATTERNS = ["Hello Wolrd"]`. [![Check Content in Target File](https://i.postimg.cc/JzzMhWyV/task-sample-verify-check-content.png)](https://postimg.cc/w7ZSWZc0)
+
 - If the outcome passes **all the above verification functionalities**, the task would be marked as successfully completed.
