@@ -263,7 +263,7 @@ class ResultsReporter:
 
         meta_data = {
             "task_name": task_result.task_name,
-            "model": model_config.get("model_name", "unknown"),
+            "model_name": model_config.get("model_name", "unknown"),
             "litellm_run_model_name": model_config.get("litellm_run_model_name"),
             "reasoning_effort": model_config.get("reasoning_effort"),
             "mcp": model_config.get("mcp_service", "unknown"),
@@ -296,8 +296,8 @@ class ResultsReporter:
         avg_turns = total_turns / report.total_tasks if report.total_tasks > 0 else 0
 
         summary = {
-            "model": report.model_name,
-            "model_config": report.model_config,  # This includes litellm_run_model_name and reasoning_effort
+            "model_name": report.model_name,
+            "model_config": report.model_config,
             "total_tasks": report.total_tasks,
             "successful_tasks": report.successful_tasks,
             "failed_tasks": report.failed_tasks,

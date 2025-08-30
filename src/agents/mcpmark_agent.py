@@ -44,7 +44,7 @@ class MCPMarkAgent:
     
     def __init__(
         self,
-        model_name: str,
+        litellm_input_model_name: str,
         api_key: str,
         mcp_service: str,
         timeout: int = DEFAULT_TIMEOUT,
@@ -64,7 +64,7 @@ class MCPMarkAgent:
             service_config_provider: Optional provider for dynamic config
             reasoning_effort: Reasoning effort level ("default", "minimal", "low", "medium", "high")
         """
-        self.model_name = model_name
+        self.litellm_input_model_name = litellm_input_model_name
         self.api_key = api_key
         self.mcp_service = mcp_service
         self.timeout = timeout
@@ -73,7 +73,7 @@ class MCPMarkAgent:
         self.reasoning_effort = reasoning_effort
         
         # Detect if this is an Anthropic model with HTTP MCP service
-        self.is_anthropic = self._is_anthropic_model(model_name)
+        self.is_anthropic = self._is_anthropic_model(litellm_input_model_name)
         self.use_anthropic_native = self.is_anthropic and mcp_service in self.HTTP_SERVICES
         
         # Initialize usage tracker
@@ -83,7 +83,7 @@ class MCPMarkAgent:
         self.litellm_run_model_name = None
         
         logger.debug(
-            f"Initialized MCPMarkAgent for '{mcp_service}' with model '{model_name}' "
+            f"Initialized MCPMarkAgent for '{mcp_service}' with model '{litellm_input_model_name}' "
             f"(Anthropic Native MCP: {self.use_anthropic_native}, Reasoning: {reasoning_effort})"
         )
     
@@ -421,7 +421,7 @@ class MCPMarkAgent:
             
             # Build completion kwargs
             completion_kwargs = {
-                "model": self.model_name,
+                "model": self.litellm_input_model_name,
                 "messages": messages,
                 "tools": tools,
                 "tool_choice": "auto" if tools else None,
@@ -437,7 +437,7 @@ class MCPMarkAgent:
             
             # Extract actual model name from response (first turn only)
             if turn_count == 1 and hasattr(response, 'model') and response.model:
-                self.litellm_run_model_name = response.model
+                self.litellm_run_model_name = response.model.split("/")[-1]
             
             # Update token usage including reasoning tokens
             if hasattr(response, 'usage') and response.usage:
