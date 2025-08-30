@@ -125,6 +125,11 @@ class ModelConfig:
             "api_key_var": "GROK_API_KEY",
             "litellm_input_model_name": "xai/grok-4-0709",
         },
+        "grok-code-fast-1": {
+            "provider": "xai",
+            "api_key_var": "GROK_API_KEY",
+            "litellm_input_model_name": "xai/grok-code-fast-1",
+        },
         # Qwen models
         "qwen-3-coder": {
             "provider": "qwen",

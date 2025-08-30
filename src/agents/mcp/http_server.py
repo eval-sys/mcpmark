@@ -5,151 +5,74 @@ Minimal MCP HTTP Server Implementation
 Provides HTTP-based MCP server communication for services like GitHub.
 """
 
-import aiohttp
-import json
-import uuid
+import asyncio
+from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
-from src.logger import get_logger
 
-logger = get_logger(__name__)
-
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 
 class MCPHttpServer:
-    """Minimal MCP server implementation using HTTP/SSE communication."""
-    
+    """
+    HTTP-based MCP client using the official MCP Python SDK
+    (Streamable HTTP transport).
+    """
+
     def __init__(
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
-        timeout: int = 30
+        timeout: int = 30,
     ):
-        """
-        Initialize MCP HTTP server.
-        
-        Args:
-            url: MCP server URL
-            headers: HTTP headers (e.g., Authorization)
-            timeout: Timeout for operations in seconds
-        """
-        self.url = url.rstrip('/')
+        self.url = url.rstrip("/")
         self.headers = headers or {}
         self.timeout = timeout
-        self.session = None
-        self._tools_cache = None
-        self._session_id = None
-        
-    async def start(self):
-        """Start the HTTP session and initialize connection."""
-        try:
-            # Create aiohttp session
-            timeout_config = aiohttp.ClientTimeout(total=self.timeout)
-            self.session = aiohttp.ClientSession(
-                headers=self.headers,
-                timeout=timeout_config
-            )
-            
-            # Initialize MCP session
-            await self._initialize_session()
-            
-            logger.debug(f"Connected to MCP HTTP server: {self.url}")
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to MCP HTTP server: {e}")
-            if self.session:
-                await self.session.close()
-            raise
-    
-    async def stop(self):
-        """Stop the HTTP session."""
-        if self.session:
-            await self.session.close()
-            self.session = None
-            logger.debug("MCP HTTP server connection closed")
-    
-    async def _initialize_session(self):
-        """Initialize MCP session with the server."""
-        # Create session
-        create_url = f"{self.url}/sessions"
-        
-        payload = {
-            "id": str(uuid.uuid4()),
-            "capabilities": {
-                "tools": {}
-            }
-        }
-        
-        async with self.session.post(create_url, json=payload) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise Exception(f"Failed to create MCP session: {response.status} - {text}")
-            
-            data = await response.json()
-            self._session_id = data.get("sessionId", payload["id"])
-            
-        logger.debug(f"MCP session created: {self._session_id}")
-    
-    async def list_tools(self) -> List[Dict[str, Any]]:
-        """
-        List available tools from the MCP server.
-        
-        Returns:
-            List of tool definitions
-        """
-        if self._tools_cache is not None:
-            return self._tools_cache
-        
-        if not self.session:
-            raise Exception("MCP HTTP server not connected")
-        
-        # For HTTP-based MCP, tools are typically listed via a specific endpoint
-        list_url = f"{self.url}/tools"
-        
-        async with self.session.get(list_url) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise Exception(f"Failed to list tools: {response.status} - {text}")
-            
-            data = await response.json()
-            self._tools_cache = data.get("tools", [])
-            
-        return self._tools_cache
-    
-    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
-        """
-        Call a tool on the MCP server.
-        
-        Args:
-            name: Tool name
-            arguments: Tool arguments
-            
-        Returns:
-            Tool execution result
-        """
-        if not self.session:
-            raise Exception("MCP HTTP server not connected")
-        
-        # For HTTP-based MCP, tool calls are made via POST
-        call_url = f"{self.url}/tools/call"
-        
-        payload = {
-            "sessionId": self._session_id,
-            "name": name,
-            "arguments": arguments
-        }
-        
-        async with self.session.post(call_url, json=payload) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise Exception(f"Tool call failed: {response.status} - {text}")
-            
-            data = await response.json()
-            return data.get("result", {})
-    
+
+        self._stack: Optional[AsyncExitStack] = None
+        self.session: Optional[ClientSession] = None
+        self._tools_cache: Optional[List[Dict[str, Any]]] = None
+
     async def __aenter__(self):
-        """Async context manager entry."""
         await self.start()
         return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
+
+    async def __aexit__(self, exc_type, exc, tb):
         await self.stop()
+
+    async def start(self):
+        """Open Streamable HTTP transport and initialize MCP session."""
+        self._stack = AsyncExitStack()
+
+        read_stream, write_stream, _ = await self._stack.enter_async_context(
+            streamablehttp_client(self.url, headers=self.headers)
+        )
+
+        self.session = await self._stack.enter_async_context(ClientSession(read_stream, write_stream))
+        await asyncio.wait_for(self.session.initialize(), timeout=self.timeout)
+
+    async def stop(self):
+        """Close the session/transport cleanly."""
+        if self._stack:
+            await self._stack.aclose()
+        self._stack = None
+        self.session = None
+        self._tools_cache = None
+
+    async def list_tools(self) -> List[Dict[str, Any]]:
+        """Return tool definitions (cached)."""
+        if self._tools_cache is not None:
+            return self._tools_cache
+        if not self.session:
+            raise RuntimeError("MCP HTTP client not started")
+
+        resp = await asyncio.wait_for(self.session.list_tools(), timeout=self.timeout)
+        self._tools_cache = [t.model_dump() for t in resp.tools]
+        return self._tools_cache
+
+    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
+        """Invoke a remote tool and return the structured result."""
+        if not self.session:
+            raise RuntimeError("MCP HTTP client not started")
+
+        result = await asyncio.wait_for(self.session.call_tool(name, arguments), timeout=self.timeout)
+        return result.model_dump()

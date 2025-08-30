@@ -7,7 +7,6 @@ Unified agent using LiteLLM for all model interactions with minimal MCP support.
 
 import asyncio
 import json
-import random
 import time
 import uuid
 from typing import Any, Dict, List, Optional, Callable
@@ -484,7 +483,7 @@ class MCPMarkAgent:
             # Always use tools format if available - LiteLLM will handle conversion
             if tools:
                 completion_kwargs["tools"] = tools
-                completion_kwargs["tool_choice"] = "auto"
+                completion_kwargs["tool_choice"] = "required"
             
             # Add reasoning_effort and base_url if specified
             if self.reasoning_effort != "default":
@@ -693,7 +692,7 @@ class MCPMarkAgent:
             
             return MCPStdioServer(
                 command="npx",
-                args=["-y", "@modelcontextprotocol/server-filesystem", str(test_directory)]
+                args=["-y", "@modelcontextprotocol/server-filesystem", "--root", str(test_directory)]
             )
         
         elif self.mcp_service in ["playwright", "playwright_webarena"]:
