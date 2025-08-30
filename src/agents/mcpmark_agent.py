@@ -376,7 +376,7 @@ class MCPMarkAgent:
                 function_call = msg.get("function_call")
                 content = msg.get("content")
 
-                # 1) 先放 assistant 的文本（如果有）
+                # 1) First add assistant's text content (if present)
                 if content:
                     sdk_format.append({
                         "id": "__fake_id__",
@@ -392,7 +392,7 @@ class MCPMarkAgent:
                         "type": "message"
                     })
 
-                # 2) 再放（新格式）tool_calls
+                # 2) Then add (new format) tool_calls
                 if tool_calls:
                     for tool_call in tool_calls:
                         call_id = tool_call.get("id", f"call_{uuid.uuid4().hex}")
@@ -405,7 +405,7 @@ class MCPMarkAgent:
                             "id": "__fake_id__"
                         })
 
-                # 3) 最后处理（旧格式）function_call
+                # 3) Finally handle (legacy format) function_call
                 if function_call:
                     func_name = function_call.get("name", "")
                     call_id = f"call_{uuid.uuid4().hex}"
@@ -418,7 +418,7 @@ class MCPMarkAgent:
                         "id": "__fake_id__"
                     })
 
-                # 4) 若既无 content 也无任何调用，保持原有兜底行为
+                # 4) If neither content nor any calls exist, maintain fallback behavior
                 if not content and not tool_calls and not function_call:
                     sdk_format.append({
                         "id": "__fake_id__",
@@ -474,7 +474,10 @@ class MCPMarkAgent:
         tool_call_log_file: Optional[str] = None
     ) -> Dict[str, Any]:
         """Execute function calling loop with LiteLLM."""
-        messages = [{"role": "user", "content": instruction}]
+        messages = [
+            {"role": "system", "content": "You are a helpful agent that uses tools iteratively to complete the user's task, and when finished, provides the final answer or simply states \"Task completed\" without further tool calls."},
+            {"role": "user", "content": instruction}
+        ]
         total_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reasoning_tokens": 0}
         turn_count = 0
         max_turns = self.MAX_TURNS  # Limit turns to prevent infinite loops
@@ -497,7 +500,7 @@ class MCPMarkAgent:
                 # Always use tools format if available - LiteLLM will handle conversion
                 if tools:
                     completion_kwargs["tools"] = tools
-                    completion_kwargs["tool_choice"] = "required"
+                    completion_kwargs["tool_choice"] = "auto"
                 
                 # Add reasoning_effort and base_url if specified
                 if self.reasoning_effort != "default":

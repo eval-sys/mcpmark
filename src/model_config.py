@@ -119,6 +119,11 @@ class ModelConfig:
             "api_key_var": "MOONSHOT_API_KEY",
             "litellm_input_model_name": "moonshot/kimi-k2-0711-preview",
         },
+        "k2-turbo": {
+            "provider": "moonshot",
+            "api_key_var": "MOONSHOT_API_KEY",
+            "litellm_input_model_name": "moonshot/kimi-k2-turbo-preview",
+        },
         # Grok models
         "grok-4": {
             "provider": "xai",
