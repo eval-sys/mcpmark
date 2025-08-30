@@ -39,7 +39,7 @@ class MCPMarkAgent:
     """
     
     # Constants
-    MAX_TURNS = 2
+    MAX_TURNS = 100
     DEFAULT_TIMEOUT = 600
     
     # Service categories
