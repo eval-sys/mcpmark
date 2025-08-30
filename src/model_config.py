@@ -158,9 +158,9 @@ class ModelConfig:
         model_info = self._get_model_info(model_name)
 
         # Load API key, base URL and LiteLLM model name from environment variables
-        try:
+        if "base_url_var" in model_info:
             self.base_url = os.getenv(model_info["base_url_var"])
-        except:
+        else:
             self.base_url = None
         
         self.api_key = os.getenv(model_info["api_key_var"])

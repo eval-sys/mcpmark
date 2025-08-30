@@ -7,6 +7,7 @@ Unified agent using LiteLLM for all model interactions with minimal MCP support.
 
 import asyncio
 import json
+import random
 import time
 import uuid
 from typing import Any, Dict, List, Optional, Callable
@@ -46,6 +47,7 @@ class MCPMarkAgent:
         self,
         litellm_input_model_name: str,
         api_key: str,
+        base_url: str,
         mcp_service: str,
         timeout: int = DEFAULT_TIMEOUT,
         service_config: Optional[Dict[str, Any]] = None,
@@ -58,6 +60,7 @@ class MCPMarkAgent:
         Args:
             model_name: Name of the LLM model
             api_key: API key for the model provider
+            base_url: Base url
             mcp_service: MCP service type
             timeout: Execution timeout in seconds
             service_config: Service-specific configuration
@@ -66,6 +69,7 @@ class MCPMarkAgent:
         """
         self.litellm_input_model_name = litellm_input_model_name
         self.api_key = api_key
+        self.base_url = base_url
         self.mcp_service = mcp_service
         self.timeout = timeout
         self.service_config = service_config or {}
@@ -89,7 +93,8 @@ class MCPMarkAgent:
     
     def _is_anthropic_model(self, model_name: str) -> bool:
         """Check if the model is an Anthropic model."""
-        return "claud" in model_name
+        return "claude" in model_name.lower()
+    
     
     def _refresh_service_config(self):
         """Refresh service config from provider if available."""
@@ -98,7 +103,7 @@ class MCPMarkAgent:
                 latest_cfg = self._service_config_provider() or {}
                 self.service_config.update(latest_cfg)
             except Exception as e:
-                logger.warning(f"Failed to refresh service config: {e}")
+                logger.warning(f"| Failed to refresh service config: {e}")
     
     async def execute(
         self, 
@@ -121,17 +126,25 @@ class MCPMarkAgent:
             # Refresh service configuration
             self._refresh_service_config()
             
-            if self.use_anthropic_native:
-                # Use native MCP support only for Anthropic + HTTP MCP services (e.g., GitHub)
-                result = await self._execute_anthropic_native(
-                    instruction, tool_call_log_file
-                )
-            else:
-                # Use manual MCP management for all other cases
-                # This includes: non-Anthropic models, or Anthropic with STDIO services
-                result = await self._execute_with_manual_mcp(
-                    instruction, tool_call_log_file
-                )
+            # Execute with timeout control
+            async def _execute_with_strategy():
+                if self.use_anthropic_native:
+                    # Use native MCP support only for Anthropic + HTTP MCP services (e.g., GitHub)
+                    return await self._execute_anthropic_native(
+                        instruction, tool_call_log_file
+                    )
+                else:
+                    # Use manual MCP management for all other cases
+                    # This includes: non-Anthropic models, or Anthropic with STDIO services
+                    return await self._execute_with_manual_mcp(
+                        instruction, tool_call_log_file
+                    )
+            
+            # Apply timeout to the entire execution
+            result = await asyncio.wait_for(
+                _execute_with_strategy(),
+                timeout=self.timeout
+            )
             
             execution_time = time.time() - start_time
             
@@ -145,6 +158,27 @@ class MCPMarkAgent:
             
             result["execution_time"] = execution_time
             return result
+        
+        except asyncio.TimeoutError:
+            execution_time = time.time() - start_time
+            error_msg = f"Execution timed out after {self.timeout} seconds"
+            logger.error(error_msg)
+            
+            self.usage_tracker.update(
+                success=False,
+                token_usage={},
+                turn_count=0,
+                execution_time=execution_time
+            )
+            
+            return {
+                "success": False,
+                "output": [],
+                "token_usage": {},
+                "turn_count": 0,
+                "execution_time": execution_time,
+                "error": error_msg
+            }
             
         except Exception as e:
             execution_time = time.time() - start_time
@@ -209,7 +243,7 @@ class MCPMarkAgent:
         try:
             # Build completion kwargs
             completion_kwargs = {
-                "model": self.model_name,
+                "model": self.litellm_input_model_name,
                 "messages": messages,
                 "api_key": self.api_key,
                 "extra_headers": extra_headers,
@@ -307,55 +341,30 @@ class MCPMarkAgent:
         except Exception as e:
             logger.error(f"Manual MCP execution failed: {e}")
             raise
-    
+        
     def _convert_to_sdk_format(self, messages: List[Dict]) -> List[Dict]:
         """Convert OpenAI messages format to old SDK format for backward compatibility."""
         sdk_format = []
         function_call_map = {}  # Track function names to call IDs for legacy format
-        
+
         for msg in messages:
             role = msg.get("role")
-            
+
             if role == "user":
                 # User messages stay mostly the same
                 sdk_format.append({
                     "content": msg.get("content", ""),
                     "role": "user"
                 })
-                
+
             elif role == "assistant":
-                # Check for tool calls
+                # === CHANGED ORDER START ===
                 tool_calls = msg.get("tool_calls", [])
-                if tool_calls:
-                    # Add tool calls as separate entries
-                    for tool_call in tool_calls:
-                        call_id = tool_call.get("id", f"call_{uuid.uuid4().hex}")
-                        func_name = tool_call.get("function", {}).get("name", "")
-                        sdk_format.append({
-                            "arguments": tool_call.get("function", {}).get("arguments", "{}"),
-                            "call_id": call_id,
-                            "name": func_name,
-                            "type": "function_call",
-                            "id": "__fake_id__"
-                        })
-                
-                # Check for legacy function calls
                 function_call = msg.get("function_call")
-                if function_call:
-                    func_name = function_call.get("name", "")
-                    call_id = f"call_{uuid.uuid4().hex}"
-                    function_call_map[func_name] = call_id  # Store for matching responses
-                    sdk_format.append({
-                        "arguments": function_call.get("arguments", "{}"),
-                        "call_id": call_id,
-                        "name": func_name,
-                        "type": "function_call",
-                        "id": "__fake_id__"
-                    })
-                
-                # Only add assistant message if there's content or it's the final message
                 content = msg.get("content")
-                if content or (not tool_calls and not function_call):
+
+                # 1) 先放 assistant 的文本（如果有）
+                if content:
                     sdk_format.append({
                         "id": "__fake_id__",
                         "content": [
@@ -369,7 +378,50 @@ class MCPMarkAgent:
                         "status": "completed",
                         "type": "message"
                     })
-                
+
+                # 2) 再放（新格式）tool_calls
+                if tool_calls:
+                    for tool_call in tool_calls:
+                        call_id = tool_call.get("id", f"call_{uuid.uuid4().hex}")
+                        func_name = tool_call.get("function", {}).get("name", "")
+                        sdk_format.append({
+                            "arguments": tool_call.get("function", {}).get("arguments", "{}"),
+                            "call_id": call_id,
+                            "name": func_name,
+                            "type": "function_call",
+                            "id": "__fake_id__"
+                        })
+
+                # 3) 最后处理（旧格式）function_call
+                if function_call:
+                    func_name = function_call.get("name", "")
+                    call_id = f"call_{uuid.uuid4().hex}"
+                    function_call_map[func_name] = call_id  # Store for matching responses
+                    sdk_format.append({
+                        "arguments": function_call.get("arguments", "{}"),
+                        "call_id": call_id,
+                        "name": func_name,
+                        "type": "function_call",
+                        "id": "__fake_id__"
+                    })
+
+                # 4) 若既无 content 也无任何调用，保持原有兜底行为
+                if not content and not tool_calls and not function_call:
+                    sdk_format.append({
+                        "id": "__fake_id__",
+                        "content": [
+                            {
+                                "annotations": [],
+                                "text": "",
+                                "type": "output_text"
+                            }
+                        ],
+                        "role": "assistant",
+                        "status": "completed",
+                        "type": "message"
+                    })
+                # === CHANGED ORDER END ===
+
             elif role == "tool":
                 # Tool responses
                 sdk_format.append({
@@ -382,7 +434,7 @@ class MCPMarkAgent:
                     }),
                     "type": "function_call_output"
                 })
-                
+
             elif role == "function":
                 # Legacy function responses - try to match with stored call ID
                 func_name = msg.get("name", "")
@@ -397,8 +449,9 @@ class MCPMarkAgent:
                     }),
                     "type": "function_call_output"
                 })
-        
+
         return sdk_format
+
     
     async def _execute_function_calling_loop(
         self,
@@ -412,6 +465,8 @@ class MCPMarkAgent:
         total_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reasoning_tokens": 0}
         turn_count = 0
         max_turns = self.MAX_TURNS  # Limit turns to prevent infinite loops
+        consecutive_failures = 0
+        max_consecutive_failures = 3
         
         # Convert functions to tools format for newer models
         tools = [{"type": "function", "function": func} for func in functions] if functions else None
@@ -423,17 +478,44 @@ class MCPMarkAgent:
             completion_kwargs = {
                 "model": self.litellm_input_model_name,
                 "messages": messages,
-                "tools": tools,
-                "tool_choice": "auto" if tools else None,
                 "api_key": self.api_key,
             }
             
-            # Add reasoning_effort if specified
+            # Always use tools format if available - LiteLLM will handle conversion
+            if tools:
+                completion_kwargs["tools"] = tools
+                completion_kwargs["tool_choice"] = "auto"
+            
+            # Add reasoning_effort and base_url if specified
             if self.reasoning_effort != "default":
                 completion_kwargs["reasoning_effort"] = self.reasoning_effort
+            if self.base_url:
+                completion_kwargs["base_url"] = self.base_url
             
-            # Call LiteLLM with tools
-            response = await litellm.acompletion(**completion_kwargs)
+            try:
+                # print("===="*10)
+                # print(messages)
+                # print("===="*10)
+                # Call LiteLLM with timeout for individual call
+                response = await asyncio.wait_for(
+                    litellm.acompletion(**completion_kwargs),
+                    timeout = self.timeout / 2  # Use half of total timeout
+                )
+                consecutive_failures = 0  # Reset failure counter on success
+            except asyncio.TimeoutError:
+                logger.warning(f"| ✗ LLM call timed out on turn {turn_count}")
+                consecutive_failures += 1
+                if consecutive_failures >= max_consecutive_failures:
+                    raise Exception(f"Too many consecutive failures ({consecutive_failures})")
+                await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
+                continue
+            except Exception as e:
+                logger.error(f"| ✗ LLM call failed on turn {turn_count}: {e}")
+                consecutive_failures += 1
+                if consecutive_failures >= max_consecutive_failures:
+                    raise
+                await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
+                continue
             
             # Extract actual model name from response (first turn only)
             if turn_count == 1 and hasattr(response, 'model') and response.model:
@@ -452,14 +534,14 @@ class MCPMarkAgent:
                         total_tokens["reasoning_tokens"] += details.reasoning_tokens or 0
             
             # Get response message
-            message = response.choices[0].message
-            # Convert to dict (prefer model_dump over deprecated dict())
-            if hasattr(message, 'model_dump'):
-                message_dict = message.model_dump()
+            choices = response.choices
+            if len(choices):
+                message = choices[0].message
             else:
-                # Fallback for simple dict-like objects or legacy versions
-                message_dict = dict(message)
-            messages.append(message_dict)
+                break
+            
+            # Convert to dict (prefer model_dump over deprecated dict())
+            message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
             
             # Log assistant's text content if present
             if hasattr(message, 'content') and message.content:
@@ -474,11 +556,38 @@ class MCPMarkAgent:
             
             # Check for tool calls (newer format)
             if hasattr(message, 'tool_calls') and message.tool_calls:
+                messages.append(message_dict)
                 # Process tool calls
                 for tool_call in message.tool_calls:
                     func_name = tool_call.function.name
                     func_args = json.loads(tool_call.function.arguments)
                     
+                    try:
+                        result = await asyncio.wait_for(
+                            mcp_server.call_tool(func_name, func_args),
+                            timeout=30
+                        )
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": json.dumps(result)
+                        })
+                    except Exception as e:
+                        logger.error(f"Tool call failed: {e}")
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": f"Error: {str(e)}"
+                        })   
+                    except asyncio.TimeoutError:
+                        error_msg = f"Tool call '{func_name}' timed out after 30 seconds"
+                        logger.error(error_msg)
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": f"Error: {error_msg}"
+                        })
+                        
                     # Format arguments for display (truncate if too long)
                     args_str = json.dumps(func_args, separators=(",", ": "))
                     display_arguments = args_str[:140] + "..." if len(args_str) > 140 else args_str
@@ -489,27 +598,10 @@ class MCPMarkAgent:
                     if tool_call_log_file:
                         with open(tool_call_log_file, 'a', encoding='utf-8') as f:
                             f.write(f"| {func_name} {args_str}\n")
-                    
-                    try:
-                        # Call the MCP tool
-                        result = await mcp_server.call_tool(func_name, func_args)
-                        
-                        # Add tool result to messages (using tool role)
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": json.dumps(result)
-                        })
-                        
-                    except Exception as e:
-                        logger.error(f"Tool call failed: {e}")
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": f"Error: {str(e)}"
-                        })
+                continue
             else:
-                # No tool/function call, we're done
+                # No tool/function call, add message and we're done
+                messages.append(message_dict)
                 break
         
         # Display final token usage
@@ -694,6 +786,5 @@ class MCPMarkAgent:
     
     def __repr__(self):
         return (
-            f"MCPMarkAgent(service='{self.mcp_service}', model='{self.model_name}', "
-            f"anthropic={self.is_anthropic})"
+            f"MCPMarkAgent(service='{self.mcp_service}', model='{self.litellm_input_model_name}', "
         )

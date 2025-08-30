@@ -61,6 +61,7 @@ class MCPEvaluator:
         self.agent = MCPMarkAgent(
             litellm_input_model_name=self.litellm_input_model_name,  # Use the original model name for detection
             api_key=self.api_key,
+            base_url=self.base_url,
             mcp_service=mcp_service,
             timeout=timeout,
             service_config=self.service_config,
