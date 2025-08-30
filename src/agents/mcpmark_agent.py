@@ -692,7 +692,7 @@ class MCPMarkAgent:
             
             return MCPStdioServer(
                 command="npx",
-                args=["-y", "@modelcontextprotocol/server-filesystem", "--root", str(test_directory)]
+                args=["-y", "@modelcontextprotocol/server-filesystem", str(test_directory)]
             )
         
         elif self.mcp_service in ["playwright", "playwright_webarena"]:
