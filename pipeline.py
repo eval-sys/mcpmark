@@ -63,10 +63,10 @@ def main():
         "--timeout", type=int, default=3600, help="Timeout in seconds for agent execution"
     )
     parser.add_argument(
-        "--stream",
-        action="store_true",
-        default=False,
-        help="Use streaming execution (default: False, uses non-streaming)",
+        "--reasoning-effort",
+        default="default",
+        choices=["default", "minimal", "low", "medium", "high"],
+        help="Reasoning effort level for supported models (default: None)",
     )
 
     # Output configuration
@@ -138,7 +138,7 @@ def main():
                 timeout=args.timeout,
                 exp_name=run_exp_name,
                 output_dir=run_output_dir,
-                stream=args.stream,
+                reasoning_effort=args.reasoning_effort,
             )
 
             pipeline.run_evaluation(args.tasks)

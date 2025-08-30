@@ -102,6 +102,15 @@ class EvaluationReport:
             if result.token_usage:
                 total += result.token_usage.get("total_tokens", 0)
         return total
+    
+    @property
+    def total_reasoning_tokens(self) -> int:
+        """Calculate total reasoning tokens across all tasks."""
+        total = 0
+        for result in self.task_results:
+            if result.token_usage:
+                total += result.token_usage.get("reasoning_tokens", 0)
+        return total
 
     @property
     def avg_input_tokens(self) -> float:
@@ -123,6 +132,13 @@ class EvaluationReport:
         if self.total_tasks == 0:
             return 0.0
         return self.total_tokens / self.total_tasks
+    
+    @property
+    def avg_reasoning_tokens(self) -> float:
+        """Calculate average reasoning tokens per task."""
+        if self.total_tasks == 0:
+            return 0.0
+        return self.total_reasoning_tokens / self.total_tasks
 
     @property
     def total_task_execution_time(self) -> float:
@@ -155,9 +171,11 @@ class EvaluationReport:
                     "total_input_tokens": 0,
                     "total_output_tokens": 0,
                     "total_tokens": 0,
+                    "total_reasoning_tokens": 0,
                     "avg_input_tokens": 0.0,
                     "avg_output_tokens": 0.0,
                     "avg_total_tokens": 0.0,
+                    "avg_reasoning_tokens": 0.0,
                     "total_turns": 0,
                     "avg_turns": 0.0,
                 }
@@ -178,6 +196,9 @@ class EvaluationReport:
                 )
                 category_stats[category]["total_tokens"] += result.token_usage.get(
                     "total_tokens", 0
+                )
+                category_stats[category]["total_reasoning_tokens"] += result.token_usage.get(
+                    "reasoning_tokens", 0
                 )
 
             # Accumulate turns
@@ -206,6 +227,7 @@ class EvaluationReport:
                     stats["total_output_tokens"] / stats["total"]
                 )
                 stats["avg_total_tokens"] = stats["total_tokens"] / stats["total"]
+                stats["avg_reasoning_tokens"] = stats["total_reasoning_tokens"] / stats["total"]
 
                 stats["avg_turns"] = (
                     stats["total_turns"] / stats["total"] if stats["total"] > 0 else 0
@@ -241,7 +263,9 @@ class ResultsReporter:
 
         meta_data = {
             "task_name": task_result.task_name,
-            "model": model_config.get("model_name", "unknown"),
+            "model_name": model_config.get("model_name", "unknown"),
+            "litellm_run_model_name": model_config.get("litellm_run_model_name"),
+            "reasoning_effort": model_config.get("reasoning_effort"),
             "mcp": model_config.get("mcp_service", "unknown"),
             "timeout": model_config.get("timeout", 300),
             "time": {"start": start_time.isoformat(), "end": end_time.isoformat()},
@@ -272,7 +296,8 @@ class ResultsReporter:
         avg_turns = total_turns / report.total_tasks if report.total_tasks > 0 else 0
 
         summary = {
-            "model": report.model_name,
+            "model_name": report.model_name,
+            "model_config": report.model_config,
             "total_tasks": report.total_tasks,
             "successful_tasks": report.successful_tasks,
             "failed_tasks": report.failed_tasks,
@@ -289,9 +314,11 @@ class ResultsReporter:
                 "total_input_tokens": report.total_input_tokens,
                 "total_output_tokens": report.total_output_tokens,
                 "total_tokens": report.total_tokens,
+                "total_reasoning_tokens": report.total_reasoning_tokens,
                 "avg_input_tokens": round(report.avg_input_tokens, 2),
                 "avg_output_tokens": round(report.avg_output_tokens, 2),
                 "avg_total_tokens": round(report.avg_total_tokens, 2),
+                "avg_reasoning_tokens": round(report.avg_reasoning_tokens, 2),
             },
             "turn_usage": {
                 "total_turns": total_turns,
@@ -306,9 +333,11 @@ class ResultsReporter:
                         "total_input": stats["total_input_tokens"],
                         "total_output": stats["total_output_tokens"],
                         "total": stats["total_tokens"],
+                        "total_reasoning": stats["total_reasoning_tokens"],
                         "avg_input": round(stats["avg_input_tokens"], 2),
                         "avg_output": round(stats["avg_output_tokens"], 2),
                         "avg_total": round(stats["avg_total_tokens"], 2),
+                        "avg_reasoning": round(stats["avg_reasoning_tokens"], 2),
                     },
                     "turn_usage": {
                         "total_turns": stats["total_turns"],
