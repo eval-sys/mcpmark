@@ -6,9 +6,8 @@ This guide walks you through preparing your GitHub environment for MCPMark and a
 1. **Create a free GitHub Organization**  
    - In GitHub, click your avatar → **Your organizations** → **New organization**.  
    - We recommend a name like `mcpmark-eval-xxx`. (Check if there is a conflict with other organization names.)
-   - This keeps all benchmark repositories isolated from your personal and work code.  
-   - ![Create Org](../../asset/github/github_create_org.png)
-
+   - This keeps all benchmark repositories isolated from your personal and work code. 
+   - [![Create Org](https://i.postimg.cc/CxqJkRnj/github-create-org.png)](https://postimg.cc/k27xdXc4)
 2. **Create Multiple GitHub Accounts (Recommended for Rate Limit Relief)**  
    To effectively distribute API load and avoid rate limiting, we recommend creating **2-4 additional GitHub accounts**:
    - Create new GitHub accounts (e.g., `your-name-eval-1`, `your-name-eval-2`, etc.)
@@ -19,10 +18,10 @@ This guide walks you through preparing your GitHub environment for MCPMark and a
    **Repeat the following process for each GitHub account (including your main account):**
    - Navigate to *Settings → Developer settings → Personal access tokens → Fine-grained tokens*
    - Click **Generate new token**, select the evaluation organization you created
-      - ![Create Token](../../asset/github/github_create_token.png)  
+      - [![Create Token](https://i.postimg.cc/Z5SjPT82/github-create-token.png)](https://postimg.cc/Mv9yqJrm)
    - Give the token a descriptive name (e.g., *MCPMark Eval Token - Account 1*)
    - Under **Repository permissions** and **Organization permissions**, enable **All permissions** (read and write if applicable)
-      - ![Token Permissions](../../asset/github/github_token_permissions.png)
+      - [![Token Permissions](https://i.postimg.cc/nc81ZHPr/github-token-permissions.png)](https://postimg.cc/14HFrZP1)
    - Copy the generated token and save it safely — you'll need all tokens for the next step
 
 4. **Configure Token Pooling in `.mcp_env`**  

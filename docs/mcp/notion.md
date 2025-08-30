@@ -25,11 +25,11 @@ This guide walks you through preparing your Notion environment for MCPMark and a
    
    c. Share the **Source Hub** with the Source integration, and the **Eval Hub parent page** with the Eval integration (*Full Access*).
 
-   ![Source Page](../../asset/notion/source_page.png)
-   ![Create Integration](../../asset/notion/create_integration.png)
-   ![API Access](../../asset/notion/api_access.png)
-   ![Grant Access Source](../../asset/notion/grant_access_source.png)
-   ![Grant Access Eval](../../asset/notion/grant_access_eval.png)
+   [![Source Page](https://i.postimg.cc/pVjDswLH/source-page.png)](https://postimg.cc/XXVGJD5H)
+   [![Create Integration](https://i.postimg.cc/vZ091M3W/create-integration.png)](https://postimg.cc/NKrLShhM)
+   [![Notion API Access](https://i.postimg.cc/YCDGrRCR/api-access.png)](https://postimg.cc/CRDLJjDn)
+   [![Grant Access Source](https://i.postimg.cc/2yxyPFt4/grant-access-source.png)](https://postimg.cc/n9Cnm7pz)
+   [![Grant Access Eval](https://i.postimg.cc/1RM91ttc/grant-access-eval.png)](https://postimg.cc/s1QFp35v)
 
 ---
 

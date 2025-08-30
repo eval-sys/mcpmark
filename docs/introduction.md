@@ -22,7 +22,7 @@ Please refer to [Quick Start](./quickstart.md) for details regarding how to star
 
 ### Running MCPMark
 
-MCPMark supports the following mode to run experiments (suppose the experiment is named as new_exp, and the model used are o3 and gpt-4.1 and the environment is notion), with Pass@K as the evaluation metric.
+MCPMark supports the following mode to run experiments (suppose the experiment is named as new_exp, and the model used are o3 and gpt-4.1 and the environment is notion), with K repetive experiments.
 
 #### MCPMark in Pip Installation
 ```bash
@@ -55,10 +55,35 @@ For re-run experiments, only unfinished tasks will be executed. Tasks that previ
 The experiment results are written to `./results/` (JSON + CSV).
 
 #### Reult Aggregation (for K > 1)
-MCP supports aggreated metrics of pass@1, pass@K, pass^K, avg@K.
+MCP supports aggreated metrics of pass@1, pass@K, $\text{pass}^{K}$, avg@K.
 ```bash
 python -m src.aggregators.aggregate_results --exp-name new_exp
 ```
+
+### Model Support
+MCPMark supports the following models with according providers (model codes in the brackets).
+#### OpenAI
+- GPT-5 (gpt-5)
+- o3 (o3)
+
+#### Anthropic
+- Claude-4.1-Opus (claude-4.1-opus)
+- Claude-4-Sonnet (claude-4-sonnet)
+
+#### Google
+- Gemini-2.5-Pro (gemini-2.5-pro)
+
+#### Grok
+- Grok-4 (grok-4)
+
+#### Deepseek
+- DeepSeek-Chat (deepseek-chat)
+
+#### Alibaba
+- Qwen3-Coder (qwen-3-coder)
+
+#### Kimi
+- Kimi-K2 (k2)
 
 ### Want to contribute?
 Visit [Contributing Page](./contributing) to learn how to make contribution to MCPMark.

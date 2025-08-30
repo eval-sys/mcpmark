@@ -13,9 +13,6 @@ An evaluation suite for agentic models in real MCP tool environments (Notion / G
 
 MCPMark provides a reproducible, extensible benchmark for researchers and engineers: one-command tasks, isolated sandboxes, auto-resume for failures, unified metrics, and aggregated reports.
 
-[![MCPMark](https://github.com/user-attachments/assets/dfc06a41-e387-45e3-bc98-db7097ffa3dc)](https://mcpmark.ai)
-
-
 ## What you can do with MCPMark
 
 - **Evaluate real tool usage** across multiple MCP services: `Notion`, `GitHub`, `Filesystem`, `Postgres`, `Playwright`.
@@ -26,7 +23,7 @@ MCPMark provides a reproducible, extensible benchmark for researchers and engine
 
 ---
 
-## Quickstart (5 minutes)
+## 10-minutes Quickstart
 
 ### 1) Clone the repository
 ```bash
@@ -35,7 +32,7 @@ cd mcpmark
 ```
 
 ### 2) Set environment variables (create `.mcp_env` at repo root)
-Only set what you need. Add service credentials when running tasks for that service.
+Only set what you need (suppose you choose models from OpenAI). Add service credentials when running tasks for that service.
 
 ```env
 # Example: OpenAI
@@ -67,7 +64,7 @@ See `docs/introduction.md` and the service guides below for more details.
 Local (Recommended)
 ```bash
 pip install -e .
-# If you'll use browser-based tasks, install Playwright browsers first
+# Optional: If you'll use browser-based tasks, install Playwright browsers first
 playwright install
 ```
 
@@ -81,11 +78,12 @@ Run a filesystem task (no external accounts required):
 python -m pipeline \
   --mcp filesystem \
   --k 1 \ # run once to quick start
+  --exp-name test-run
   --models gpt-5  \ # or any model you configured
   --tasks file_property/size_classification
 ```
 
-Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}`.
+Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}` (in this example `./results/test-run/filesystem__gpt-5/file_property_size_classification`).
 
 ---
 
@@ -94,22 +92,22 @@ Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}`.
 ### Single run (k=1)
 ```bash
 # Run ALL tasks for a service
-python -m pipeline --exp-name exp --mcp notion --tasks all --models o3 --k 1
+python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL
 
 # Run a task group
-python -m pipeline --exp-name exp --mcp notion --tasks online_resume --models o3 --k 1
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume --models MODEL
 
 # Run a specific task
-python -m pipeline --exp-name exp --mcp notion --tasks online_resume/daily_itinerary_overview --models o3 --k 1
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume/daily_itinerary_overview --models MODEL
 
 # Evaluate multiple models
-python -m pipeline --exp-name exp --mcp notion --tasks all --models o3,gpt-4.1,claude-4-sonnet --k 1
+python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL1,MODEL2,MODEL3
 ```
 
 ### Multiple runs (k>1) for pass@k
 ```bash
-# Run k=4 to compute stability metrics (requires --exp-name to aggregate final results)
-python -m pipeline --exp-name exp --mcp notion --tasks all --models o3
+# Run k=5 to compute stability metrics (requires --exp-name)
+python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL --k 5
 
 # Aggregate results (pass@1 / pass@k / pass^k / avg@k)
 python -m src.aggregators.aggregate_results --exp-name exp
@@ -118,11 +116,13 @@ python -m src.aggregators.aggregate_results --exp-name exp
 ### Run with Docker
 ```bash
 # Run all tasks for a service
-./run-task.sh --mcp notion --models o3 --exp-name exp --tasks all
+./run-task.sh --mcp notion --models MODEL --exp-name exp --tasks all
 
 # Cross-service benchmark
-./run-benchmark.sh --models o3,gpt-4.1 --exp-name exp --docker
+./run-benchmark.sh --models MODEL --exp-name exp --docker
 ```
+
+Please visit `docs/introduction.md` for choices of *MODEL*.
 
 Tip: MCPMark supports **auto-resume**. When re-running commands, only unfinished tasks will execute. Tasks previously failed due to pipeline errors (e.g., `State Duplication Error`, `MCP Network Error`) will be retried automatically.
 
@@ -131,20 +131,19 @@ Tip: MCPMark supports **auto-resume**. When re-running commands, only unfinished
 ## Service setup and authentication
 
 - **Notion**: environment isolation (Source Hub / Eval Hub), integration creation and grants, browser login verification.
-    - Guide: `docs/mcp/notion.md`
-    - Env setup: `docs/setup/notion-env-setup.md`
+  - Guide and Setup: `docs/mcp/notion.md`
 
 - **GitHub**: multi-account token pooling recommended; import pre-exported repo state if needed.
-    - Guide: `docs/mcp/github.md`
-    - Env setup: `docs/setup/github-env-setup.md`
+  - Guide and Setup: `docs/mcp/github.md`
 
 - **Postgres**: start via Docker and import sample databases.
-    - Env setup: `docs/setup/postgres-env-setup.md`
+  - Env setup: `docs/mcp/postgres.md`
 
 - **Playwright**: install browsers before first run; defaults to `chromium`.
-    - Env setup: `docs/setup/playwright-env-setup.md`
+  - Env setup: `docs/mcp/playwright.md`
 
 - **Filesystem**: zero-configuration, run directly.
+  - Configuration: `docs/mcp/filesystem.md`
 
 You can also follow `docs/quickstart.md` for the shortest end-to-end path.
 
@@ -161,25 +160,24 @@ python -m src.aggregators.aggregate_results --exp-name exp
 
 ---
 
-## Models and tasks
-
-- See supported models in `docs/introduction.md`.
-- Task catalog and design principles in `docs/datasets/task.md`. Each task ships with an automated `verify.py` for objective, reproducible evaluation.
+## Model and Tasks
+- See `docs/introduction.md` for models supported in MCPMark.
+- Task design principles in `docs/datasets/task.md`. Each task ships with an automated `verify.py` for objective, reproducible evaluation, see `docs/task.md` for details.
 
 ---
 
 ## Contributing
 
 Contributions are welcome:
-1. Add a new task under `tasks/<category_id>/<task_id>/` with `description.md` and `verify.py`.
+1. Add a new task under `tasks/<category_id>/<task_id>/` with `meta.json`, `description.md` and `verify.py`.
 2. Ensure local checks pass and open a PR.
-3. See `docs/contributing/make-contribution.md` and `docs/contributing/add-new-mcp-service.md`.
+3. See `docs/contributing/make-contribution.md`.
 
 ---
 
 ## Citation
 
-If you find our works useful for your research, please consider citing:
+If you find our works useful for your research, please use the following reference:
 
 ```bibtex
 @misc{mcpmark_2025,
