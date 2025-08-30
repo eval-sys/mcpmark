@@ -477,7 +477,7 @@ class MCPMarkAgent:
         messages = [{"role": "user", "content": instruction}]
         total_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reasoning_tokens": 0}
         turn_count = 0
-        max_turns = 4  # Limit turns to prevent infinite loops
+        max_turns = self.MAX_TURNS  # Limit turns to prevent infinite loops
         consecutive_failures = 0
         max_consecutive_failures = 3
         
