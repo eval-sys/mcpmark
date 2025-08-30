@@ -26,10 +26,6 @@ litellm.suppress_debug_info = True
 
 logger = get_logger(__name__)
 
-# import os
-# os.environ["ANTHROPIC_API_BASE"] = "https://aihubmix.com"
-
-
 class MCPMarkAgent:
     """
     Unified agent for LLM and MCP server management using LiteLLM.
