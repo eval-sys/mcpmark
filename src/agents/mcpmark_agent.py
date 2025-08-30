@@ -9,6 +9,7 @@ import asyncio
 import json
 import time
 import uuid
+ 
 from typing import Any, Dict, List, Optional, Callable
 
 import litellm
@@ -227,9 +228,22 @@ class MCPMarkAgent:
             "mcp_servers": [mcp_config],
         }
         
-        return await self._get_anthropic_response(
-            messages, extra_headers, extra_body, tool_call_log_file
-        )
+        try:
+            return await self._get_anthropic_response(
+                messages, extra_headers, extra_body, tool_call_log_file
+            )
+        except Exception as e:
+            # Fallback: return minimal failure result with user message captured
+            logger.error(f"Anthropic native path failed: {e}", exc_info=True)
+            sdk_format_messages = self._convert_to_sdk_format(messages)
+            return {
+                "success": False,
+                "output": sdk_format_messages,
+                "token_usage": {},
+                "turn_count": 0,
+                "error": str(e),
+                "litellm_run_model_name": self.litellm_run_model_name,
+            }
     
     async def _get_anthropic_response(
         self,
@@ -463,142 +477,156 @@ class MCPMarkAgent:
         messages = [{"role": "user", "content": instruction}]
         total_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reasoning_tokens": 0}
         turn_count = 0
-        max_turns = self.MAX_TURNS  # Limit turns to prevent infinite loops
+        max_turns = 4  # Limit turns to prevent infinite loops
         consecutive_failures = 0
         max_consecutive_failures = 3
         
         # Convert functions to tools format for newer models
         tools = [{"type": "function", "function": func} for func in functions] if functions else None
         
-        while turn_count < max_turns:
-            turn_count += 1
-            
-            # Build completion kwargs
-            completion_kwargs = {
-                "model": self.litellm_input_model_name,
-                "messages": messages,
-                "api_key": self.api_key,
-            }
-            
-            # Always use tools format if available - LiteLLM will handle conversion
-            if tools:
-                completion_kwargs["tools"] = tools
-                completion_kwargs["tool_choice"] = "required"
-            
-            # Add reasoning_effort and base_url if specified
-            if self.reasoning_effort != "default":
-                completion_kwargs["reasoning_effort"] = self.reasoning_effort
-            if self.base_url:
-                completion_kwargs["base_url"] = self.base_url
-            
-            try:
-                # Call LiteLLM with timeout for individual call
-                response = await asyncio.wait_for(
-                    litellm.acompletion(**completion_kwargs),
-                    timeout = self.timeout / 2  # Use half of total timeout
-                )
-                consecutive_failures = 0  # Reset failure counter on success
-            except asyncio.TimeoutError:
-                logger.warning(f"| ✗ LLM call timed out on turn {turn_count}")
-                consecutive_failures += 1
-                if consecutive_failures >= max_consecutive_failures:
-                    raise Exception(f"Too many consecutive failures ({consecutive_failures})")
-                await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
-                continue
-            except Exception as e:
-                logger.error(f"| ✗ LLM call failed on turn {turn_count}: {e}")
-                consecutive_failures += 1
-                if consecutive_failures >= max_consecutive_failures:
-                    raise
-                await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
-                continue
-            
-            # Extract actual model name from response (first turn only)
-            if turn_count == 1 and hasattr(response, 'model') and response.model:
-                self.litellm_run_model_name = response.model.split("/")[-1]
-            
-            # Update token usage including reasoning tokens
-            if hasattr(response, 'usage') and response.usage:
-                total_tokens["input_tokens"] += response.usage.prompt_tokens or 0
-                total_tokens["output_tokens"] += response.usage.completion_tokens or 0
-                total_tokens["total_tokens"] += response.usage.total_tokens or 0
+        try:
+            while turn_count < max_turns:
                 
-                # Extract reasoning tokens if available
-                if hasattr(response.usage, 'completion_tokens_details'):
-                    details = response.usage.completion_tokens_details
-                    if hasattr(details, 'reasoning_tokens'):
-                        total_tokens["reasoning_tokens"] += details.reasoning_tokens or 0
-            
-            # Get response message
-            choices = response.choices
-            if len(choices):
-                message = choices[0].message
-            else:
-                break
-            
-            # Convert to dict (prefer model_dump over deprecated dict())
-            message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
-            
-            # Log assistant's text content if present
-            if hasattr(message, 'content') and message.content:
-                # Display the content with line prefix
-                for line in message.content.splitlines():
-                    logger.info(f"| {line}")
+                # Build completion kwargs
+                completion_kwargs = {
+                    "model": self.litellm_input_model_name,
+                    "messages": messages,
+                    "api_key": self.api_key,
+                }
                 
-                # Also log to file if specified
-                if tool_call_log_file:
-                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                        f.write(f"{message.content}\n")
-            
-            # Check for tool calls (newer format)
-            if hasattr(message, 'tool_calls') and message.tool_calls:
-                messages.append(message_dict)
-                # Process tool calls
-                for tool_call in message.tool_calls:
-                    func_name = tool_call.function.name
-                    func_args = json.loads(tool_call.function.arguments)
+                # Always use tools format if available - LiteLLM will handle conversion
+                if tools:
+                    completion_kwargs["tools"] = tools
+                    completion_kwargs["tool_choice"] = "required"
+                
+                # Add reasoning_effort and base_url if specified
+                if self.reasoning_effort != "default":
+                    completion_kwargs["reasoning_effort"] = self.reasoning_effort
+                if self.base_url:
+                    completion_kwargs["base_url"] = self.base_url
+                
+                try:
+                    # Call LiteLLM with timeout for individual call
+                    response = await asyncio.wait_for(
+                        litellm.acompletion(**completion_kwargs),
+                        timeout = self.timeout / 2  # Use half of total timeout
+                    )
+                    consecutive_failures = 0  # Reset failure counter on success
+                except asyncio.TimeoutError:
+                    logger.warning(f"| ✗ LLM call timed out on turn {turn_count + 1}")
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        raise Exception(f"Too many consecutive failures ({consecutive_failures})")
+                    await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
+                    continue
+                except Exception as e:
+                    logger.error(f"| ✗ LLM call failed on turn {turn_count + 1}: {e}")
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        raise
+                    await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
+                    continue
+                
+                # Extract actual model name from response (first turn only)
+                if turn_count == 0 and hasattr(response, 'model') and response.model:
+                    self.litellm_run_model_name = response.model.split("/")[-1]
+                
+                # Update token usage including reasoning tokens
+                if hasattr(response, 'usage') and response.usage:
+                    total_tokens["input_tokens"] += response.usage.prompt_tokens or 0
+                    total_tokens["output_tokens"] += response.usage.completion_tokens or 0
+                    total_tokens["total_tokens"] += response.usage.total_tokens or 0
                     
-                    try:
-                        result = await asyncio.wait_for(
-                            mcp_server.call_tool(func_name, func_args),
-                            timeout=30
-                        )
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": json.dumps(result)
-                        })
-                    except asyncio.TimeoutError:
-                        error_msg = f"Tool call '{func_name}' timed out after 30 seconds"
-                        logger.error(error_msg)
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": f"Error: {error_msg}"
-                        })
-                    except Exception as e:
-                        logger.error(f"Tool call failed: {e}")
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": f"Error: {str(e)}"
-                        })   
-                        
-                    # Format arguments for display (truncate if too long)
-                    args_str = json.dumps(func_args, separators=(",", ": "))
-                    display_arguments = args_str[:140] + "..." if len(args_str) > 140 else args_str
+                    # Extract reasoning tokens if available
+                    if hasattr(response.usage, 'completion_tokens_details'):
+                        details = response.usage.completion_tokens_details
+                        if hasattr(details, 'reasoning_tokens'):
+                            total_tokens["reasoning_tokens"] += details.reasoning_tokens or 0
+                
+                # Get response message
+                choices = response.choices
+                if len(choices):
+                    message = choices[0].message
+                else:
+                    break
+                
+                # Convert to dict (prefer model_dump over deprecated dict())
+                message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
+                
+                # Log assistant's text content if present
+                if hasattr(message, 'content') and message.content:
+                    # Display the content with line prefix
+                    for line in message.content.splitlines():
+                        logger.info(f"| {line}")
                     
-                    # Log with ANSI color codes (bold tool name, dim gray arguments)
-                    logger.info(f"| \033[1m{func_name}\033[0m \033[2;37m{display_arguments}\033[0m")
-                    
+                    # Also log to file if specified
                     if tool_call_log_file:
                         with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                            f.write(f"| {func_name} {args_str}\n")
-                continue
-            else:
-                # No tool/function call, add message and we're done
-                messages.append(message_dict)
-                break
+                            f.write(f"{message.content}\n")
+                
+                # Check for tool calls (newer format)
+                if hasattr(message, 'tool_calls') and message.tool_calls:
+                    messages.append(message_dict)
+                    turn_count += 1
+                    # Process tool calls
+                    for tool_call in message.tool_calls:
+                        func_name = tool_call.function.name
+                        func_args = json.loads(tool_call.function.arguments)
+                        
+                        try:
+                            result = await asyncio.wait_for(
+                                mcp_server.call_tool(func_name, func_args),
+                                timeout=30
+                            )
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": json.dumps(result)
+                            })
+                        except asyncio.TimeoutError:
+                            error_msg = f"Tool call '{func_name}' timed out after 30 seconds"
+                            logger.error(error_msg)
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": f"Error: {error_msg}"
+                            })
+                        except Exception as e:
+                            logger.error(f"Tool call failed: {e}")
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": f"Error: {str(e)}"
+                            })   
+                            
+                        # Format arguments for display (truncate if too long)
+                        args_str = json.dumps(func_args, separators=(",", ": "))
+                        display_arguments = args_str[:140] + "..." if len(args_str) > 140 else args_str
+                        
+                        # Log with ANSI color codes (bold tool name, dim gray arguments)
+                        logger.info(f"| \033[1m{func_name}\033[0m \033[2;37m{display_arguments}\033[0m")
+                        
+                        if tool_call_log_file:
+                            with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                                f.write(f"| {func_name} {args_str}\n")
+                    continue
+                else:
+                    # No tool/function call, add message and we're done
+                    messages.append(message_dict)
+                    turn_count += 1
+                    break
+        except Exception as loop_error:
+            # On any error, return partial conversation, token usage, and turn count
+            logger.error(f"Manual MCP loop failed: {loop_error}", exc_info=True)
+            sdk_format_messages = self._convert_to_sdk_format(messages)
+            return {
+                "success": False,
+                "output": sdk_format_messages,
+                "token_usage": total_tokens,
+                "turn_count": turn_count,
+                "error": str(loop_error),
+                "litellm_run_model_name": self.litellm_run_model_name,
+            }
         
         # Display final token usage
         if total_tokens["total_tokens"] > 0:
@@ -641,6 +669,7 @@ class MCPMarkAgent:
             functions.append(function)
         
         return functions
+
     
     def _get_anthropic_mcp_config(self) -> Dict[str, Any]:
         """Get MCP configuration for Anthropic native support."""

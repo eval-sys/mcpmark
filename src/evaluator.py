@@ -10,12 +10,8 @@ from src.logger import get_logger
 from src.factory import MCPServiceFactory
 from src.model_config import ModelConfig
 from src.results_reporter import EvaluationReport, ResultsReporter, TaskResult
+from src.errors import is_retryable_error
 from src.agents import MCPMarkAgent
-
-PIPELINE_RETRY_ERRORS: List[str] = [
-    "State Duplication Error",
-    "MCP Network Error",
-]
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -296,7 +292,7 @@ class MCPEvaluator:
             retry_due_to_error = (
                 existing_result is not None
                 and not existing_result.success
-                and existing_result.error_message in PIPELINE_RETRY_ERRORS
+                and is_retryable_error(existing_result.error_message)
             )
 
             if existing_result and not retry_due_to_error:
