@@ -493,9 +493,6 @@ class MCPMarkAgent:
                 completion_kwargs["base_url"] = self.base_url
             
             try:
-                # print("===="*10)
-                # print(messages)
-                # print("===="*10)
                 # Call LiteLLM with timeout for individual call
                 response = await asyncio.wait_for(
                     litellm.acompletion(**completion_kwargs),
@@ -572,13 +569,6 @@ class MCPMarkAgent:
                             "tool_call_id": tool_call.id,
                             "content": json.dumps(result)
                         })
-                    except Exception as e:
-                        logger.error(f"Tool call failed: {e}")
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": f"Error: {str(e)}"
-                        })   
                     except asyncio.TimeoutError:
                         error_msg = f"Tool call '{func_name}' timed out after 30 seconds"
                         logger.error(error_msg)
@@ -587,6 +577,13 @@ class MCPMarkAgent:
                             "tool_call_id": tool_call.id,
                             "content": f"Error: {error_msg}"
                         })
+                    except Exception as e:
+                        logger.error(f"Tool call failed: {e}")
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": f"Error: {str(e)}"
+                        })   
                         
                     # Format arguments for display (truncate if too long)
                     args_str = json.dumps(func_args, separators=(",", ": "))
