@@ -127,7 +127,7 @@ def collect_task_results_from_run(
                     "task_execution_time": meta.get("task_execution_time", 0),
                     "token_usage": meta.get("token_usage", {}),
                     "turn_count": meta.get("turn_count", 0),
-                    "actual_model_name": meta.get("actual_model_name"),
+                    "model_name_name": meta.get("model_name_name"),
                     "meta": meta,  # Keep full meta for model_results
                 }
             except Exception as e:
@@ -164,7 +164,7 @@ def calculate_k_run_metrics(
             "total_output_tokens": 0,
             "total_tokens": 0,
             "total_turns": 0,
-            "actual_model_name": None,
+            "model_name_name": None,
         }
     )
 
@@ -240,14 +240,14 @@ def calculate_k_run_metrics(
         service_model_metrics[service_model]["total_tokens"] += sum(task_total_tokens)
         service_model_metrics[service_model]["total_turns"] += sum(task_turns)
 
-        # Store actual_model_name from first available task result
-        if service_model_metrics[service_model]["actual_model_name"] is None:
+        # Store model_name_name from first available task result
+        if service_model_metrics[service_model]["model_name_name"] is None:
             for run_name in runs_to_process:
                 if run_name in all_runs_results:
                     run_results = all_runs_results[run_name]
                     task_result = run_results.get(task_key)
-                    if task_result and task_result.get("actual_model_name"):
-                        service_model_metrics[service_model]["actual_model_name"] = task_result["actual_model_name"]
+                    if task_result and task_result.get("model_name_name"):
+                        service_model_metrics[service_model]["model_name_name"] = task_result["model_name_name"]
                         break
 
         # pass@1: Will be calculated as avg@k later (skip individual task counting)
@@ -372,7 +372,7 @@ def aggregate_single_run_results(
         total_output_tokens = 0
         total_tokens = 0
         total_turns = 0
-        actual_model_name = None
+        model_name_name = None
 
         for task_dir in service_model_dir.iterdir():
             if not task_dir.is_dir():
@@ -403,9 +403,9 @@ def aggregate_single_run_results(
                 total_tokens += token_usage.get("total_tokens", 0) or 0
                 total_turns += meta.get("turn_count", 0) or 0
                 
-                # Store actual_model_name from first available meta
-                if actual_model_name is None and meta.get("actual_model_name"):
-                    actual_model_name = meta.get("actual_model_name")
+                # Store model_name_name from first available meta
+                if model_name_name is None and meta.get("model_name_name"):
+                    model_name_name = meta.get("model_name_name")
 
             except Exception as e:
                 print(f"⚠️  Error reading {meta_path}: {e}")
@@ -428,7 +428,7 @@ def aggregate_single_run_results(
                 "avg_output_tokens": round(total_output_tokens / total_tasks, 4),
                 "avg_total_tokens": round(total_tokens / total_tasks, 4),
                 "avg_turns": round(total_turns / total_tasks, 4),
-                "actual_model_name": actual_model_name,
+                "model_name_name": model_name_name,
             }
 
     return service_model_results
@@ -529,11 +529,11 @@ def create_simplified_summary(
                 model_metrics["per_run_output_tokens"] = per_run_output_tokens
                 model_metrics["per_run_cost"] = per_run_cost
                 
-                # Set actual_model_name from first available service data
+                # Set model_name_name from first available service data
                 for service_model, metrics in service_model_results.items():
                     if "__" in service_model and service_model.split("__", 1)[1] == model:
-                        if metrics.get("actual_model_name"):
-                            model_metrics["actual_model_name"] = metrics["actual_model_name"]
+                        if metrics.get("model_name_name"):
+                            model_metrics["model_name_name"] = metrics["model_name_name"]
                             break
 
             if k > 1:
@@ -697,8 +697,8 @@ def create_simplified_summary(
                         "per_run_cost": per_run_cost,
                     }
 
-                # Add actual_model_name to service-level metrics
-                formatted_metrics["actual_model_name"] = metrics.get("actual_model_name")
+                # Add model_name_name to service-level metrics
+                formatted_metrics["model_name_name"] = metrics.get("model_name_name")
                 summary[service][model] = formatted_metrics
 
     return summary

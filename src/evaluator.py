@@ -10,12 +10,8 @@ from src.logger import get_logger
 from src.factory import MCPServiceFactory
 from src.model_config import ModelConfig
 from src.results_reporter import EvaluationReport, ResultsReporter, TaskResult
-from src.agent import MCPAgent
-
-PIPELINE_RETRY_ERRORS: List[str] = [
-    "State Duplication Error",
-    "MCP Network Error",
-]
+from src.errors import is_retryable_error
+from src.agents import MCPMarkAgent
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -29,18 +25,23 @@ class MCPEvaluator:
         timeout: int = 300,
         exp_name: str = "test-run",
         output_dir: Path = None,
-        stream: bool = False,
+        reasoning_effort: str = "default",
     ):
         # Main configuration
         self.mcp_service = mcp_service
-        self.model = model
         self.timeout = timeout
-
+        
         # Initialize model configuration
-        model_config = ModelConfig(model)
-        self.actual_model_name = model_config.actual_model_name
-        self.base_url = model_config.base_url
+        self.reasoning_effort = reasoning_effort
+        self.model_name = model
+        
+        model_config = ModelConfig(self.model_name)
         self.api_key = model_config.api_key
+        self.base_url = model_config.base_url
+        self.litellm_input_model_name = model_config.litellm_input_model_name
+        
+        # Track the actual model name from LiteLLM responses
+        self.litellm_run_model_name = None
 
         # Initialize managers using the factory pattern (simplified)
         self.task_manager = MCPServiceFactory.create_task_manager(mcp_service)
@@ -53,22 +54,25 @@ class MCPEvaluator:
         # automatically refresh its service configuration from the state
         # manager before each execution, so per-task manual updates are no
         # longer needed.
-        self.agent = MCPAgent(
-            model_name=self.actual_model_name,
+        self.agent = MCPMarkAgent(
+            litellm_input_model_name=self.litellm_input_model_name,  # Use the original model name for detection
             api_key=self.api_key,
             base_url=self.base_url,
             mcp_service=mcp_service,
             timeout=timeout,
             service_config=self.service_config,
             service_config_provider=self.state_manager.get_service_config_for_agent,
-            stream=stream,
+            reasoning_effort=self.reasoning_effort,
         )
 
         # Initialize results reporter
         self.results_reporter = ResultsReporter()
 
         # Output directory handling
-        model_slug = self.model.replace(".", "-")
+        if self.reasoning_effort != "default":
+            model_slug = self.model_name.replace(".", "-") + "-" + self.reasoning_effort
+        else:
+            model_slug = self.model_name.replace(".", "-")
         self.base_experiment_dir = output_dir / exp_name / f"{mcp_service}__{model_slug}"
         self.base_experiment_dir.mkdir(parents=True, exist_ok=True)
 
@@ -216,6 +220,10 @@ class MCPEvaluator:
         )
 
         agent_execution_time = time.time() - agent_execution_start_time
+        
+        # Extract actual model name from LiteLLM response
+        if agent_result.get("litellm_run_model_name"):
+            self.litellm_run_model_name = agent_result["litellm_run_model_name"]
 
         # Write messages.json to task_output_dir
         messages_path = task_output_dir / "messages.json"
@@ -284,7 +292,7 @@ class MCPEvaluator:
             retry_due_to_error = (
                 existing_result is not None
                 and not existing_result.success
-                and existing_result.error_message in PIPELINE_RETRY_ERRORS
+                and is_retryable_error(existing_result.error_message)
             )
 
             if existing_result and not retry_due_to_error:
@@ -334,7 +342,9 @@ class MCPEvaluator:
             meta_path = task_output_dir / "meta.json"
             model_config = {
                 "mcp_service": self.mcp_service,
-                "model_name": self.actual_model_name,
+                "model_name": self.model_name,
+                "litellm_run_model_name": self.litellm_run_model_name,
+                "reasoning_effort": self.reasoning_effort,
                 "timeout": self.timeout,
             }
             self.results_reporter.save_meta_json(
@@ -375,10 +385,12 @@ class MCPEvaluator:
         final_results = list(merged.values())
 
         aggregated_report = EvaluationReport(
-            model_name=self.model,
+            model_name=self.model_name,
             model_config={
                 "mcp_service": self.mcp_service,
-                "model_name": self.actual_model_name,
+                "model_name": self.model_name,
+                "litellm_run_model_name": self.litellm_run_model_name,
+                "reasoning_effort": self.reasoning_effort,
                 "timeout": self.timeout,
             },
             total_tasks=len(final_results),

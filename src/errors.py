@@ -9,23 +9,26 @@ Provides basic error standardization and retry logic.
 from typing import Optional
 
 
-# Retryable error patterns
+"""Retryable error detection via minimal substring matching (lower-case)."""
+
+# Keep this list short and generic; aim to catch API/infrastructure issues only.
 RETRYABLE_PATTERNS = {
-    "timeout",
-    "timed out",
-    "etimedout",
-    "econnrefused",
-    "connection refused",
-    "network error",
+    "ratelimit",              # e.g., RateLimitError, too many requests
+    "timeout",                # any timeout wording
+    "connection",             # connection refused/reset/error
+    "unavailable",            # service unavailable
+    "internal server error",  # 500s
+    "network error",          # generic network issue
+    "quota",                  # budget/quota exceeded
+    # pipeline infra signals
     "mcp network error",
     "state duplication error",
-    "already exists",
 }
 
 
 def is_retryable_error(error: str) -> bool:
-    """Check if an error message indicates it should be retried."""
-    error_lower = str(error).lower()
+    """Return True if the error string contains any retryable pattern."""
+    error_lower = str(error or "").lower()
     return any(pattern in error_lower for pattern in RETRYABLE_PATTERNS)
 
 
@@ -57,8 +60,3 @@ def standardize_error_message(error: str, mcp_service: Optional[str] = None) -> 
         return f"{mcp_service.title()} {base_msg}"
 
     return base_msg
-
-
-def get_retry_delay(attempt: int, base_delay: int = 5) -> int:
-    """Get exponential backoff delay for retries."""
-    return min(base_delay * (2 ** (attempt - 1)), 60)  # Cap at 60 seconds
