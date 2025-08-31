@@ -73,7 +73,9 @@ class MCPEvaluator:
             model_slug = self.model_name.replace(".", "-") + "-" + self.reasoning_effort
         else:
             model_slug = self.model_name.replace(".", "-")
-        self.base_experiment_dir = output_dir / exp_name / f"{mcp_service}__{model_slug}"
+
+        service_for_dir = "playwright" if mcp_service == "playwright_webarena" else mcp_service
+        self.base_experiment_dir = output_dir / f"{model_slug}__{service_for_dir}" / exp_name
         self.base_experiment_dir.mkdir(parents=True, exist_ok=True)
 
     def _format_duration(self, seconds: float) -> str:
