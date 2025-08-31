@@ -520,14 +520,14 @@ class MCPMarkAgent:
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
                         raise Exception(f"Too many consecutive failures ({consecutive_failures})")
-                    await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
+                    await asyncio.sleep(8 ** consecutive_failures)  # Exponential backoff
                     continue
                 except Exception as e:
                     logger.error(f"| ✗ LLM call failed on turn {turn_count + 1}: {e}")
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
                         raise
-                    await asyncio.sleep(2 ** consecutive_failures)  # Exponential backoff
+                    await asyncio.sleep(8 ** consecutive_failures)  # Exponential backoff
                     continue
                 
                 # Extract actual model name from response (first turn only)
