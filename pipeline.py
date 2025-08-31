@@ -113,12 +113,11 @@ def main():
             logger.info(f"Starting Run {run_idx}/{args.k}")
             logger.info(f"{'=' * 80}\n")
             
-            # For k-runs, create run-N subdirectory
+            # For k-runs, results/{exp}/{mcp}__{model}/run-N
             run_exp_name = f"run-{run_idx}"
             run_output_dir = args.output_dir / args.exp_name
         else:
-            # For single run (k=1), maintain backward compatibility
-            # Use run-1 subdirectory for consistency
+            # For single run, still use run-1 under service_model
             run_exp_name = "run-1"
             run_output_dir = args.output_dir / args.exp_name
 
