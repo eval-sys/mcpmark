@@ -13,6 +13,8 @@ An evaluation suite for agentic models in real MCP tool environments (Notion / G
 
 MCPMark provides a reproducible, extensible benchmark for researchers and engineers: one-command tasks, isolated sandboxes, auto-resume for failures, unified metrics, and aggregated reports.
 
+[![MCPMark](https://github.com/user-attachments/assets/dfc06a41-e387-45e3-bc98-db7097ffa3dc)](https://mcpmark.ai)
+
 ## What you can do with MCPMark
 
 - **Evaluate real tool usage** across multiple MCP services: `Notion`, `GitHub`, `Filesystem`, `Postgres`, `Playwright`.
@@ -23,7 +25,7 @@ MCPMark provides a reproducible, extensible benchmark for researchers and engine
 
 ---
 
-## 10-minutes Quickstart
+## Quickstart (5 minutes)
 
 ### 1) Clone the repository
 ```bash
@@ -32,7 +34,7 @@ cd mcpmark
 ```
 
 ### 2) Set environment variables (create `.mcp_env` at repo root)
-Only set what you need (suppose you choose models from OpenAI). Add service credentials when running tasks for that service.
+Only set what you need. Add service credentials when running tasks for that service.
 
 ```env
 # Example: OpenAI
@@ -64,7 +66,7 @@ See `docs/introduction.md` and the service guides below for more details.
 Local (Recommended)
 ```bash
 pip install -e .
-# Optional: If you'll use browser-based tasks, install Playwright browsers first
+# If you'll use browser-based tasks, install Playwright browsers first
 playwright install
 ```
 
@@ -78,12 +80,11 @@ Run a filesystem task (no external accounts required):
 python -m pipeline \
   --mcp filesystem \
   --k 1 \ # run once to quick start
-  --exp-name test-run
   --models gpt-5  \ # or any model you configured
   --tasks file_property/size_classification
 ```
 
-Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}` (in this example `./results/test-run/filesystem__gpt-5/file_property_size_classification`).
+Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}` (in this example `./results/test-run/filesystem__gpt-5/file_property__size_classification`).
 
 ---
 
@@ -92,22 +93,22 @@ Results are saved to `./results/{exp_name}/{mcp}__{model}/{task}` (in this examp
 ### Single run (k=1)
 ```bash
 # Run ALL tasks for a service
-python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL
+python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL --k 1
 
 # Run a task group
-python -m pipeline --exp-name exp --mcp notion --tasks online_resume --models MODEL
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume --models MODEL --k 1
 
 # Run a specific task
-python -m pipeline --exp-name exp --mcp notion --tasks online_resume/daily_itinerary_overview --models MODEL
+python -m pipeline --exp-name exp --mcp notion --tasks online_resume/daily_itinerary_overview --models MODEL --k 1
 
 # Evaluate multiple models
-python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL1,MODEL2,MODEL3
+python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL1,MODEL2,MODEL3 --k 1
 ```
 
 ### Multiple runs (k>1) for pass@k
 ```bash
-# Run k=5 to compute stability metrics (requires --exp-name)
-python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL --k 5
+# Run k=4 to compute stability metrics (requires --exp-name to aggregate final results)
+python -m pipeline --exp-name exp --mcp notion --tasks all --models MODEL
 
 # Aggregate results (pass@1 / pass@k / pass^k / avg@k)
 python -m src.aggregators.aggregate_results --exp-name exp
@@ -177,7 +178,7 @@ Contributions are welcome:
 
 ## Citation
 
-If you find our works useful for your research, please use the following reference:
+If you find our works useful for your research, please consider citing:
 
 ```bibtex
 @misc{mcpmark_2025,
