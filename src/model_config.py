@@ -40,6 +40,11 @@ class ModelConfig:
             "api_key_var": "OPENAI_API_KEY",
             "litellm_input_model_name": "openai/gpt-4.1-mini",
         },
+        "gpt-4.1-nano": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "litellm_input_model_name": "openai/gpt-4.1-nano",
+        },
         "gpt-5": {
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
