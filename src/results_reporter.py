@@ -109,7 +109,7 @@ class EvaluationReport:
         total = 0
         for result in self.task_results:
             if result.token_usage:
-                total += result.token_usage.get("reasoning_tokens", 0)
+                total += (result.token_usage.get("reasoning_tokens") or 0)
         return total
 
     @property
@@ -199,7 +199,7 @@ class EvaluationReport:
                 )
                 category_stats[category]["total_reasoning_tokens"] += result.token_usage.get(
                     "reasoning_tokens", 0
-                )
+                ) or 0
 
             # Accumulate turns
             if result.turn_count is not None:
