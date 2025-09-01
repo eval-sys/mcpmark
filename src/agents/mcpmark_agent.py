@@ -37,7 +37,7 @@ class MCPMarkAgent:
     """
     
     # Constants
-    MAX_TURNS = 3
+    MAX_TURNS = 100
     DEFAULT_TIMEOUT = 600
     SYSTEM_PROMPT = (
         "You are a helpful agent that uses tools iteratively to complete the user's task, "
