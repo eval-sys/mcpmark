@@ -342,7 +342,7 @@ class MCPMarkAgent:
         }
         
         # Build payload
-        max_tokens = max(thinking_budget + 2048, 2048)
+        max_tokens = max(thinking_budget + 4096, 4096)
         payload = {
             "model": self.litellm_input_model_name.replace("anthropic/", ""),
             "max_tokens": max_tokens,
@@ -707,7 +707,7 @@ class MCPMarkAgent:
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
                         raise
-                    if "ratelimiterror" in str(e).lower:
+                    if "ratelimiterror" in str(e).lower():
                         await asyncio.sleep(3 ** consecutive_failures)
                     else:
                         await asyncio.sleep(24 ** consecutive_failures)  # Exponential backoff
@@ -1052,22 +1052,92 @@ class MCPMarkAgent:
         
         return anthropic_tools
     
+    def _is_gemini_model(self) -> bool:
+        """Check if the model is a Gemini model."""
+        model_lower = self.litellm_input_model_name.lower()
+        return "gemini" in model_lower or "bison" in model_lower
+    
+    def _simplify_schema_for_gemini(self, schema: Dict) -> Dict:
+        """
+        Simplify nested schemas for Gemini compatibility.
+        Gemini has issues with deeply nested array type definitions.
+        
+        Note: This is a compatibility layer for Gemini API via LiteLLM.
+        Can be removed once LiteLLM handles this internally.
+        """
+        if not isinstance(schema, dict):
+            return schema
+        
+        simplified = {}
+        
+        for key, value in schema.items():
+            if key == "type" and isinstance(value, list):
+                # Gemini doesn't like type as array, use first type
+                simplified[key] = value[0] if value else "string"
+            elif key == "items" and isinstance(value, dict):
+                # Recursively simplify items
+                simplified[key] = self._simplify_schema_for_gemini(value)
+            elif key == "properties" and isinstance(value, dict):
+                # Recursively simplify each property
+                simplified[key] = {
+                    prop_key: self._simplify_schema_for_gemini(prop_val)
+                    for prop_key, prop_val in value.items()
+                }
+            elif isinstance(value, dict):
+                # Recursively simplify nested objects
+                simplified[key] = self._simplify_schema_for_gemini(value)
+            elif isinstance(value, list) and key not in ["required", "enum"]:
+                # For non-special arrays, check if they contain schemas
+                simplified[key] = [
+                    self._simplify_schema_for_gemini(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                simplified[key] = value
+        
+        return simplified
+    
 
     def _convert_to_openai_format(self, tools: List[Dict]) -> List[Dict]:
-        """Convert MCP tool definitions to OpenAI function format."""
-        functions = []
+        """
+        Convert MCP tool definitions to OpenAI function format.
         
-        for tool in tools:
+        For Gemini models, applies schema simplification to handle
+        compatibility issues with deeply nested array type definitions.
+        """
+        functions = []
+        is_gemini = self._is_gemini_model()
+        
+        if is_gemini:
+            logger.debug(f"Detected Gemini model: {self.litellm_input_model_name}")
+            logger.debug(f"Processing {len(tools)} tools for Gemini compatibility")
+        
+        for i, tool in enumerate(tools):
+            # Get the input schema
+            input_schema = tool.get("inputSchema", {
+                "type": "object",
+                "properties": {},
+                "required": []
+            })
+            
+            # Simplify schema for Gemini if needed
+            if is_gemini:
+                original_schema = input_schema.copy()  # Keep for debugging
+                input_schema = self._simplify_schema_for_gemini(input_schema)
+                
+                # Log significant changes for debugging
+                if input_schema != original_schema:
+                    logger.debug(f"Simplified schema for tool #{i} '{tool.get('name')}'")
+            
             function = {
                 "name": tool.get("name"),
                 "description": tool.get("description", ""),
-                "parameters": tool.get("inputSchema", {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                })
+                "parameters": input_schema
             }
             functions.append(function)
+        
+        if is_gemini:
+            logger.info(f"Converted {len(functions)} tools for Gemini model with schema simplification")
         
         return functions
 
