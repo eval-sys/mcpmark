@@ -421,6 +421,8 @@ class MCPMarkAgent:
                     tools=tools,
                     system=system_text
                 )
+                if turn_count == 1:
+                    self.litellm_run_model_name = response['model'].split("/")[-1]
             except Exception as e:
                 logger.error(f"Claude API call failed on turn {turn_count}: {e}")
                 break
@@ -555,7 +557,7 @@ class MCPMarkAgent:
             "token_usage": total_tokens,
             "turn_count": turn_count,
             "error": (f"Max turns ({max_turns}) exceeded" if hit_turn_limit else None),
-            "litellm_run_model_name": self.litellm_input_model_name,
+            "litellm_run_model_name": self.litellm_run_model_name,
         }
     
 
@@ -615,7 +617,7 @@ class MCPMarkAgent:
             "token_usage": token_usage,
             "turn_count": 1,
             "error": None,
-            "litellm_run_model_name": self.litellm_input_model_name,
+            "litellm_run_model_name": self.litellm_run_model_name,
         }
     
 
