@@ -438,9 +438,8 @@ class MCPMarkAgent:
                 total_tokens["input_tokens"] += input_tokens
                 total_tokens["output_tokens"] += output_tokens
                 total_tokens["total_tokens"] += total_tokens_count
-                if "completion_tokens_details" in usage:
-                    details = usage["completion_tokens_details"]
-                    total_tokens["reasoning_tokens"] += details.get("reasoning_tokens", 0)
+                
+                ## TODO: add reasoning tokens for claude
             
             # Extract blocks from response
             blocks = response.get("content", [])
