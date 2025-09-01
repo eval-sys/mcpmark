@@ -657,10 +657,12 @@ class MCPMarkAgent:
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
                         raise
-                    if "ratelimiterror" in str(e).lower():
-                        await asyncio.sleep(3 ** consecutive_failures)
+                    if "ContextWindowExceededError" in str(e):
+                        raise
+                    elif "RateLimitError" in str(e):
+                        await asyncio.sleep(12 ** consecutive_failures)
                     else:
-                        await asyncio.sleep(24 ** consecutive_failures)  # Exponential backoff
+                        await asyncio.sleep(2 ** consecutive_failures)
                     continue
                 
                 # Extract actual model name from response (first turn only)
@@ -725,7 +727,7 @@ class MCPMarkAgent:
                                 "content": json.dumps(result)
                             })
                         except asyncio.TimeoutError:
-                            error_msg = f"Tool call '{func_name}' timed out after 30 seconds"
+                            error_msg = f"Tool call '{func_name}' timed out after 60 seconds"
                             logger.error(error_msg)
                             messages.append({
                                 "role": "tool",
