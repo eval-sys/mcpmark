@@ -82,7 +82,7 @@ class EvaluationReport:
         total = 0
         for result in self.task_results:
             if result.token_usage:
-                total += result.token_usage.get("input_tokens", 0)
+                total += (result.token_usage.get("input_tokens") or 0)
         return total
 
     @property
@@ -91,7 +91,7 @@ class EvaluationReport:
         total = 0
         for result in self.task_results:
             if result.token_usage:
-                total += result.token_usage.get("output_tokens", 0)
+                total += (result.token_usage.get("output_tokens") or 0)
         return total
 
     @property
@@ -100,7 +100,7 @@ class EvaluationReport:
         total = 0
         for result in self.task_results:
             if result.token_usage:
-                total += result.token_usage.get("total_tokens", 0)
+                total += (result.token_usage.get("total_tokens") or 0)
         return total
     
     @property
@@ -189,13 +189,13 @@ class EvaluationReport:
             # Add token and turn usage
             if result.token_usage:
                 category_stats[category]["total_input_tokens"] += (
-                    result.token_usage.get("input_tokens", 0)
+                    result.token_usage.get("input_tokens") or 0
                 )
                 category_stats[category]["total_output_tokens"] += (
-                    result.token_usage.get("output_tokens", 0)
+                    result.token_usage.get("output_tokens") or 0
                 )
-                category_stats[category]["total_tokens"] += result.token_usage.get(
-                    "total_tokens", 0
+                category_stats[category]["total_tokens"] += (
+                    result.token_usage.get("total_tokens") or 0
                 )
                 category_stats[category]["total_reasoning_tokens"] += result.token_usage.get(
                     "reasoning_tokens", 0
