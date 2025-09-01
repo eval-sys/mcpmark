@@ -428,9 +428,14 @@ class MCPMarkAgent:
             # Update token usage
             if "usage" in response:
                 usage = response["usage"]
-                total_tokens["input_tokens"] += usage.get("input_tokens", 0)
-                total_tokens["output_tokens"] += usage.get("output_tokens", 0)
-                total_tokens["total_tokens"] += usage.get("total_tokens", 0)
+                input_tokens = usage.get("input_tokens", 0)
+                total_tokens_count = usage.get("total_tokens", 0)
+                # Calculate output tokens as total - input for consistency
+                output_tokens = total_tokens_count - input_tokens if total_tokens_count > 0 else usage.get("output_tokens", 0)
+                
+                total_tokens["input_tokens"] += input_tokens
+                total_tokens["output_tokens"] += output_tokens
+                total_tokens["total_tokens"] += total_tokens_count
                 if "completion_tokens_details" in usage:
                     details = usage["completion_tokens_details"]
                     total_tokens["reasoning_tokens"] += details.get("reasoning_tokens", 0)
@@ -565,10 +570,15 @@ class MCPMarkAgent:
         token_usage = {}
         if "usage" in response:
             usage = response["usage"]
+            input_tokens = usage.get("input_tokens", 0)
+            total_tokens_count = usage.get("total_tokens", 0)
+            # Calculate output tokens as total - input for consistency
+            output_tokens = total_tokens_count - input_tokens if total_tokens_count > 0 else usage.get("output_tokens", 0)
+            
             token_usage = {
-                "input_tokens": usage.get("input_tokens", 0),
-                "output_tokens": usage.get("output_tokens", 0),
-                "total_tokens": usage.get("total_tokens", 0),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens_count,
             }
             if "completion_tokens_details" in usage:
                 details = usage["completion_tokens_details"]
@@ -719,9 +729,14 @@ class MCPMarkAgent:
                 
                 # Update token usage including reasoning tokens
                 if hasattr(response, 'usage') and response.usage:
-                    total_tokens["input_tokens"] += response.usage.prompt_tokens or 0
-                    total_tokens["output_tokens"] += response.usage.completion_tokens or 0
-                    total_tokens["total_tokens"] += response.usage.total_tokens or 0
+                    input_tokens = response.usage.prompt_tokens or 0
+                    total_tokens_count = response.usage.total_tokens or 0
+                    # Calculate output tokens as total - input for consistency
+                    output_tokens = total_tokens_count - input_tokens if total_tokens_count > 0 else (response.usage.completion_tokens or 0)
+                    
+                    total_tokens["input_tokens"] += input_tokens
+                    total_tokens["output_tokens"] += output_tokens
+                    total_tokens["total_tokens"] += total_tokens_count
                     
                     # Extract reasoning tokens if available
                     if hasattr(response.usage, 'completion_tokens_details'):
