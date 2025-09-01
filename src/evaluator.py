@@ -216,6 +216,10 @@ class MCPEvaluator:
         task_output_dir.mkdir(parents=True, exist_ok=True)
         execution_log_path = task_output_dir / "execution.log"
 
+        # Remove existing execution.log to ensure clean start
+        if execution_log_path.exists():
+            execution_log_path.unlink()
+
         # Execute with agent
         agent_result = self.agent.execute_sync(
             task_instruction, str(execution_log_path)

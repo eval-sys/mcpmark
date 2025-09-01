@@ -9,6 +9,7 @@ import asyncio
 import json
 import time
 import uuid
+import copy
  
 from typing import Any, Dict, List, Optional, Callable
 
@@ -101,6 +102,11 @@ class MCPMarkAgent:
         
         # Track the actual model name from responses
         self.litellm_run_model_name = None
+
+        # Track partial progress for error/timeout handling
+        self._partial_messages = []
+        self._partial_token_usage = {}
+        self._partial_turn_count = 0
         
         logger.debug(
             f"Initialized MCPMarkAgent for '{mcp_service}' with model '{litellm_input_model_name}' "
@@ -133,6 +139,23 @@ class MCPMarkAgent:
                 self.service_config.update(latest_cfg)
             except Exception as e:
                 logger.warning(f"| Failed to refresh service config: {e}")
+
+    def _reset_progress(self):
+        """Reset stored partial progress for a new execution run."""
+        self._partial_messages = []
+        self._partial_token_usage = {}
+        self._partial_turn_count = 0
+
+    def _update_progress(self, messages: List[Dict], token_usage: Dict, turn_count: int):
+        """Record partial progress so we can return it on timeout/errors."""
+        try:
+            # Deep copy to avoid mutation by callers
+            self._partial_messages = copy.deepcopy(messages)
+            self._partial_token_usage = dict(token_usage or {})
+            self._partial_turn_count = int(turn_count or 0)
+        except Exception:
+            # Best-effort; don't let progress recording crash execution
+            pass
     
 
 
@@ -156,6 +179,8 @@ class MCPMarkAgent:
         start_time = time.time()
         
         try:
+            # Reset partial progress for this run
+            self._reset_progress()
             # Refresh service configuration
             self._refresh_service_config()
             
@@ -191,46 +216,30 @@ class MCPMarkAgent:
             result["execution_time"] = execution_time
             return result
         
-        except asyncio.TimeoutError:
-            execution_time = time.time() - start_time
-            error_msg = f"Execution timed out after {self.timeout} seconds"
-            logger.error(error_msg)
-            
-            self.usage_tracker.update(
-                success=False,
-                token_usage={},
-                turn_count=0,
-                execution_time=execution_time
-            )
-            
-            return {
-                "success": False,
-                "output": [],
-                "token_usage": {},
-                "turn_count": 0,
-                "execution_time": execution_time,
-                "error": error_msg
-            }
-            
         except Exception as e:
             execution_time = time.time() - start_time
-            error_msg = f"Agent execution failed: {e}"
-            logger.error(error_msg, exc_info=True)
+            if isinstance(e, asyncio.TimeoutError):
+                error_msg = f"Execution timed out after {self.timeout} seconds"
+                logger.error(error_msg)
+            else:
+                error_msg = f"Agent execution failed: {e}"
+                logger.error(error_msg, exc_info=True)
             
             self.usage_tracker.update(
                 success=False,
-                token_usage={},
-                turn_count=0,
+                token_usage=self._partial_token_usage or {},
+                turn_count=self._partial_turn_count or 0,
                 execution_time=execution_time
             )
             
             return {
                 "success": False,
-                "output": [],
-                "token_usage": {},
-                "turn_count": 0,
+                "output": self._convert_to_sdk_format(self._partial_messages) if self._partial_messages else [],
+                "token_usage": self._partial_token_usage or {},
+                "turn_count": self._partial_turn_count or 0,
                 "execution_time": execution_time,
-                "error": str(e)
+                "error": error_msg,
+                "litellm_run_model_name": self.litellm_run_model_name,
             }
             
 
@@ -242,18 +251,7 @@ class MCPMarkAgent:
         """
         Synchronous wrapper for execute method.
         """
-        try:
-            return asyncio.run(self.execute(instruction, tool_call_log_file))
-        except asyncio.TimeoutError:
-            self.usage_tracker.update(False, {}, 0, self.timeout)
-            return {
-                "success": False,
-                "output": [],
-                "token_usage": {},
-                "turn_count": 0,
-                "execution_time": self.timeout,
-                "error": f"Execution timed out after {self.timeout} seconds"
-            }
+        return asyncio.run(self.execute(instruction, tool_call_log_file))
     
 
     def get_usage_stats(self) -> Dict[str, Any]:
@@ -285,30 +283,18 @@ class MCPMarkAgent:
         # Create and start MCP server
         mcp_server = await self._create_mcp_server()
         
-        try:
-            async with mcp_server:
-                # Get available tools
-                tools = await mcp_server.list_tools()
-                
-                # Convert MCP tools to Anthropic format
-                anthropic_tools = self._convert_to_anthropic_format(tools)
-                
-                # Execute with function calling loop
-                return await self._execute_anthropic_native_tool_loop(
-                    instruction, anthropic_tools, mcp_server, 
-                    thinking_budget, tool_call_log_file
-                )
-                
-        except Exception as e:
-            logger.error(f"Claude native execution failed: {e}")
-            return {
-                "success": False,
-                "output": [],
-                "token_usage": {},
-                "turn_count": 0,
-                "error": str(e),
-                "litellm_run_model_name": self.litellm_run_model_name,
-            }
+        async with mcp_server:
+            # Get available tools
+            tools = await mcp_server.list_tools()
+            
+            # Convert MCP tools to Anthropic format
+            anthropic_tools = self._convert_to_anthropic_format(tools)
+            
+            # Execute with function calling loop
+            return await self._execute_anthropic_native_tool_loop(
+                instruction, anthropic_tools, mcp_server, 
+                thinking_budget, tool_call_log_file
+            )
     
 
     async def _call_claude_native_api(
@@ -409,6 +395,8 @@ class MCPMarkAgent:
         ended_normally = False
         
         system_text = self.SYSTEM_PROMPT
+        # Record initial state
+        self._update_progress(messages, total_tokens, turn_count)
         
         for _ in range(max_turns):
             turn_count += 1
@@ -483,6 +471,9 @@ class MCPMarkAgent:
             
             messages.append({"role": "assistant", "content": assistant_content})
             
+            # Update partial progress after assistant response
+            self._update_progress(messages, total_tokens, turn_count)
+
             # If no tool calls, we're done
             if not tool_uses:
                 ended_normally = True
@@ -523,6 +514,8 @@ class MCPMarkAgent:
                     })
             
             messages.append({"role": "user", "content": tool_results})
+            # Update partial progress after tool results
+            self._update_progress(messages, total_tokens, turn_count)
         
         # Detect if we exited due to hitting the turn limit
         if (not ended_normally) and (turn_count >= max_turns):
@@ -616,6 +609,9 @@ class MCPMarkAgent:
         
         # Convert functions to tools format for newer models
         tools = [{"type": "function", "function": func} for func in functions] if functions else None
+
+        # Record initial state
+        self._update_progress(messages, total_tokens, turn_count)
         
         try:
             while turn_count < max_turns:
@@ -711,6 +707,8 @@ class MCPMarkAgent:
                 if hasattr(message, 'tool_calls') and message.tool_calls:
                     messages.append(message_dict)
                     turn_count += 1
+                    # Update progress after assistant with tool calls
+                    self._update_progress(messages, total_tokens, turn_count)
                     # Process tool calls
                     for tool_call in message.tool_calls:
                         func_name = tool_call.function.name
@@ -752,11 +750,15 @@ class MCPMarkAgent:
                         if tool_call_log_file:
                             with open(tool_call_log_file, 'a', encoding='utf-8') as f:
                                 f.write(f"| {func_name} {args_str}\n")
+                    # Update progress after tool results appended
+                    self._update_progress(messages, total_tokens, turn_count)
                     continue
                 else:
                     # No tool/function call, add message and we're done
                     messages.append(message_dict)
                     turn_count += 1
+                    # Update progress before exiting
+                    self._update_progress(messages, total_tokens, turn_count)
                     ended_normally = True
                     break
         except Exception as loop_error:

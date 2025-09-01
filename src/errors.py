@@ -16,6 +16,7 @@ RETRYABLE_PATTERNS = {
     "ratelimit",              # e.g., RateLimitError, too many requests
     "connection",             # connection refused/reset/error
     "unavailable",            # service unavailable
+    "execution timed out",    # timeout
     "internal server error",  # 500s
     "network error",          # generic network issue
     "quota",                  # budget/quota exceeded
