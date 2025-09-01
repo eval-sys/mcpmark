@@ -286,7 +286,7 @@ def verify() -> bool:
     second_commit_runs = []
 
     start_time = time.time()
-    timeout = 120
+    timeout = 90
     no_workflow_check_count = 0
 
     while time.time() - start_time < timeout:

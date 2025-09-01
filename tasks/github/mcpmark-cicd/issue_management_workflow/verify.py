@@ -44,7 +44,7 @@ def _search_github_issues(
 
 
 def _wait_for_workflow_completion(
-    headers: Dict[str, str], owner: str, repo: str, max_wait: int = 180
+    headers: Dict[str, str], owner: str, repo: str, max_wait: int = 90
 ) -> bool:
     """Wait for GitHub Actions workflows to complete processing."""
     print("⏳ Waiting for GitHub Actions workflows to complete...")

@@ -214,12 +214,9 @@ class BaseTaskManager(ABC):
                 if verification_error:
                     logger.error(f"| Verification Error: {verification_error}")
 
-            # Overall task success: BOTH agent AND verification must succeed
-            overall_success = agent_success and verification_success
-
             return TaskResult(
                 task_name=task.name,
-                success=overall_success,
+                success=verification_success,
                 error_message=agent_error,  # Agent execution error
                 verification_error=verification_error,  # Verification error
                 verification_output=verification_output,  # Verification output

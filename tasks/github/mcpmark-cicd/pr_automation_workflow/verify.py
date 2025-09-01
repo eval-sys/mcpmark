@@ -108,7 +108,7 @@ def _wait_for_workflow_completion(
     owner: str,
     repo: str,
     workflow_file: str,
-    max_wait: int = 600,
+    max_wait: int = 90,
 ) -> bool:
     """Wait for GitHub Actions workflows to complete processing."""
     print(f"⏳ Waiting for {workflow_file} workflows to complete...")
@@ -649,7 +649,7 @@ def _run_unit_tests(
 
         # Wait for workflows to complete
         _wait_for_workflow_completion(
-            headers, owner, repo, "pr-automation.yml", max_wait=300
+            headers, owner, repo, "pr-automation.yml", max_wait=90
         )
 
         # Verify each test PR failed appropriately

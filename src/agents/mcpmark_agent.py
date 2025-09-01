@@ -483,6 +483,8 @@ class MCPMarkAgent:
         max_turns = self.MAX_TURNS  # Limit turns to prevent infinite loops
         consecutive_failures = 0
         max_consecutive_failures = 3
+        hit_turn_limit = False
+        ended_normally = False
         
         # Convert functions to tools format for newer models
         tools = [{"type": "function", "function": func} for func in functions] if functions else None
@@ -617,6 +619,7 @@ class MCPMarkAgent:
                     # No tool/function call, add message and we're done
                     messages.append(message_dict)
                     turn_count += 1
+                    ended_normally = True
                     break
         except Exception as loop_error:
             # On any error, return partial conversation, token usage, and turn count
@@ -631,6 +634,17 @@ class MCPMarkAgent:
                 "litellm_run_model_name": self.litellm_run_model_name,
             }
         
+        # Detect if we exited due to hitting the turn limit
+        if (not ended_normally) and (turn_count >= max_turns):
+            hit_turn_limit = True
+            logger.warning(f"| Max turns ({max_turns}) exceeded); returning failure with partial output.")
+            if tool_call_log_file:
+                try:
+                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                        f.write(f"| Max turns ({max_turns}) exceeded\n")
+                except Exception:
+                    pass
+
         # Display final token usage
         if total_tokens["total_tokens"] > 0:
             log_msg = (
@@ -647,11 +661,11 @@ class MCPMarkAgent:
         sdk_format_messages = self._convert_to_sdk_format(messages)
         
         return {
-            "success": True,
+            "success": not hit_turn_limit,
             "output": sdk_format_messages,
             "token_usage": total_tokens,
             "turn_count": turn_count,
-            "error": None,
+            "error": (f"Max turns ({max_turns}) exceeded" if hit_turn_limit else None),
             "litellm_run_model_name": self.litellm_run_model_name
         }
     
