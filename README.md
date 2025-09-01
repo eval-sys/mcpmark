@@ -162,8 +162,9 @@ python -m src.aggregators.aggregate_results --exp-name exp
 ---
 
 ## Model and Tasks
-- **Model support**: MCPMark calls models via LiteLLM — see the LiteLLM docs: [`LiteLLM Doc`](https://docs.litellm.ai/docs/). For Claude extended thinking mode, we use Claude’s native API.
+- **Model support**: MCPMark calls models via LiteLLM — see the LiteLLM docs: [`LiteLLM Doc`](https://docs.litellm.ai/docs/). For Anthropic (Claude) extended thinking mode (enabled via `--reasoning-effort`), we use Anthropic’s native API (not LiteLLM).
 - See `docs/introduction.md` for details and configuration of supported models in MCPMark.
+- To add a new model or adjust defaults, edit `src/model_config.py`.
 - Task design principles in `docs/datasets/task.md`. Each task ships with an automated `verify.py` for objective, reproducible evaluation, see `docs/task.md` for details.
 
 ---
