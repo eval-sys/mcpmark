@@ -60,67 +60,32 @@ def discover_tasks() -> Dict[str, List[str]]:
     return all_tasks
 
 
-def detect_layout(exp_dir: Path) -> str:
-    """Detect experiment directory layout."""
-    # Check for old layout: run-N at root
-    if any(d.name.startswith("run-") for d in exp_dir.iterdir() if d.is_dir()):
-        return "old"  # results/<exp>/run-N/<service>__<model>/
-    
-    # Otherwise assume new layout
-    return "new"  # results/<exp>/<model>__<service>/run-N/
-
-
-def collect_results(exp_dir: Path, k: int, layout: str) -> Dict[str, Dict[str, Any]]:
+def collect_results(exp_dir: Path, k: int) -> Dict[str, Dict[str, Any]]:
     """Collect all results from experiment directory."""
     results = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
     
-    if layout == "old":
-        # Old layout: results/<exp>/run-N/<service>__<model>/<category>__<task>/
+    # Current layout: results/<exp>/<model>__<service>/run-N/<category>__<task>/
+    for model_service_dir in exp_dir.iterdir():
+        if not model_service_dir.is_dir() or "__" not in model_service_dir.name:
+            continue
+        
+        model, service = model_service_dir.name.split("__", 1)
+        
         for run_idx in range(1, k + 1):
-            run_dir = exp_dir / f"run-{run_idx}"
+            run_dir = model_service_dir / f"run-{run_idx}"
             if not run_dir.exists():
                 continue
             
-            for service_model_dir in run_dir.iterdir():
-                if not service_model_dir.is_dir() or "__" not in service_model_dir.name:
+            for task_dir in run_dir.iterdir():
+                if not task_dir.is_dir() or "__" not in task_dir.name:
                     continue
                 
-                service, model = service_model_dir.name.split("__", 1)
-                
-                for task_dir in service_model_dir.iterdir():
-                    if not task_dir.is_dir() or "__" not in task_dir.name:
-                        continue
-                    
-                    meta_path = task_dir / "meta.json"
-                    if meta_path.exists():
-                        with open(meta_path) as f:
-                            meta = json.load(f)
-                            task_name = task_dir.name
-                            results[model][service][f"run-{run_idx}"][task_name] = meta
-    
-    else:
-        # New layout: results/<exp>/<model>__<service>/run-N/<category>__<task>/
-        for model_service_dir in exp_dir.iterdir():
-            if not model_service_dir.is_dir() or "__" not in model_service_dir.name:
-                continue
-            
-            model, service = model_service_dir.name.split("__", 1)
-            
-            for run_idx in range(1, k + 1):
-                run_dir = model_service_dir / f"run-{run_idx}"
-                if not run_dir.exists():
-                    continue
-                
-                for task_dir in run_dir.iterdir():
-                    if not task_dir.is_dir() or "__" not in task_dir.name:
-                        continue
-                    
-                    meta_path = task_dir / "meta.json"
-                    if meta_path.exists():
-                        with open(meta_path) as f:
-                            meta = json.load(f)
-                            task_name = task_dir.name
-                            results[model][service][f"run-{run_idx}"][task_name] = meta
+                meta_path = task_dir / "meta.json"
+                if meta_path.exists():
+                    with open(meta_path) as f:
+                        meta = json.load(f)
+                        task_name = task_dir.name
+                        results[model][service][f"run-{run_idx}"][task_name] = meta
     
     return results
 
@@ -571,12 +536,8 @@ def main():
     total_tasks = sum(len(tasks) for tasks in all_tasks.values())
     print(f"  Found {total_tasks} tasks across {len(all_tasks)} services")
     
-    # Detect layout and collect results
-    layout = detect_layout(exp_dir)
-    print(f"📁 Detected {layout} directory layout")
-    
     print("📥 Collecting results...")
-    results = collect_results(exp_dir, args.k, layout)
+    results = collect_results(exp_dir, args.k)
     print(f"  Found results for {len(results)} models")
     
     # Check completeness and validity
