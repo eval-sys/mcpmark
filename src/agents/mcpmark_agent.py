@@ -12,6 +12,7 @@ import uuid
  
 from typing import Any, Dict, List, Optional, Callable
 
+import httpx
 import litellm
 import nest_asyncio
 
@@ -38,11 +39,24 @@ class MCPMarkAgent:
     # Constants
     MAX_TURNS = 100
     DEFAULT_TIMEOUT = 600
+    SYSTEM_PROMPT = (
+        "You are a helpful agent that uses tools iteratively to complete the user's task, "
+        "and when finished, provides the final answer or simply states \"Task completed\" without further tool calls."
+    )
     
     # Service categories
     STDIO_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena", "postgres"]
     HTTP_SERVICES = ["github"]
     
+    # Claude thinking budget mapping
+    CLAUDE_THINKING_BUDGETS = {
+        "low": 1024,
+        "medium": 2048,
+        "high": 4096
+    }
+    
+    # ==================== Initialization and Configuration ====================
+
     def __init__(
         self,
         litellm_input_model_name: str,
@@ -76,9 +90,11 @@ class MCPMarkAgent:
         self._service_config_provider = service_config_provider
         self.reasoning_effort = reasoning_effort
         
-        # Detect if this is an Anthropic model with HTTP MCP service
-        self.is_anthropic = self._is_anthropic_model(litellm_input_model_name)
-        self.use_anthropic_native = self.is_anthropic and mcp_service in self.HTTP_SERVICES
+        # Detect if this is a Claude model
+        self.is_claude = self._is_anthropic_model(litellm_input_model_name)
+        
+        # Determine execution path: Claude with thinking or LiteLLM
+        self.use_claude_thinking = self.is_claude and reasoning_effort != "default"
         
         # Initialize usage tracker
         self.usage_tracker = TokenUsageTracker()
@@ -88,14 +104,27 @@ class MCPMarkAgent:
         
         logger.debug(
             f"Initialized MCPMarkAgent for '{mcp_service}' with model '{litellm_input_model_name}' "
-            f"(Anthropic Native MCP: {self.use_anthropic_native}, Reasoning: {reasoning_effort})"
+            f"(Claude: {self.is_claude}, Thinking: {self.use_claude_thinking}, Reasoning: {reasoning_effort})"
         )
     
+
+    def __repr__(self):
+        return (
+            f"MCPMarkAgent(service='{self.mcp_service}', model='{self.litellm_input_model_name}', "
+        )
+
     def _is_anthropic_model(self, model_name: str) -> bool:
         """Check if the model is an Anthropic model."""
         return "claude" in model_name.lower()
     
+
+    def _get_claude_thinking_budget(self) -> Optional[int]:
+        """Get thinking budget for Claude based on reasoning effort."""
+        if not self.use_claude_thinking:
+            return None
+        return self.CLAUDE_THINKING_BUDGETS.get(self.reasoning_effort, 2048)
     
+
     def _refresh_service_config(self):
         """Refresh service config from provider if available."""
         if self._service_config_provider:
@@ -105,6 +134,10 @@ class MCPMarkAgent:
             except Exception as e:
                 logger.warning(f"| Failed to refresh service config: {e}")
     
+
+
+    # ==================== Public Interface Methods ====================
+
     async def execute(
         self, 
         instruction: str, 
@@ -128,15 +161,14 @@ class MCPMarkAgent:
             
             # Execute with timeout control
             async def _execute_with_strategy():
-                if self.use_anthropic_native:
-                    # Use native MCP support only for Anthropic + HTTP MCP services (e.g., GitHub)
-                    return await self._execute_anthropic_native(
+                if self.use_claude_thinking:
+                    # Claude with thinking -> native Anthropic API with tools
+                    return await self._execute_claude_native_with_tools(
                         instruction, tool_call_log_file
                     )
                 else:
-                    # Use manual MCP management for all other cases
-                    # This includes: non-Anthropic models, or Anthropic with STDIO services
-                    return await self._execute_with_manual_mcp(
+                    # All other cases -> LiteLLM with tools
+                    return await self._execute_litellm_with_tools(
                         instruction, tool_call_log_file
                     )
             
@@ -200,131 +232,387 @@ class MCPMarkAgent:
                 "execution_time": execution_time,
                 "error": str(e)
             }
-    
-    async def _execute_anthropic_native(
-        self, 
+            
+
+    def execute_sync(
+        self,
         instruction: str,
         tool_call_log_file: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Execute using Anthropic's native MCP support for HTTP-based services.
-        Only used for Claude models with GitHub MCP service.
+        Synchronous wrapper for execute method.
         """
-        logger.debug("Using Anthropic native MCP execution for HTTP service")
-        
-        # Get MCP configuration for Anthropic
-        mcp_config = self._get_anthropic_mcp_config()
-        
-        # Prepare messages
-        messages = [{"role": "user", "content": instruction}]
-        
-        # Prepare extra headers and body for Anthropic
-        extra_headers = {
-            "anthropic-version": "2023-06-01",
-            "anthropic-beta": "mcp-client-2025-04-04",
-        }
-        
-        extra_body = {
-            "mcp_servers": [mcp_config],
-        }
-        
         try:
-            return await self._get_anthropic_response(
-                messages, extra_headers, extra_body, tool_call_log_file
-            )
-        except Exception as e:
-            # Fallback: return minimal failure result with user message captured
-            logger.error(f"Anthropic native path failed: {e}", exc_info=True)
-            sdk_format_messages = self._convert_to_sdk_format(messages)
+            return asyncio.run(self.execute(instruction, tool_call_log_file))
+        except asyncio.TimeoutError:
+            self.usage_tracker.update(False, {}, 0, self.timeout)
             return {
                 "success": False,
-                "output": sdk_format_messages,
+                "output": [],
+                "token_usage": {},
+                "turn_count": 0,
+                "execution_time": self.timeout,
+                "error": f"Execution timed out after {self.timeout} seconds"
+            }
+    
+
+    def get_usage_stats(self) -> Dict[str, Any]:
+        """Get usage statistics."""
+        return self.usage_tracker.get_stats()
+    
+
+    def reset_usage_stats(self):
+        """Reset usage statistics."""
+        self.usage_tracker.reset()
+    
+
+
+    # ==================== Claude Native API Execution Path ====================
+
+    async def _execute_claude_native_with_tools(
+        self,
+        instruction: str,
+        tool_call_log_file: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute Claude with thinking using native Anthropic API.
+        Creates MCP server, gets tools, and executes with thinking.
+        """
+        logger.debug("Using Claude native API with thinking")
+        
+        thinking_budget = self._get_claude_thinking_budget()
+        
+        # Create and start MCP server
+        mcp_server = await self._create_mcp_server()
+        
+        try:
+            async with mcp_server:
+                # Get available tools
+                tools = await mcp_server.list_tools()
+                
+                # Convert MCP tools to Anthropic format
+                anthropic_tools = self._convert_to_anthropic_format(tools)
+                
+                # Execute with function calling loop
+                return await self._execute_anthropic_native_tool_loop(
+                    instruction, anthropic_tools, mcp_server, 
+                    thinking_budget, tool_call_log_file
+                )
+                
+        except Exception as e:
+            logger.error(f"Claude native execution failed: {e}")
+            return {
+                "success": False,
+                "output": [],
                 "token_usage": {},
                 "turn_count": 0,
                 "error": str(e),
                 "litellm_run_model_name": self.litellm_run_model_name,
             }
     
-    async def _get_anthropic_response(
+
+    async def _call_claude_native_api(
         self,
         messages: List[Dict],
-        extra_headers: Dict,
-        extra_body: Dict,
+        thinking_budget: int,
+        tools: Optional[List[Dict]] = None,
+        mcp_servers: Optional[List[Dict]] = None,
+        system: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Call Claude's native API directly using httpx.
+        
+        Args:
+            messages: Conversation messages
+            thinking_budget: Token budget for thinking
+            tools: Tool definitions for function calling
+            mcp_servers: MCP server configurations
+            system: System prompt
+            
+        Returns:
+            API response as dictionary
+        """
+        # Get API base and headers
+        import os
+        api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com") 
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        
+        # Build payload
+        max_tokens = max(thinking_budget + 2048, 2048)
+        payload = {
+            "model": self.litellm_input_model_name.replace("anthropic/", ""),
+            "max_tokens": max_tokens,
+            "messages": messages,
+        }
+        
+        # Add thinking configuration
+        if thinking_budget:
+            payload["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": thinking_budget
+            }
+        
+        # Add tools if provided
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = {"type": "auto"}
+        
+        # Add MCP servers if provided
+        if mcp_servers:
+            headers["anthropic-beta"] = "mcp-client-2025-04-04"
+            payload["mcp_servers"] = mcp_servers
+        
+        # Add system prompt if provided
+        if system:
+            payload["system"] = system
+        
+        # Make the API call
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{api_base}/v1/messages",
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Claude API error: {e.response.text}")
+                raise
+            except Exception as e:
+                logger.error(f"Claude API call failed: {e}")
+                raise
+    
+
+    async def _execute_anthropic_native_tool_loop(
+        self,
+        instruction: str,
+        tools: List[Dict],
+        mcp_server: Any,
+        thinking_budget: int,
         tool_call_log_file: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Get non-streaming response from Anthropic."""
-        try:
-            # Build completion kwargs
-            completion_kwargs = {
-                "model": self.litellm_input_model_name,
-                "messages": messages,
-                "api_key": self.api_key,
-                "extra_headers": extra_headers,
-                "extra_body": extra_body,
-            }
+        """
+        Execute Claude thinking loop with function calling.
+        Handles thinking blocks, tool calls, and message formatting.
+        """
+        messages = [{"role": "user", "content": instruction}]
+        total_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reasoning_tokens": 0}
+        turn_count = 0
+        max_turns = self.MAX_TURNS
+        hit_turn_limit = False
+        ended_normally = False
+        
+        system_text = self.SYSTEM_PROMPT
+        
+        for _ in range(max_turns):
+            turn_count += 1
             
-            # Add reasoning_effort if specified
-            if self.reasoning_effort != "default":
-                completion_kwargs["reasoning_effort"] = self.reasoning_effort
-            
-            response = await litellm.acompletion(**completion_kwargs)
-            
-            # Extract actual model name from response
-            if hasattr(response, 'model') and response.model:
-                self.litellm_run_model_name = response.model
-            
-            # Extract response content
-            content = response.choices[0].message.content if response.choices else ""
-            
-            # Extract token usage including reasoning tokens
-            token_usage = {}
-            if hasattr(response, 'usage') and response.usage:
-                token_usage = {
-                    "input_tokens": response.usage.prompt_tokens or 0,
-                    "output_tokens": response.usage.completion_tokens or 0,
-                    "total_tokens": response.usage.total_tokens or 0
-                }
-                
-                # Extract reasoning tokens if available
-                if hasattr(response.usage, 'completion_tokens_details'):
-                    details = response.usage.completion_tokens_details
-                    if hasattr(details, 'reasoning_tokens'):
-                        token_usage["reasoning_tokens"] = details.reasoning_tokens or 0
-            
-            # Log to file if specified
-            if tool_call_log_file and content:
-                with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                    f.write(content + "\n")
-            
-            # Display token usage
-            if token_usage:
-                log_msg = (
-                    f"\n| Token usage: Total: {token_usage['total_tokens']:,} | "
-                    f"Input: {token_usage['input_tokens']:,} | "
-                    f"Output: {token_usage['output_tokens']:,}"
+            # Call Claude native API
+            try:
+                response = await self._call_claude_native_api(
+                    messages=messages,
+                    thinking_budget=thinking_budget,
+                    tools=tools,
+                    system=system_text
                 )
-                if "reasoning_tokens" in token_usage:
-                    log_msg += f" | Reasoning: {token_usage['reasoning_tokens']:,}"
-                logger.info(log_msg)
+            except Exception as e:
+                logger.error(f"Claude API call failed on turn {turn_count}: {e}")
+                break
             
-            # Convert to SDK format for backward compatibility
-            messages_with_response = messages + [{"role": "assistant", "content": content}]
-            sdk_format_messages = self._convert_to_sdk_format(messages_with_response)
+            # Update token usage
+            if "usage" in response:
+                usage = response["usage"]
+                total_tokens["input_tokens"] += usage.get("input_tokens", 0)
+                total_tokens["output_tokens"] += usage.get("output_tokens", 0)
+                total_tokens["total_tokens"] += usage.get("total_tokens", 0)
+                if "completion_tokens_details" in usage:
+                    details = usage["completion_tokens_details"]
+                    total_tokens["reasoning_tokens"] += details.get("reasoning_tokens", 0)
             
-            return {
-                "success": True,
-                "output": sdk_format_messages,
-                "token_usage": token_usage,
-                "turn_count": 1,
-                "error": None,
-                "litellm_run_model_name": self.litellm_run_model_name
-            }
+            # Extract blocks from response
+            blocks = response.get("content", [])
+            tool_uses = [b for b in blocks if b.get("type") == "tool_use"]
+            thinking_blocks = [b for b in blocks if b.get("type") == "thinking"]
+            text_blocks = [b for b in blocks if b.get("type") == "text"]
             
-        except Exception as e:
-            logger.error(f"Anthropic execution failed: {e}")
-            raise
+            # Log text output
+            for tb in text_blocks:
+                if tb.get("text") and tool_call_log_file:
+                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                        f.write(f"{tb['text']}\n")
+                if tb.get("text"):
+                    for line in tb["text"].splitlines():
+                        logger.info(f"| {line}")
+            
+            # Build assistant message with all blocks
+            assistant_content = []
+            
+            # Add thinking blocks
+            for tb in thinking_blocks:
+                assistant_content.append({
+                    "type": "thinking",
+                    "thinking": tb.get("thinking", ""),
+                    "signature": tb.get("signature", ""),
+                })
+            
+            # Add text blocks
+            for tb in text_blocks:
+                if tb.get("text"):
+                    assistant_content.append({"type": "text", "text": tb["text"]})
+            
+            # Add tool_use blocks
+            for tu in tool_uses:
+                assistant_content.append({
+                    "type": "tool_use",
+                    "id": tu.get("id"),
+                    "name": tu.get("name"),
+                    "input": tu.get("input", {}),
+                })
+            
+            messages.append({"role": "assistant", "content": assistant_content})
+            
+            # If no tool calls, we're done
+            if not tool_uses:
+                ended_normally = True
+                break
+            
+            # Execute tools and add results
+            tool_results = []
+            for tu in tool_uses:
+                name = tu.get("name")
+                inputs = tu.get("input", {})
+                
+                # Log tool call
+                args_str = json.dumps(inputs, separators=(",", ": "))
+                display_args = args_str[:140] + "..." if len(args_str) > 140 else args_str
+                logger.info(f"| \033[1m{name}\033[0m \033[2;37m{display_args}\033[0m")
+                
+                if tool_call_log_file:
+                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                        f.write(f"| {name} {args_str}\n")
+                
+                # Execute tool
+                try:
+                    result = await asyncio.wait_for(
+                        mcp_server.call_tool(name, inputs),
+                        timeout=60
+                    )
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tu["id"],
+                        "content": [{"type": "text", "text": json.dumps(result)}],
+                    })
+                except Exception as e:
+                    logger.error(f"Tool call failed: {e}")
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tu["id"],
+                        "content": [{"type": "text", "text": f"Error: {str(e)}"}],
+                    })
+            
+            messages.append({"role": "user", "content": tool_results})
+        
+        # Detect if we exited due to hitting the turn limit
+        if (not ended_normally) and (turn_count >= max_turns):
+            hit_turn_limit = True
+            logger.warning(f"| Max turns ({max_turns}) exceeded; returning failure with partial output.")
+            if tool_call_log_file:
+                try:
+                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                        f.write(f"| Max turns ({max_turns}) exceeded\n")
+                except Exception:
+                    pass
+        
+        # Display final token usage
+        if total_tokens["total_tokens"] > 0:
+            log_msg = (
+                f"|\n| Token usage: Total: {total_tokens['total_tokens']:,} | "
+                f"Input: {total_tokens['input_tokens']:,} | "
+                f"Output: {total_tokens['output_tokens']:,}"
+            )
+            if total_tokens.get("reasoning_tokens", 0) > 0:
+                log_msg += f" | Reasoning: {total_tokens['reasoning_tokens']:,}"
+            logger.info(log_msg)
+            logger.info(f"| Turns: {turn_count}")
+        
+        # Convert messages to SDK format
+        sdk_format_messages = self._convert_to_sdk_format(messages)
+        
+        return {
+            "success": not hit_turn_limit,
+            "output": sdk_format_messages,
+            "token_usage": total_tokens,
+            "turn_count": turn_count,
+            "error": (f"Max turns ({max_turns}) exceeded" if hit_turn_limit else None),
+            "litellm_run_model_name": self.litellm_input_model_name,
+        }
     
-    async def _execute_with_manual_mcp(
+
+    async def _process_claude_thinking_response(
+        self,
+        response: Dict,
+        messages: List[Dict],
+        tool_call_log_file: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Process Claude response with thinking blocks."""
+        # Extract token usage
+        token_usage = {}
+        if "usage" in response:
+            usage = response["usage"]
+            token_usage = {
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "total_tokens": usage.get("total_tokens", 0),
+            }
+            if "completion_tokens_details" in usage:
+                details = usage["completion_tokens_details"]
+                token_usage["reasoning_tokens"] = details.get("reasoning_tokens", 0)
+        
+        # Extract content
+        blocks = response.get("content", [])
+        text_blocks = [b for b in blocks if b.get("type") == "text"]
+        content = "".join(b.get("text", "") for b in text_blocks)
+        
+        # Log to file if specified
+        if tool_call_log_file and content:
+            with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                f.write(content + "\n")
+        
+        # Display token usage
+        if token_usage:
+            log_msg = (
+                f"\n| Token usage: Total: {token_usage['total_tokens']:,} | "
+                f"Input: {token_usage['input_tokens']:,} | "
+                f"Output: {token_usage['output_tokens']:,}"
+            )
+            if "reasoning_tokens" in token_usage:
+                log_msg += f" | Reasoning: {token_usage['reasoning_tokens']:,}"
+            logger.info(log_msg)
+        
+        # Add response to messages
+        messages.append({"role": "assistant", "content": content})
+        sdk_format_messages = self._convert_to_sdk_format(messages)
+        
+        return {
+            "success": True,
+            "output": sdk_format_messages,
+            "token_usage": token_usage,
+            "turn_count": 1,
+            "error": None,
+            "litellm_run_model_name": self.litellm_input_model_name,
+        }
+    
+
+
+    # ==================== LiteLLM Execution Path ====================
+
+    async def _execute_litellm_with_tools(
         self,
         instruction: str,
         tool_call_log_file: Optional[str] = None
@@ -344,10 +632,10 @@ class MCPMarkAgent:
                 tools = await mcp_server.list_tools()
                 
                 # Convert MCP tools to OpenAI function format
-                functions = self._convert_mcp_tools_to_functions(tools)
+                functions = self._convert_to_openai_format(tools)
                 
                 # Execute with function calling loop
-                return await self._execute_function_calling_loop(
+                return await self._execute_litellm_tool_loop(
                     instruction, functions, mcp_server, tool_call_log_file
                 )
                 
@@ -355,6 +643,217 @@ class MCPMarkAgent:
             logger.error(f"Manual MCP execution failed: {e}")
             raise
         
+
+    async def _execute_litellm_tool_loop(
+        self,
+        instruction: str,
+        functions: List[Dict],
+        mcp_server: Any,
+        tool_call_log_file: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Execute function calling loop with LiteLLM."""
+        messages = [
+            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "user", "content": instruction}
+        ]
+        total_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reasoning_tokens": 0}
+        turn_count = 0
+        max_turns = self.MAX_TURNS  # Limit turns to prevent infinite loops
+        consecutive_failures = 0
+        max_consecutive_failures = 3
+        hit_turn_limit = False
+        ended_normally = False
+        
+        # Convert functions to tools format for newer models
+        tools = [{"type": "function", "function": func} for func in functions] if functions else None
+        
+        try:
+            while turn_count < max_turns:
+                
+                # Build completion kwargs
+                completion_kwargs = {
+                    "model": self.litellm_input_model_name,
+                    "messages": messages,
+                    "api_key": self.api_key,
+                }
+                
+                # Always use tools format if available - LiteLLM will handle conversion
+                if tools:
+                    completion_kwargs["tools"] = tools
+                    completion_kwargs["tool_choice"] = "auto"
+                
+                # Add reasoning_effort and base_url if specified
+                if self.reasoning_effort != "default":
+                    completion_kwargs["reasoning_effort"] = self.reasoning_effort
+                if self.base_url:
+                    completion_kwargs["base_url"] = self.base_url
+                
+                try:
+                    # Call LiteLLM with timeout for individual call
+                    response = await asyncio.wait_for(
+                        litellm.acompletion(**completion_kwargs),
+                        timeout = self.timeout / 2  # Use half of total timeout
+                    )
+                    consecutive_failures = 0  # Reset failure counter on success
+                except asyncio.TimeoutError:
+                    logger.warning(f"| ✗ LLM call timed out on turn {turn_count + 1}")
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        raise Exception(f"Too many consecutive failures ({consecutive_failures})")
+                    await asyncio.sleep(8 ** consecutive_failures)  # Exponential backoff
+                    continue
+                except Exception as e:
+                    logger.error(f"| ✗ LLM call failed on turn {turn_count + 1}: {e}")
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        raise
+                    if "ratelimiterror" in str(e).lower:
+                        await asyncio.sleep(3 ** consecutive_failures)
+                    else:
+                        await asyncio.sleep(24 ** consecutive_failures)  # Exponential backoff
+                    continue
+                
+                # Extract actual model name from response (first turn only)
+                if turn_count == 0 and hasattr(response, 'model') and response.model:
+                    self.litellm_run_model_name = response.model.split("/")[-1]
+                
+                # Update token usage including reasoning tokens
+                if hasattr(response, 'usage') and response.usage:
+                    total_tokens["input_tokens"] += response.usage.prompt_tokens or 0
+                    total_tokens["output_tokens"] += response.usage.completion_tokens or 0
+                    total_tokens["total_tokens"] += response.usage.total_tokens or 0
+                    
+                    # Extract reasoning tokens if available
+                    if hasattr(response.usage, 'completion_tokens_details'):
+                        details = response.usage.completion_tokens_details
+                        if hasattr(details, 'reasoning_tokens'):
+                            total_tokens["reasoning_tokens"] += details.reasoning_tokens or 0
+                
+                # Get response message
+                choices = response.choices
+                if len(choices):
+                    message = choices[0].message
+                else:
+                    break
+                
+                # Convert to dict (prefer model_dump over deprecated dict())
+                message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
+                
+                # Log assistant's text content if present
+                if hasattr(message, 'content') and message.content:
+                    # Display the content with line prefix
+                    for line in message.content.splitlines():
+                        logger.info(f"| {line}")
+                    
+                    # Also log to file if specified
+                    if tool_call_log_file:
+                        with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                            f.write(f"{message.content}\n")
+                
+                # Check for tool calls (newer format)
+                if hasattr(message, 'tool_calls') and message.tool_calls:
+                    messages.append(message_dict)
+                    turn_count += 1
+                    # Process tool calls
+                    for tool_call in message.tool_calls:
+                        func_name = tool_call.function.name
+                        func_args = json.loads(tool_call.function.arguments)
+                        
+                        try:
+                            result = await asyncio.wait_for(
+                                mcp_server.call_tool(func_name, func_args),
+                                timeout=60
+                            )
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": json.dumps(result)
+                            })
+                        except asyncio.TimeoutError:
+                            error_msg = f"Tool call '{func_name}' timed out after 30 seconds"
+                            logger.error(error_msg)
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": f"Error: {error_msg}"
+                            })
+                        except Exception as e:
+                            logger.error(f"Tool call failed: {e}")
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": f"Error: {str(e)}"
+                            })   
+                            
+                        # Format arguments for display (truncate if too long)
+                        args_str = json.dumps(func_args, separators=(",", ": "))
+                        display_arguments = args_str[:140] + "..." if len(args_str) > 140 else args_str
+                        
+                        # Log with ANSI color codes (bold tool name, dim gray arguments)
+                        logger.info(f"| \033[1m{func_name}\033[0m \033[2;37m{display_arguments}\033[0m")
+                        
+                        if tool_call_log_file:
+                            with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                                f.write(f"| {func_name} {args_str}\n")
+                    continue
+                else:
+                    # No tool/function call, add message and we're done
+                    messages.append(message_dict)
+                    turn_count += 1
+                    ended_normally = True
+                    break
+        except Exception as loop_error:
+            # On any error, return partial conversation, token usage, and turn count
+            logger.error(f"Manual MCP loop failed: {loop_error}", exc_info=True)
+            sdk_format_messages = self._convert_to_sdk_format(messages)
+            return {
+                "success": False,
+                "output": sdk_format_messages,
+                "token_usage": total_tokens,
+                "turn_count": turn_count,
+                "error": str(loop_error),
+                "litellm_run_model_name": self.litellm_run_model_name,
+            }
+        
+        # Detect if we exited due to hitting the turn limit
+        if (not ended_normally) and (turn_count >= max_turns):
+            hit_turn_limit = True
+            logger.warning(f"| Max turns ({max_turns}) exceeded); returning failure with partial output.")
+            if tool_call_log_file:
+                try:
+                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                        f.write(f"| Max turns ({max_turns}) exceeded\n")
+                except Exception:
+                    pass
+
+        # Display final token usage
+        if total_tokens["total_tokens"] > 0:
+            log_msg = (
+                f"|\n| Token usage: Total: {total_tokens['total_tokens']:,} | "
+                f"Input: {total_tokens['input_tokens']:,} | "
+                f"Output: {total_tokens['output_tokens']:,}"
+            )
+            if total_tokens.get("reasoning_tokens", 0) > 0:
+                log_msg += f" | Reasoning: {total_tokens['reasoning_tokens']:,}"
+            logger.info(log_msg)
+            logger.info(f"| Turns: {turn_count}")
+        
+        # Convert messages to SDK format for backward compatibility
+        sdk_format_messages = self._convert_to_sdk_format(messages)
+        
+        return {
+            "success": not hit_turn_limit,
+            "output": sdk_format_messages,
+            "token_usage": total_tokens,
+            "turn_count": turn_count,
+            "error": (f"Max turns ({max_turns}) exceeded" if hit_turn_limit else None),
+            "litellm_run_model_name": self.litellm_run_model_name
+        }
+    
+
+
+    # ==================== Format Conversion Methods ====================
+
     def _convert_to_sdk_format(self, messages: List[Dict]) -> List[Dict]:
         """Convert OpenAI messages format to old SDK format for backward compatibility."""
         sdk_format = []
@@ -365,10 +864,47 @@ class MCPMarkAgent:
 
             if role == "user":
                 # User messages stay mostly the same
-                sdk_format.append({
-                    "content": msg.get("content", ""),
-                    "role": "user"
-                })
+                user_content = msg.get("content", "")
+                
+                # Handle tool_result messages (content as list)
+                if isinstance(user_content, list):
+                    # Check if this is a tool_result message
+                    tool_results = [item for item in user_content if isinstance(item, dict) and item.get("type") == "tool_result"]
+                    if tool_results:
+                        # Convert tool_results to function_call_output format
+                        for tr in tool_results:
+                            content_items = tr.get("content", [])
+                            text_content = ""
+                            for ci in content_items:
+                                if isinstance(ci, dict) and ci.get("type") == "text":
+                                    text_content = ci.get("text", "")
+                                    break
+                            sdk_format.append({
+                                "call_id": tr.get("tool_use_id", ""),
+                                "output": json.dumps({
+                                    "type": "text",
+                                    "text": text_content,
+                                    "annotations": None,
+                                    "meta": None
+                                }),
+                                "type": "function_call_output"
+                            })
+                    else:
+                        # Regular user content as list - extract text
+                        text_parts = []
+                        for item in user_content:
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                text_parts.append(item.get("text", ""))
+                        sdk_format.append({
+                            "content": "\n".join(text_parts) if text_parts else "",
+                            "role": "user"
+                        })
+                else:
+                    # String content
+                    sdk_format.append({
+                        "content": user_content,
+                        "role": "user"
+                    })
 
             elif role == "assistant":
                 # === CHANGED ORDER START ===
@@ -376,6 +912,37 @@ class MCPMarkAgent:
                 function_call = msg.get("function_call")
                 content = msg.get("content")
 
+                # Handle both string content and list content (for Claude thinking)
+                if isinstance(content, list):
+                    # Extract text from content blocks (e.g., Claude responses with thinking)
+                    text_parts = []
+                    claude_tool_uses = []
+                    for block in content:
+                        if isinstance(block, dict):
+                            if block.get("type") == "text":
+                                text_parts.append(block.get("text", ""))
+                            elif block.get("type") == "thinking":
+                                # Include thinking in output (marked as such)
+                                thinking_text = block.get("thinking", "")
+                                if thinking_text:
+                                    text_parts.append(f"<think>\n{thinking_text}\n</think>")
+                            elif block.get("type") == "tool_use":
+                                # Store tool_use blocks for later processing
+                                claude_tool_uses.append(block)
+                    content = "\n".join(text_parts) if text_parts else ""
+                    
+                    # Add Claude tool_uses to regular tool_calls
+                    if claude_tool_uses and not tool_calls:
+                        tool_calls = []
+                        for tu in claude_tool_uses:
+                            tool_calls.append({
+                                "id": tu.get("id"),
+                                "function": {
+                                    "name": tu.get("name"),
+                                    "arguments": json.dumps(tu.get("input", {}))
+                                }
+                            })
+                
                 # 1) First add assistant's text content (if present)
                 if content:
                     sdk_format.append({
@@ -466,210 +1033,27 @@ class MCPMarkAgent:
         return sdk_format
 
     
-    async def _execute_function_calling_loop(
-        self,
-        instruction: str,
-        functions: List[Dict],
-        mcp_server: Any,
-        tool_call_log_file: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Execute function calling loop with LiteLLM."""
-        messages = [
-            {"role": "system", "content": "You are a helpful agent that uses tools iteratively to complete the user's task, and when finished, provides the final answer or simply states \"Task completed\" without further tool calls."},
-            {"role": "user", "content": instruction}
-        ]
-        total_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reasoning_tokens": 0}
-        turn_count = 0
-        max_turns = self.MAX_TURNS  # Limit turns to prevent infinite loops
-        consecutive_failures = 0
-        max_consecutive_failures = 3
-        hit_turn_limit = False
-        ended_normally = False
-        
-        # Convert functions to tools format for newer models
-        tools = [{"type": "function", "function": func} for func in functions] if functions else None
-        
-        try:
-            while turn_count < max_turns:
-                
-                # Build completion kwargs
-                completion_kwargs = {
-                    "model": self.litellm_input_model_name,
-                    "messages": messages,
-                    "api_key": self.api_key,
-                }
-                
-                # Always use tools format if available - LiteLLM will handle conversion
-                if tools:
-                    completion_kwargs["tools"] = tools
-                    completion_kwargs["tool_choice"] = "auto"
-                
-                # Add reasoning_effort and base_url if specified
-                if self.reasoning_effort != "default":
-                    completion_kwargs["reasoning_effort"] = self.reasoning_effort
-                if self.base_url:
-                    completion_kwargs["base_url"] = self.base_url
-                
-                try:
-                    # Call LiteLLM with timeout for individual call
-                    response = await asyncio.wait_for(
-                        litellm.acompletion(**completion_kwargs),
-                        timeout = self.timeout / 2  # Use half of total timeout
-                    )
-                    consecutive_failures = 0  # Reset failure counter on success
-                except asyncio.TimeoutError:
-                    logger.warning(f"| ✗ LLM call timed out on turn {turn_count + 1}")
-                    consecutive_failures += 1
-                    if consecutive_failures >= max_consecutive_failures:
-                        raise Exception(f"Too many consecutive failures ({consecutive_failures})")
-                    await asyncio.sleep(8 ** consecutive_failures)  # Exponential backoff
-                    continue
-                except Exception as e:
-                    logger.error(f"| ✗ LLM call failed on turn {turn_count + 1}: {e}")
-                    consecutive_failures += 1
-                    if consecutive_failures >= max_consecutive_failures:
-                        raise
-                    await asyncio.sleep(8 ** consecutive_failures)  # Exponential backoff
-                    continue
-                
-                # Extract actual model name from response (first turn only)
-                if turn_count == 0 and hasattr(response, 'model') and response.model:
-                    self.litellm_run_model_name = response.model.split("/")[-1]
-                
-                # Update token usage including reasoning tokens
-                if hasattr(response, 'usage') and response.usage:
-                    total_tokens["input_tokens"] += response.usage.prompt_tokens or 0
-                    total_tokens["output_tokens"] += response.usage.completion_tokens or 0
-                    total_tokens["total_tokens"] += response.usage.total_tokens or 0
-                    
-                    # Extract reasoning tokens if available
-                    if hasattr(response.usage, 'completion_tokens_details'):
-                        details = response.usage.completion_tokens_details
-                        if hasattr(details, 'reasoning_tokens'):
-                            total_tokens["reasoning_tokens"] += details.reasoning_tokens or 0
-                
-                # Get response message
-                choices = response.choices
-                if len(choices):
-                    message = choices[0].message
-                else:
-                    break
-                
-                # Convert to dict (prefer model_dump over deprecated dict())
-                message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
-                
-                # Log assistant's text content if present
-                if hasattr(message, 'content') and message.content:
-                    # Display the content with line prefix
-                    for line in message.content.splitlines():
-                        logger.info(f"| {line}")
-                    
-                    # Also log to file if specified
-                    if tool_call_log_file:
-                        with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                            f.write(f"{message.content}\n")
-                
-                # Check for tool calls (newer format)
-                if hasattr(message, 'tool_calls') and message.tool_calls:
-                    messages.append(message_dict)
-                    turn_count += 1
-                    # Process tool calls
-                    for tool_call in message.tool_calls:
-                        func_name = tool_call.function.name
-                        func_args = json.loads(tool_call.function.arguments)
-                        
-                        try:
-                            result = await asyncio.wait_for(
-                                mcp_server.call_tool(func_name, func_args),
-                                timeout=30
-                            )
-                            messages.append({
-                                "role": "tool",
-                                "tool_call_id": tool_call.id,
-                                "content": json.dumps(result)
-                            })
-                        except asyncio.TimeoutError:
-                            error_msg = f"Tool call '{func_name}' timed out after 30 seconds"
-                            logger.error(error_msg)
-                            messages.append({
-                                "role": "tool",
-                                "tool_call_id": tool_call.id,
-                                "content": f"Error: {error_msg}"
-                            })
-                        except Exception as e:
-                            logger.error(f"Tool call failed: {e}")
-                            messages.append({
-                                "role": "tool",
-                                "tool_call_id": tool_call.id,
-                                "content": f"Error: {str(e)}"
-                            })   
-                            
-                        # Format arguments for display (truncate if too long)
-                        args_str = json.dumps(func_args, separators=(",", ": "))
-                        display_arguments = args_str[:140] + "..." if len(args_str) > 140 else args_str
-                        
-                        # Log with ANSI color codes (bold tool name, dim gray arguments)
-                        logger.info(f"| \033[1m{func_name}\033[0m \033[2;37m{display_arguments}\033[0m")
-                        
-                        if tool_call_log_file:
-                            with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                                f.write(f"| {func_name} {args_str}\n")
-                    continue
-                else:
-                    # No tool/function call, add message and we're done
-                    messages.append(message_dict)
-                    turn_count += 1
-                    ended_normally = True
-                    break
-        except Exception as loop_error:
-            # On any error, return partial conversation, token usage, and turn count
-            logger.error(f"Manual MCP loop failed: {loop_error}", exc_info=True)
-            sdk_format_messages = self._convert_to_sdk_format(messages)
-            return {
-                "success": False,
-                "output": sdk_format_messages,
-                "token_usage": total_tokens,
-                "turn_count": turn_count,
-                "error": str(loop_error),
-                "litellm_run_model_name": self.litellm_run_model_name,
-            }
-        
-        # Detect if we exited due to hitting the turn limit
-        if (not ended_normally) and (turn_count >= max_turns):
-            hit_turn_limit = True
-            logger.warning(f"| Max turns ({max_turns}) exceeded); returning failure with partial output.")
-            if tool_call_log_file:
-                try:
-                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                        f.write(f"| Max turns ({max_turns}) exceeded\n")
-                except Exception:
-                    pass
 
-        # Display final token usage
-        if total_tokens["total_tokens"] > 0:
-            log_msg = (
-                f"|\n| Token usage: Total: {total_tokens['total_tokens']:,} | "
-                f"Input: {total_tokens['input_tokens']:,} | "
-                f"Output: {total_tokens['output_tokens']:,}"
-            )
-            if total_tokens.get("reasoning_tokens", 0) > 0:
-                log_msg += f" | Reasoning: {total_tokens['reasoning_tokens']:,}"
-            logger.info(log_msg)
-            logger.info(f"| Turns: {turn_count}")
+    def _convert_to_anthropic_format(self, tools: List[Dict]) -> List[Dict]:
+        """Convert MCP tool definitions to Anthropic format."""
+        anthropic_tools = []
         
-        # Convert messages to SDK format for backward compatibility
-        sdk_format_messages = self._convert_to_sdk_format(messages)
+        for tool in tools:
+            anthropic_tool = {
+                "name": tool.get("name"),
+                "description": tool.get("description", ""),
+                "input_schema": tool.get("inputSchema", {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                })
+            }
+            anthropic_tools.append(anthropic_tool)
         
-        return {
-            "success": not hit_turn_limit,
-            "output": sdk_format_messages,
-            "token_usage": total_tokens,
-            "turn_count": turn_count,
-            "error": (f"Max turns ({max_turns}) exceeded" if hit_turn_limit else None),
-            "litellm_run_model_name": self.litellm_run_model_name
-        }
+        return anthropic_tools
     
-    def _convert_mcp_tools_to_functions(self, tools: List[Dict]) -> List[Dict]:
+
+    def _convert_to_openai_format(self, tools: List[Dict]) -> List[Dict]:
         """Convert MCP tool definitions to OpenAI function format."""
         functions = []
         
@@ -688,22 +1072,10 @@ class MCPMarkAgent:
         return functions
 
     
-    def _get_anthropic_mcp_config(self) -> Dict[str, Any]:
-        """Get MCP configuration for Anthropic native support."""
-        if self.mcp_service == "github":
-            return {
-                "type": "url",
-                "url": "https://api.githubcopilot.com/mcp/",
-                "name": "github",
-                "authorization_token": self.service_config.get("github_token", "")
-            }
-        else:
-            # For stdio-based services, Anthropic expects a different format
-            # This would need to be implemented based on Anthropic's requirements
-            raise NotImplementedError(
-                f"Anthropic native MCP for {self.mcp_service} not yet implemented"
-            )
-    
+
+
+    # ==================== MCP Server Management ====================
+
     async def _create_mcp_server(self) -> Any:
         """Create and return an MCP server instance."""
         if self.mcp_service in self.STDIO_SERVICES:
@@ -713,6 +1085,7 @@ class MCPMarkAgent:
         else:
             raise ValueError(f"Unsupported MCP service: {self.mcp_service}")
     
+
     def _create_stdio_server(self) -> MCPStdioServer:
         """Create stdio-based MCP server."""
         if self.mcp_service == "notion":
@@ -780,6 +1153,7 @@ class MCPMarkAgent:
         else:
             raise ValueError(f"Unsupported stdio service: {self.mcp_service}")
     
+
     def _create_http_server(self) -> MCPHttpServer:
         """Create HTTP-based MCP server."""
         if self.mcp_service == "github":
@@ -797,36 +1171,3 @@ class MCPMarkAgent:
         else:
             raise ValueError(f"Unsupported HTTP service: {self.mcp_service}")
     
-    def execute_sync(
-        self,
-        instruction: str,
-        tool_call_log_file: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Synchronous wrapper for execute method.
-        """
-        try:
-            return asyncio.run(self.execute(instruction, tool_call_log_file))
-        except asyncio.TimeoutError:
-            self.usage_tracker.update(False, {}, 0, self.timeout)
-            return {
-                "success": False,
-                "output": [],
-                "token_usage": {},
-                "turn_count": 0,
-                "execution_time": self.timeout,
-                "error": f"Execution timed out after {self.timeout} seconds"
-            }
-    
-    def get_usage_stats(self) -> Dict[str, Any]:
-        """Get usage statistics."""
-        return self.usage_tracker.get_stats()
-    
-    def reset_usage_stats(self):
-        """Reset usage statistics."""
-        self.usage_tracker.reset()
-    
-    def __repr__(self):
-        return (
-            f"MCPMarkAgent(service='{self.mcp_service}', model='{self.litellm_input_model_name}', "
-        )
