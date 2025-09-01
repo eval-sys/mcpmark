@@ -14,7 +14,6 @@ from typing import Optional
 # Keep this list short and generic; aim to catch API/infrastructure issues only.
 RETRYABLE_PATTERNS = {
     "ratelimit",              # e.g., RateLimitError, too many requests
-    "timeout",                # any timeout wording
     "connection",             # connection refused/reset/error
     "unavailable",            # service unavailable
     "internal server error",  # 500s

@@ -155,9 +155,14 @@ You can also follow `docs/quickstart.md` for the shortest end-to-end path.
 - Results are organized under `./results/{exp_name}/{model}__{mcp}/run-*/` (JSON + CSV per task).
 - Generate a summary with:
 ```bash
+# Basic usage
 python -m src.aggregators.aggregate_results --exp-name exp
+
+# For k-run experiments with single-run models
+python -m src.aggregators.aggregate_results --exp-name exp --k 4 --single-run-models claude-opus-4-1
 ```
-- Includes multi-run metrics (e.g., pass@k) for stability comparisons.
+- Only models with complete results across all tasks and runs are included in the final summary.
+- Includes multi-run metrics (pass@k, pass^k) for stability comparisons when k > 1.
 
 ---
 
