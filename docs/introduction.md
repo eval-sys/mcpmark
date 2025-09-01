@@ -55,7 +55,7 @@ For re-run experiments, only unfinished tasks will be executed. Tasks that previ
 The experiment results are written to `./results/` (JSON + CSV).
 
 #### Reult Aggregation (for K > 1)
-MCP supports aggreated metrics of pass@1, pass@K, $\text{pass}^{K}$, avg@K.
+MCP supports aggreated metrics of pass@1, pass@K, pass^K, avg@K.
 ```bash
 python -m src.aggregators.aggregate_results --exp-name new_exp
 ```
