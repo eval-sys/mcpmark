@@ -431,9 +431,9 @@ class MCPMarkAgent:
             if "usage" in response:
                 usage = response["usage"]
                 input_tokens = usage.get("input_tokens", 0)
-                total_tokens_count = usage.get("total_tokens", 0)
+                output_tokens = usage.get("output_tokens", 0)
                 # Calculate output tokens as total - input for consistency
-                output_tokens = total_tokens_count - input_tokens if total_tokens_count > 0 else usage.get("output_tokens", 0)
+                total_tokens_count = output_tokens + input_tokens
                 
                 total_tokens["input_tokens"] += input_tokens
                 total_tokens["output_tokens"] += output_tokens
@@ -559,67 +559,6 @@ class MCPMarkAgent:
             "error": (f"Max turns ({max_turns}) exceeded" if hit_turn_limit else None),
             "litellm_run_model_name": self.litellm_run_model_name,
         }
-    
-
-    async def _process_claude_thinking_response(
-        self,
-        response: Dict,
-        messages: List[Dict],
-        tool_call_log_file: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Process Claude response with thinking blocks."""
-        # Extract token usage
-        token_usage = {}
-        if "usage" in response:
-            usage = response["usage"]
-            input_tokens = usage.get("input_tokens", 0)
-            total_tokens_count = usage.get("total_tokens", 0)
-            # Calculate output tokens as total - input for consistency
-            output_tokens = total_tokens_count - input_tokens if total_tokens_count > 0 else usage.get("output_tokens", 0)
-            
-            token_usage = {
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "total_tokens": total_tokens_count,
-            }
-            if "completion_tokens_details" in usage:
-                details = usage["completion_tokens_details"]
-                token_usage["reasoning_tokens"] = details.get("reasoning_tokens", 0)
-        
-        # Extract content
-        blocks = response.get("content", [])
-        text_blocks = [b for b in blocks if b.get("type") == "text"]
-        content = "".join(b.get("text", "") for b in text_blocks)
-        
-        # Log to file if specified
-        if tool_call_log_file and content:
-            with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                f.write(content + "\n")
-        
-        # Display token usage
-        if token_usage:
-            log_msg = (
-                f"\n| Token usage: Total: {token_usage['total_tokens']:,} | "
-                f"Input: {token_usage['input_tokens']:,} | "
-                f"Output: {token_usage['output_tokens']:,}"
-            )
-            if "reasoning_tokens" in token_usage:
-                log_msg += f" | Reasoning: {token_usage['reasoning_tokens']:,}"
-            logger.info(log_msg)
-        
-        # Add response to messages
-        messages.append({"role": "assistant", "content": content})
-        sdk_format_messages = self._convert_to_sdk_format(messages)
-        
-        return {
-            "success": True,
-            "output": sdk_format_messages,
-            "token_usage": token_usage,
-            "turn_count": 1,
-            "error": None,
-            "litellm_run_model_name": self.litellm_run_model_name,
-        }
-    
 
 
     # ==================== LiteLLM Execution Path ====================
