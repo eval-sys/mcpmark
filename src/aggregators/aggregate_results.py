@@ -49,11 +49,8 @@ def discover_tasks() -> Dict[str, List[str]]:
                 
                 for task_dir in category_dir.iterdir():
                     if task_dir.is_dir():
-                        # Prefix with original dir name for uniqueness
-                        if task_dir_name == "playwright_webarena":
-                            tasks.append(f"webarena__{category_dir.name}__{task_dir.name}")
-                        else:
-                            tasks.append(f"{category_dir.name}__{task_dir.name}")
+                        # Use unified naming for both playwright and webarena variants
+                        tasks.append(f"{category_dir.name}__{task_dir.name}")
         
         all_tasks[mcp_service] = sorted(tasks)
     
@@ -70,6 +67,9 @@ def collect_results(exp_dir: Path, k: int) -> Dict[str, Dict[str, Any]]:
             continue
         
         model, service = model_service_dir.name.split("__", 1)
+        # Normalize service name: treat playwright_webarena as playwright
+        if service == "playwright_webarena":
+            service = "playwright"
         
         for run_idx in range(1, k + 1):
             run_dir = model_service_dir / f"run-{run_idx}"
