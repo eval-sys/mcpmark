@@ -12,7 +12,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -152,86 +152,268 @@ def check_completeness_and_validity(
 
 
 def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run_models: List[str]) -> Dict:
-    """Calculate pass@k metrics for complete models."""
+    """Calculate rich metrics (totals, averages, per-run aggregates, pass@k) for complete models."""
     summary = {
         "generated_at": datetime.now().isoformat(),
         "k": k,
         "overall": {},
     }
-    
-    # Initialize per-service sections
+
+    # Initialize per-service sections mirroring overall structure
     for service in all_tasks.keys():
         summary[service] = {}
-    
+
+    # Helper to safely extract token usage numbers
+    def get_token_counts(meta: Dict[str, Any]) -> Tuple[int, int, int]:
+        tu = meta.get("token_usage", {}) or {}
+        input_tokens = int(tu.get("input_tokens", 0) or 0)
+        output_tokens = int(tu.get("output_tokens", 0) or 0)
+        total_tokens = int(tu.get("total_tokens", input_tokens + output_tokens) or (input_tokens + output_tokens))
+        return input_tokens, output_tokens, total_tokens
+
     for model, model_results in complete_models.items():
         is_single_run = any(srm in model for srm in single_run_models)
-        
-        # Calculate metrics across all services
+        runs_count = 1 if is_single_run else k
+
         total_tasks = sum(len(tasks) for tasks in all_tasks.values())
-        pass_at_1 = 0
-        pass_at_k = 0
-        pass_power_k = 0
-        
-        for service, service_tasks in all_tasks.items():
-            service_pass_1 = 0
-            service_pass_k = 0
-            service_pass_power_k = 0
-            
-            for task in service_tasks:
-                successes = []
-                
-                # Collect success across runs
-                num_runs = 1 if is_single_run else k
-                for run_idx in range(1, num_runs + 1):
-                    run_name = f"run-{run_idx}"
-                    if (service in model_results and 
-                        run_name in model_results[service] and 
-                        task in model_results[service][run_name]):
-                        
-                        meta = model_results[service][run_name][task]
-                        success = meta.get("execution_result", {}).get("success", False)
+
+        # Aggregates across all services and runs
+        total_agent_execution_time = 0.0
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        total_turns = 0
+        # For optional fields
+        actual_model_name: Optional[str] = None
+        # If cost info is not present in metas, leave as None
+        per_run_cost: Optional[float] = None
+
+        # For pass@1 per-run statistics across all services
+        pass1_rates_per_run_overall: List[float] = []
+
+        # For pass@k and pass^k across all services
+        pass_k_task_success_any = 0
+        pass_power_k_task_success_all = 0
+
+        # Precompute successes per task across runs for overall
+        # Also accumulate totals for tokens/time/turns
+        for run_idx in range(1, runs_count + 1):
+            run_name = f"run-{run_idx}"
+            successes_this_run = 0
+
+            for service, service_tasks in all_tasks.items():
+                # service-level aggregates for this model (will compute fully below)
+                for task in service_tasks:
+                    meta = (
+                        model_results
+                        .get(service, {})
+                        .get(run_name, {})
+                        .get(task)
+                    )
+
+                    # In complete_models, meta should exist; still guard
+                    if not meta:
+                        continue
+
+                    success = bool(meta.get("execution_result", {}).get("success", False))
+                    if success:
+                        successes_this_run += 1
+
+                    # totals accumulation
+                    total_agent_execution_time += float(meta.get("agent_execution_time", 0.0) or 0.0)
+                    in_tok, out_tok, ttl_tok = get_token_counts(meta)
+                    total_input_tokens += in_tok
+                    total_output_tokens += out_tok
+                    total_tokens += ttl_tok
+                    total_turns += int(meta.get("turn_count", 0) or 0)
+
+                    # capture actual model name if present
+                    if actual_model_name is None:
+                        actual_model_name = meta.get("actual_model_name") or None
+
+                    # capture cost if present in any meta as per-run cost token (rare)
+                    if per_run_cost is None:
+                        # A few possible fields people use; if none present, stays None
+                        possible_cost = meta.get("per_run_cost") or meta.get("run_cost") or meta.get("cost")
+                        if isinstance(possible_cost, (int, float)):
+                            per_run_cost = float(possible_cost)
+
+            pass1_rates_per_run_overall.append(round(successes_this_run / total_tasks, 6))
+
+        # Compute pass@k and pass^k across tasks (overall)
+        if not is_single_run:
+            for service, service_tasks in all_tasks.items():
+                for task in service_tasks:
+                    successes = []
+                    for run_idx in range(1, runs_count + 1):
+                        run_name = f"run-{run_idx}"
+                        meta = (
+                            model_results
+                            .get(service, {})
+                            .get(run_name, {})
+                            .get(task)
+                        )
+                        success = bool(meta.get("execution_result", {}).get("success", False)) if meta else False
                         successes.append(success)
-                    else:
-                        successes.append(False)
-                
-                # Calculate task metrics
-                if successes[0]:  # Pass@1
-                    service_pass_1 += 1
-                    pass_at_1 += 1
-                
-                if not is_single_run:
-                    if any(successes):  # Pass@k
-                        service_pass_k += 1
-                        pass_at_k += 1
-                    
-                    if all(successes):  # Pass^k
-                        service_pass_power_k += 1
-                        pass_power_k += 1
-            
-            # Store service-level metrics
-            service_metrics = {
-                "total_tasks": len(service_tasks),
-                "pass@1": round(service_pass_1 / len(service_tasks), 4),
-            }
-            
-            if not is_single_run:
-                service_metrics[f"pass@{k}"] = round(service_pass_k / len(service_tasks), 4)
-                service_metrics[f"pass^{k}"] = round(service_pass_power_k / len(service_tasks), 4)
-            
-            summary[service][model] = service_metrics
-        
-        # Store overall metrics
+                    if any(successes):
+                        pass_k_task_success_any += 1
+                    if all(successes):
+                        pass_power_k_task_success_all += 1
+
+        # Build overall metrics entry
+        denom = total_tasks * runs_count if total_tasks > 0 else 1
+        avg_agent_execution_time = total_agent_execution_time / denom
+        avg_input_tokens = total_input_tokens / denom
+        avg_output_tokens = total_output_tokens / denom
+        avg_total_tokens = total_tokens / denom
+        avg_turns = total_turns / denom
+
+        # pass@1 stats across runs
+        if pass1_rates_per_run_overall:
+            avg_pass1 = sum(pass1_rates_per_run_overall) / len(pass1_rates_per_run_overall)
+            mean = avg_pass1
+            variance = (
+                sum((r - mean) ** 2 for r in pass1_rates_per_run_overall) / len(pass1_rates_per_run_overall)
+            )
+            std_pass1 = variance ** 0.5
+        else:
+            avg_pass1 = 0.0
+            std_pass1 = 0.0
+
         overall_metrics = {
             "total_tasks": total_tasks,
-            "pass@1": round(pass_at_1 / total_tasks, 4),
+            "total_agent_execution_time": total_agent_execution_time,
+            "total_input_tokens": total_input_tokens,
+            "total_output_tokens": total_output_tokens,
+            "total_tokens": total_tokens,
+            "total_turns": total_turns,
+            "avg_agent_execution_time": round(avg_agent_execution_time, 4),
+            "avg_input_tokens": round(avg_input_tokens, 4),
+            "avg_output_tokens": round(avg_output_tokens, 4),
+            "avg_total_tokens": round(avg_total_tokens, 4),
+            "avg_turns": round(avg_turns, 4),
+            "per_run_input_tokens": total_input_tokens / runs_count if runs_count else 0,
+            "per_run_output_tokens": total_output_tokens / runs_count if runs_count else 0,
+            "per_run_cost": per_run_cost if per_run_cost is not None else None,
+            "actual_model_name": actual_model_name or "",
+            "pass@1": {
+                "avg": round(avg_pass1, 4),
+                "std": round(std_pass1, 4),
+            },
         }
-        
         if not is_single_run:
-            overall_metrics[f"pass@{k}"] = round(pass_at_k / total_tasks, 4)
-            overall_metrics[f"pass^{k}"] = round(pass_power_k / total_tasks, 4)
-        
+            overall_metrics[f"pass@{k}"] = round(pass_k_task_success_any / total_tasks, 4)
+            overall_metrics[f"pass^{k}"] = round(pass_power_k_task_success_all / total_tasks, 4)
+
         summary["overall"][model] = overall_metrics
-    
+
+        # Per-service detailed metrics mirroring overall
+        for service, service_tasks in all_tasks.items():
+            service_total_tasks = len(service_tasks)
+            if service_total_tasks == 0:
+                continue
+
+            s_total_agent_execution_time = 0.0
+            s_total_input_tokens = 0
+            s_total_output_tokens = 0
+            s_total_tokens = 0
+            s_total_turns = 0
+
+            # per-run pass@1 for this service
+            s_pass1_rates_per_run: List[float] = []
+
+            # pass@k for this service
+            s_pass_k_task_success_any = 0
+            s_pass_power_k_task_success_all = 0
+
+            for run_idx in range(1, runs_count + 1):
+                run_name = f"run-{run_idx}"
+                s_successes_this_run = 0
+
+                for task in service_tasks:
+                    meta = (
+                        model_results
+                        .get(service, {})
+                        .get(run_name, {})
+                        .get(task)
+                    )
+                    if not meta:
+                        continue
+
+                    success = bool(meta.get("execution_result", {}).get("success", False))
+                    if success:
+                        s_successes_this_run += 1
+
+                    s_total_agent_execution_time += float(meta.get("agent_execution_time", 0.0) or 0.0)
+                    in_tok, out_tok, ttl_tok = get_token_counts(meta)
+                    s_total_input_tokens += in_tok
+                    s_total_output_tokens += out_tok
+                    s_total_tokens += ttl_tok
+                    s_total_turns += int(meta.get("turn_count", 0) or 0)
+
+                s_pass1_rates_per_run.append(round(s_successes_this_run / service_total_tasks, 6))
+
+            if not is_single_run:
+                for task in service_tasks:
+                    successes = []
+                    for run_idx in range(1, runs_count + 1):
+                        run_name = f"run-{run_idx}"
+                        meta = (
+                            model_results
+                            .get(service, {})
+                            .get(run_name, {})
+                            .get(task)
+                        )
+                        success = bool(meta.get("execution_result", {}).get("success", False)) if meta else False
+                        successes.append(success)
+                    if any(successes):
+                        s_pass_k_task_success_any += 1
+                    if all(successes):
+                        s_pass_power_k_task_success_all += 1
+
+            s_denom = service_total_tasks * runs_count if service_total_tasks > 0 else 1
+            s_avg_agent_execution_time = s_total_agent_execution_time / s_denom
+            s_avg_input_tokens = s_total_input_tokens / s_denom
+            s_avg_output_tokens = s_total_output_tokens / s_denom
+            s_avg_total_tokens = s_total_tokens / s_denom
+            s_avg_turns = s_total_turns / s_denom
+
+            if s_pass1_rates_per_run:
+                s_mean = sum(s_pass1_rates_per_run) / len(s_pass1_rates_per_run)
+                s_var = sum((r - s_mean) ** 2 for r in s_pass1_rates_per_run) / len(s_pass1_rates_per_run)
+                s_std = s_var ** 0.5
+            else:
+                s_mean = 0.0
+                s_std = 0.0
+
+            service_metrics = {
+                "total_tasks": service_total_tasks,
+                "total_agent_execution_time": s_total_agent_execution_time,
+                "total_input_tokens": s_total_input_tokens,
+                "total_output_tokens": s_total_output_tokens,
+                "total_tokens": s_total_tokens,
+                "total_turns": s_total_turns,
+                "avg_agent_execution_time": round(s_avg_agent_execution_time, 4),
+                "avg_input_tokens": round(s_avg_input_tokens, 4),
+                "avg_output_tokens": round(s_avg_output_tokens, 4),
+                "avg_total_tokens": round(s_avg_total_tokens, 4),
+                "avg_turns": round(s_avg_turns, 4),
+                "per_run_input_tokens": s_total_input_tokens / runs_count if runs_count else 0,
+                "per_run_output_tokens": s_total_output_tokens / runs_count if runs_count else 0,
+                "per_run_cost": per_run_cost if per_run_cost is not None else None,
+                "actual_model_name": actual_model_name or "",
+                "pass@1": {
+                    "avg": round(s_mean, 4),
+                    "std": round(s_std, 4),
+                },
+            }
+
+            if not is_single_run:
+                service_metrics[f"pass@{k}"] = round(s_pass_k_task_success_any / service_total_tasks, 4)
+                service_metrics[f"pass^{k}"] = round(s_pass_power_k_task_success_all / service_total_tasks, 4)
+
+            summary[service][model] = service_metrics
+
     return summary
 
 
@@ -319,35 +501,86 @@ def generate_task_results(exp_dir: Path, complete_models: Dict, all_tasks: Dict)
 
 
 def generate_readme(exp_name: str, summary: Dict, k: int) -> str:
-    """Generate README.md content."""
-    lines = [
+    """Generate README.md content with six tables: overall + 5 MCP services.
+    Each table includes Total Tasks, Pass@1 (avg ± std), Avg Agent Time (s), and Pass@k/Pass^k (if k > 1).
+    """
+
+    def get_pass1_avg_std(metrics: Dict[str, Any]) -> Tuple[float, float]:
+        p1 = metrics.get("pass@1")
+        if isinstance(p1, dict):
+            return float(p1.get("avg", 0.0) or 0.0), float(p1.get("std", 0.0) or 0.0)
+        # Back-compat if older summaries exist
+        return float(p1 or 0.0), 0.0
+
+    def render_section(title: str, section_data: Dict[str, Any]) -> List[str]:
+        lines_sec: List[str] = [
+            f"## {title}",
+            "",
+        ]
+
+        header = "| Model | Total Tasks | Pass@1 (avg ± std) |"
+        sep = "|-------|-------------|--------------------|"
+        # include pass@k headers if present (k>1)
+        include_k = k > 1
+        if include_k:
+            header += f" Pass@{k} | Pass^{k} |"
+            sep += "----------|----------|"
+        # Add Avg Turns and Avg Agent Time (s) at the end
+        header += " Avg Agent Time (s) |"
+        sep += "--------------------|"
+
+        lines_sec.append(header)
+        lines_sec.append(sep)
+
+        # Sort by Pass@1 avg
+        sorted_items = sorted(
+            section_data.items(),
+            key=lambda x: get_pass1_avg_std(x[1])[0],
+            reverse=True
+        )
+
+        for model, metrics in sorted_items:
+            pass1_avg, pass1_std = get_pass1_avg_std(metrics)
+            avg_time = float(metrics.get("avg_agent_execution_time", 0.0) or 0.0)
+            row = (
+                f"| {model} | {metrics.get('total_tasks', 0)} | "
+                f"{pass1_avg * 100:.1f}% ± {pass1_std * 100:.1f}% |"
+            )
+            if include_k:
+                if f"pass@{k}" in metrics and f"pass^{k}" in metrics:
+                    row += f" {metrics[f'pass@{k}'] * 100:.1f}% | {metrics[f'pass^{k}'] * 100:.1f}% |"
+                else:
+                    # Single-run models do not have pass@k or pass^k; show placeholders
+                    row += " / | / |"
+            # Append avg agent time at the end
+            row += f" {avg_time:.1f} |"
+            lines_sec.append(row)
+
+        lines_sec.append("")
+        return lines_sec
+
+    lines: List[str] = [
         f"# {exp_name} - Evaluation Results",
         "",
         f"Generated: {summary['generated_at']}",
         "",
-        "## Overall Performance",
-        "",
-        "| Model | Total Tasks | Pass@1 |" + (f" Pass@{k} | Pass^{k} |" if k > 1 else ""),
-        "|-------|-------------|--------|" + ("----------|----------|" if k > 1 else ""),
     ]
-    
-    # Sort models by Pass@1
-    sorted_models = sorted(
-        summary["overall"].items(),
-        key=lambda x: x[1]["pass@1"],
-        reverse=True
-    )
-    
-    for model, metrics in sorted_models:
-        row = f"| {model} | {metrics['total_tasks']} | {metrics['pass@1'] * 100:.1f}% |"
-        if k > 1 and f"pass@{k}" in metrics:
-            row += f" {metrics[f'pass@{k}'] * 100:.1f}% | {metrics[f'pass^{k}'] * 100:.1f}% |"
-        lines.append(row)
-    
+
+    # Overall table
+    lines.extend(render_section("Overall Performance", summary.get("overall", {})))
+
+    # Service tables: infer service keys from summary
+    reserved = {"overall", "generated_at", "k", "experiment_name"}
+    service_keys = [key for key in summary.keys() if key not in reserved]
+    # Keep stable order
+    for service in sorted(service_keys):
+        title = f"{service.capitalize()} Performance"
+        lines.extend(render_section(title, summary.get(service, {})))
+
     return "\n".join(lines)
 
 
-def push_to_github(exp_dir: Path, exp_name: str):
+def push_to_github(exp_dir: Path, exp_name: str, branch: Optional[str] = None):
     """Push results to GitHub repository."""
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -375,6 +608,33 @@ def push_to_github(exp_dir: Path, exp_name: str):
             
             # Git operations
             os.chdir(temp_path)
+
+            # If a branch is specified, create/checkout it before staging changes. Otherwise, ensure main.
+            if branch:
+                try:
+                    subprocess.run(["git", "fetch", "origin"], check=True)
+                except subprocess.CalledProcessError:
+                    # Non-fatal if fetch fails in some environments
+                    pass
+                subprocess.run(["git", "checkout", "-B", branch], check=True)
+                print(f"  🌿 Using branch '{branch}'")
+            else:
+                # Default to main branch
+                try:
+                    subprocess.run(["git", "fetch", "origin"], check=True)
+                except subprocess.CalledProcessError:
+                    pass
+                # Prefer main; if it doesn't exist locally, create tracking from origin/main
+                result = subprocess.run(["git", "rev-parse", "--verify", "main"], capture_output=True)
+                if result.returncode != 0:
+                    # Try to checkout origin/main
+                    try:
+                        subprocess.run(["git", "checkout", "-B", "main", "origin/main"], check=True)
+                    except subprocess.CalledProcessError:
+                        # Fallback: create main if no origin/main
+                        subprocess.run(["git", "checkout", "-B", "main"], check=True)
+                else:
+                    subprocess.run(["git", "checkout", "main"], check=True)
             subprocess.run(["git", "add", "."], check=True)
             
             # Check for changes
@@ -391,7 +651,10 @@ def push_to_github(exp_dir: Path, exp_name: str):
             subprocess.run([
                 "git", "commit", "-m", f"Update results for {exp_name}"
             ], check=True)
-            subprocess.run(["git", "push"], check=True)
+            if branch:
+                subprocess.run(["git", "push", "--set-upstream", "origin", branch], check=True)
+            else:
+                subprocess.run(["git", "push", "--set-upstream", "origin", "main"], check=True)
             print("✅ Successfully pushed to GitHub")
             
             return True
@@ -502,9 +765,17 @@ def print_validation_report(complete: Dict, incomplete: Dict, invalid: Dict, all
 
 
 def main():
+    # Extra parser for push-related options
+    push_parent = argparse.ArgumentParser(add_help=False)
+    push_parent.add_argument(
+        "--branch",
+        type=str,
+        help="If provided with --push, push to this new branch"
+    )
+
     parser = argparse.ArgumentParser(
         description="Simplified MCPMark results aggregator"
-    )
+    , parents=[push_parent])
     parser.add_argument("--exp-name", required=True, help="Experiment name")
     parser.add_argument("--k", type=int, default=4, help="Number of runs (default: 4)")
     parser.add_argument(
@@ -512,7 +783,7 @@ def main():
         type=str,
         help="Comma-separated list of models that only need run-1"
     )
-    parser.add_argument("--push", action="store_true", help="Push to GitHub")
+    parser.add_argument("--push", action="store_true", help="Push to GitHub (default to main)")
     
     args = parser.parse_args()
     
@@ -556,6 +827,7 @@ def main():
     # Calculate metrics
     print("\n📊 Calculating metrics...")
     summary = calculate_metrics(complete_models, all_tasks, args.k, single_run_models)
+    summary["experiment_name"] = args.exp_name
     
     # Save summary
     summary_path = exp_dir / "summary.json"
@@ -583,7 +855,7 @@ def main():
     # Push to GitHub if requested
     if args.push:
         print("\n🚀 Pushing to GitHub...")
-        push_to_github(exp_dir, args.exp_name)
+        push_to_github(exp_dir, args.exp_name, branch=args.branch)
     
     print(f"\n🎉 Successfully processed {args.exp_name}")
     return 0
