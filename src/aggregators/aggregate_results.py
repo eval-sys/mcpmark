@@ -17,6 +17,7 @@ from datetime import datetime
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.errors import is_retryable_error
+from src.aggregators.pricing import compute_cost_usd
 
 
 def discover_tasks() -> Dict[str, List[str]]:
@@ -280,6 +281,12 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
             avg_pass1 = 0.0
             std_pass1 = 0.0
 
+        # Compute per-run tokens and cost
+        per_run_input_tokens = total_input_tokens / runs_count if runs_count else 0
+        per_run_output_tokens = total_output_tokens / runs_count if runs_count else 0
+        model_for_pricing = actual_model_name or model
+        computed_per_run_cost = compute_cost_usd(model_for_pricing, per_run_input_tokens, per_run_output_tokens)
+
         overall_metrics = {
             "total_tasks": total_tasks,
             "total_agent_execution_time": total_agent_execution_time,
@@ -292,9 +299,9 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
             "avg_output_tokens": round(avg_output_tokens, 4),
             "avg_total_tokens": round(avg_total_tokens, 4),
             "avg_turns": round(avg_turns, 4),
-            "per_run_input_tokens": total_input_tokens / runs_count if runs_count else 0,
-            "per_run_output_tokens": total_output_tokens / runs_count if runs_count else 0,
-            "per_run_cost": per_run_cost if per_run_cost is not None else None,
+            "per_run_input_tokens": per_run_input_tokens,
+            "per_run_output_tokens": per_run_output_tokens,
+            "per_run_cost": computed_per_run_cost if computed_per_run_cost is not None else (per_run_cost if per_run_cost is not None else None),
             "actual_model_name": actual_model_name or "",
             "pass@1": {
                 "avg": round(avg_pass1, 4),
@@ -386,6 +393,11 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
                 s_mean = 0.0
                 s_std = 0.0
 
+            # Compute per-run tokens and cost for this service
+            s_per_run_input_tokens = s_total_input_tokens / runs_count if runs_count else 0
+            s_per_run_output_tokens = s_total_output_tokens / runs_count if runs_count else 0
+            s_computed_per_run_cost = compute_cost_usd(model_for_pricing, s_per_run_input_tokens, s_per_run_output_tokens)
+
             service_metrics = {
                 "total_tasks": service_total_tasks,
                 "total_agent_execution_time": s_total_agent_execution_time,
@@ -398,9 +410,9 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
                 "avg_output_tokens": round(s_avg_output_tokens, 4),
                 "avg_total_tokens": round(s_avg_total_tokens, 4),
                 "avg_turns": round(s_avg_turns, 4),
-                "per_run_input_tokens": s_total_input_tokens / runs_count if runs_count else 0,
-                "per_run_output_tokens": s_total_output_tokens / runs_count if runs_count else 0,
-                "per_run_cost": per_run_cost if per_run_cost is not None else None,
+                "per_run_input_tokens": s_per_run_input_tokens,
+                "per_run_output_tokens": s_per_run_output_tokens,
+                "per_run_cost": s_computed_per_run_cost if s_computed_per_run_cost is not None else (per_run_cost if per_run_cost is not None else None),
                 "actual_model_name": actual_model_name or "",
                 "pass@1": {
                     "avg": round(s_mean, 4),
@@ -484,14 +496,67 @@ def generate_task_results(exp_dir: Path, complete_models: Dict, all_tasks: Dict)
                 for run_name, run_data in model_data[service].items():
                     if task in run_data:
                         meta = run_data[task]
+                        agent_time = float(meta.get("agent_execution_time", 0.0) or 0.0)
+                        token_usage = meta.get("token_usage", {}) or {}
+                        turn_count = int(meta.get("turn_count", 0) or 0)
+                        success = bool(meta.get("execution_result", {}).get("success", False))
                         model_task_data["runs"].append({
                             "run": run_name,
-                            "success": meta.get("execution_result", {}).get("success", False),
-                            "execution_time": meta.get("agent_execution_time", 0),
-                            "token_usage": meta.get("token_usage", {})
+                            "success": success,
+                            "execution_time": agent_time,
+                            "agent_execution_time": agent_time,
+                            "token_usage": token_usage,
+                            "turn_count": turn_count,
                         })
                 
                 if model_task_data["runs"]:
+                    # Compute per-model summary across runs for this task
+                    runs_list = model_task_data["runs"]
+                    runs_count = len(runs_list)
+                    successful_runs = sum(1 for r in runs_list if r.get("success"))
+
+                    # Averages
+                    total_agent_time = sum(float(r.get("agent_execution_time", r.get("execution_time", 0.0)) or 0.0) for r in runs_list)
+                    avg_agent_time = round(total_agent_time / runs_count, 2)
+
+                    def _tok(r, key):
+                        tu = r.get("token_usage") or {}
+                        return int(tu.get(key, 0) or 0)
+
+                    total_input_tokens = 0
+                    total_output_tokens = 0
+                    total_total_tokens = 0
+                    for r in runs_list:
+                        in_tok = _tok(r, "input_tokens")
+                        out_tok = _tok(r, "output_tokens")
+                        ttl_tok = int((r.get("token_usage") or {}).get("total_tokens", in_tok + out_tok) or (in_tok + out_tok))
+                        total_input_tokens += in_tok
+                        total_output_tokens += out_tok
+                        total_total_tokens += ttl_tok
+
+                    avg_input_tokens = round(total_input_tokens / runs_count, 1)
+                    avg_output_tokens = round(total_output_tokens / runs_count, 1)
+                    avg_total_tokens = round(total_total_tokens / runs_count, 1)
+
+                    total_turns = sum(int(r.get("turn_count", 0) or 0) for r in runs_list)
+                    avg_turn_count = round(total_turns / runs_count, 2)
+
+                    summary_obj = {
+                        "total_runs": runs_count,
+                        "successful_runs": successful_runs,
+                        "avg_agent_execution_time": avg_agent_time,
+                        "avg_input_tokens": avg_input_tokens,
+                        "avg_output_tokens": avg_output_tokens,
+                        "avg_total_tokens": avg_total_tokens,
+                        "avg_turn_count": avg_turn_count,
+                    }
+
+                    # Include pass@k and pass^k only for multi-run models
+                    if runs_count > 1:
+                        summary_obj[f"pass@{runs_count}"] = 1.0 if successful_runs > 0 else 0.0
+                        summary_obj[f"pass^{runs_count}"] = 1.0 if successful_runs == runs_count else 0.0
+
+                    model_task_data["summary"] = summary_obj
                     task_data["models"][model] = model_task_data
             
             # Save task file
