@@ -590,7 +590,9 @@ def generate_readme(exp_name: str, summary: Dict, k: int) -> str:
         if include_k:
             header += f" Pass@{k} | Pass^{k} |"
             sep += "----------|----------|"
-        # Add Avg Turns and Avg Agent Time (s) at the end
+        # Add Per-Run Cost (USD) and Avg Agent Time (s) at the end
+        header += " Per-Run Cost (USD) |"
+        sep += "---------------------|"
         header += " Avg Agent Time (s) |"
         sep += "--------------------|"
 
@@ -607,6 +609,14 @@ def generate_readme(exp_name: str, summary: Dict, k: int) -> str:
         for model, metrics in sorted_items:
             pass1_avg, pass1_std = get_pass1_avg_std(metrics)
             avg_time = float(metrics.get("avg_agent_execution_time", 0.0) or 0.0)
+            # Format per-run cost (up to 2 decimal places, trim trailing zeros)
+            cost_val = metrics.get("per_run_cost")
+            if isinstance(cost_val, (int, float)):
+                rounded_cost = round(float(cost_val), 2)
+                formatted_cost = f"{rounded_cost:.2f}".rstrip('0').rstrip('.')
+                cost_str = f"${formatted_cost}"
+            else:
+                cost_str = "/"
             row = (
                 f"| {model} | {metrics.get('total_tasks', 0)} | "
                 f"{pass1_avg * 100:.1f}% ± {pass1_std * 100:.1f}% |"
@@ -617,7 +627,8 @@ def generate_readme(exp_name: str, summary: Dict, k: int) -> str:
                 else:
                     # Single-run models do not have pass@k or pass^k; show placeholders
                     row += " / | / |"
-            # Append avg agent time at the end
+            # Append cost and avg agent time at the end
+            row += f" {cost_str} |"
             row += f" {avg_time:.1f} |"
             lines_sec.append(row)
 
