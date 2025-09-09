@@ -38,7 +38,8 @@ def verify_work_folder_files(test_dir: Path) -> bool:
         "client_list.csv",
         "timesheet.csv", 
         "experiment_results.txt",
-        "budget_tracker.csv"
+        "budget_tracker.csv",
+        "expenses.csv"
     ]
     
     missing_files = []
@@ -62,8 +63,6 @@ def verify_life_folder_files(test_dir: Path) -> bool:
     required_files = [
         "contacts.csv",
         "budget.csv",
-        "important_dates.csv",
-        "expenses.csv",
         "fitness_log.csv",
         "price_comparisons.csv",
         "book_list.txt",
@@ -148,20 +147,19 @@ def verify_others_folder_files(test_dir: Path) -> bool:
     return True
 
 def verify_required_files_in_correct_folders(test_dir: Path) -> bool:
-    """Verify that all 19 required files are in their correct designated folders."""
+    """Verify that all 18 required files are in their correct designated folders."""
     # Define the mapping of required files to their correct folders
     required_file_mapping = {
         "work": [
             "client_list.csv",
             "timesheet.csv", 
             "experiment_results.txt",
-            "budget_tracker.csv"
+            "budget_tracker.csv",
+            "expenses.csv",
         ],
         "life": [
             "contacts.csv",
             "budget.csv",
-            "important_dates.csv",
-            "expenses.csv",
             "fitness_log.csv",
             "price_comparisons.csv",
             "book_list.txt",
@@ -194,14 +192,14 @@ def verify_required_files_in_correct_folders(test_dir: Path) -> bool:
         print(f"❌ Missing required files: {missing_files}")
         return False
     
-    print("✅ All 19 required files are in their correct designated folders")
+    print("✅ All 18 required files are in their correct designated folders")
     return True
 
 def verify_no_duplicate_required_files(test_dir: Path) -> bool:
-    """Verify that the 19 required files are not duplicated across folders."""
+    """Verify that the 18 required files are not duplicated across folders."""
     required_files = [
         "client_list.csv", "timesheet.csv", "experiment_results.txt", "budget_tracker.csv",
-        "contacts.csv", "budget.csv", "important_dates.csv", "expenses.csv", "fitness_log.csv",
+        "contacts.csv", "budget.csv", "expenses.csv", "fitness_log.csv",
         "price_comparisons.csv", "book_list.txt", "bookmark_export.txt", "emergency_contacts.txt",
         "backup_contacts.csv", "tax_documents_2022.csv", "correspondence_2023.txt", "tax_info_2023.csv",
         "test_data.csv", "draft_letter.txt"
@@ -256,19 +254,19 @@ def main():
     print("\n" + "="*50)
     if all_passed:
         print("✅ Desktop file organization task completed successfully!")
-        print("🎉 All 19 required files are correctly placed in their designated folders")
+        print("🎉 All 18 required files are correctly placed in their designated folders")
         print("📊 Summary:")
-        print("   - work/ folder: 4 required files")
-        print("   - life/ folder: 9 required files") 
+        print("   - work/ folder: 5 required files")
+        print("   - life/ folder: 7 required files") 
         print("   - archives/ folder: 4 required files")
         print("   - temp/ folder: 2 required files")
         print("   - others/ folder: can contain any files")
-        print("   - Total required files: 19")
+        print("   - Total required files: 18")
         print("   - Note: Other files can be placed in any folder")
         sys.exit(0)
     else:
         print("❌ Desktop file organization task verification: FAIL")
-        print("Please check the errors above and ensure all 19 required files are in their correct locations")
+        print("Please check the errors above and ensure all 18 required files are in their correct locations")
         sys.exit(1)
 
 if __name__ == "__main__":
