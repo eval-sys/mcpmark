@@ -131,10 +131,11 @@ def check_completeness_and_validity(
                     if task not in run_results:
                         missing_tasks.append(task)
                     else:
-                        # Check for retryable errors
+                        # Check for retryable errors only if the task did not succeed
                         meta = run_results[task]
+                        success = bool(meta.get("execution_result", {}).get("success", False))
                         error_msg = meta.get("execution_result", {}).get("error_message", "")
-                        if error_msg and is_retryable_error(error_msg):
+                        if (not success) and error_msg and is_retryable_error(error_msg):
                             invalid_tasks.append(f"{task}: {error_msg[:50]}...")
                 
                 if missing_tasks:
@@ -188,6 +189,9 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
         actual_model_name: Optional[str] = None
         # If cost info is not present in metas, leave as None
         per_run_cost: Optional[float] = None
+        # Model-level flags (to be inferred from meta.json)
+        is_open_source_model: Optional[bool] = None
+        is_reasoning_model: Optional[bool] = None
 
         # For pass@1 per-run statistics across all services
         pass1_rates_per_run_overall: List[float] = []
@@ -238,6 +242,12 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
                         possible_cost = meta.get("per_run_cost") or meta.get("run_cost") or meta.get("cost")
                         if isinstance(possible_cost, (int, float)):
                             per_run_cost = float(possible_cost)
+
+                    # capture model flags if present
+                    if is_open_source_model is None and "is_open_source_model" in meta:
+                        is_open_source_model = bool(meta.get("is_open_source_model"))
+                    if is_reasoning_model is None and "is_reasoning_model" in meta:
+                        is_reasoning_model = bool(meta.get("is_reasoning_model"))
 
             pass1_rates_per_run_overall.append(round(successes_this_run / total_tasks, 6))
 
@@ -303,6 +313,8 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
             "per_run_output_tokens": per_run_output_tokens,
             "per_run_cost": computed_per_run_cost if computed_per_run_cost is not None else (per_run_cost if per_run_cost is not None else None),
             "actual_model_name": actual_model_name or "",
+            "is_open_source_model": (is_open_source_model if is_open_source_model is not None else False),
+            "is_reasoning_model": (is_reasoning_model if is_reasoning_model is not None else False),
             "pass@1": {
                 "avg": round(avg_pass1, 4),
                 "std": round(std_pass1, 4),
@@ -414,6 +426,8 @@ def calculate_metrics(complete_models: Dict, all_tasks: Dict, k: int, single_run
                 "per_run_output_tokens": s_per_run_output_tokens,
                 "per_run_cost": s_computed_per_run_cost if s_computed_per_run_cost is not None else (per_run_cost if per_run_cost is not None else None),
                 "actual_model_name": actual_model_name or "",
+                "is_open_source_model": (is_open_source_model if is_open_source_model is not None else False),
+                "is_reasoning_model": (is_reasoning_model if is_reasoning_model is not None else False),
                 "pass@1": {
                     "avg": round(s_mean, 4),
                     "std": round(s_std, 4),

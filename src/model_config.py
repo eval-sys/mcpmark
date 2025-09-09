@@ -119,15 +119,15 @@ class ModelConfig:
             "litellm_input_model_name": "gemini/gemini-2.5-flash",
         },
         # Moonshot models
-        "k2": {
+        "kimi-k2-0711": {
             "provider": "moonshot",
             "api_key_var": "MOONSHOT_API_KEY",
             "litellm_input_model_name": "moonshot/kimi-k2-0711-preview",
         },
-        "k2-turbo": {
+        "kimi-k2-0905": {
             "provider": "moonshot",
             "api_key_var": "MOONSHOT_API_KEY",
-            "litellm_input_model_name": "moonshot/kimi-k2-turbo-preview",
+            "litellm_input_model_name": "moonshot/kimi-k2-0905-preview",
         },
         # Grok models
         "grok-4": {
@@ -141,15 +141,15 @@ class ModelConfig:
             "litellm_input_model_name": "xai/grok-code-fast-1",
         },
         # Qwen models
-        "qwen-3-coder": {
-            "provider": "qwen",
-            "api_key_var": "OPENROUTER_API_KEY",
-            "litellm_input_model_name": "openrouter/qwen/qwen3-coder",
-        },
         "qwen-3-coder-plus": {
             "provider": "qwen",
             "api_key_var": "DASHSCOPE_API_KEY",
             "litellm_input_model_name": "dashscope/qwen3-coder-plus",
+        },
+        "qwen-3-max": {
+            "provider": "qwen",
+            "api_key_var": "DASHSCOPE_API_KEY",
+            "litellm_input_model_name": "dashscope/qwen3-max-preview",
         },
         # Zhipu
         "glm-4.5": {

@@ -40,6 +40,7 @@ MODEL_PRICES_PER_M: Dict[str, Dict[str, float]] = {
 
     # Qwen
     "qwen3-coder-480b-a35b-instruct": {"input": 0.2, "output": 0.8},
+    "qwen3-max-preview": {"input": 1.2, "output": 6},
     
     # Xai
     "grok-4-0709": {"input": 3.0, "output": 15.0},
@@ -47,6 +48,7 @@ MODEL_PRICES_PER_M: Dict[str, Dict[str, float]] = {
 
     # Moonshot
     "kimi-k2-0711-preview": {"input": 0.6, "output": 2.5},
+    "kimi-k2-0905-preview": {"input": 0.6, "output": 2.5},
 }
 
 
