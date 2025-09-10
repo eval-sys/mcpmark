@@ -2,6 +2,8 @@
 
 This guide walks you through preparing your Notion environment for MCPMark and authenticating the CLI tools.
 
+> Note: Set your Notion app and workspace interface language to English. We use Playwright for browser automation and our locator logic relies on raw English text in the UI. Non-English interfaces can cause element selection to fail.
+
 ## 1 · Set up Notion Environment
 
 1. **Duplicate the MCPMark Source Pages**

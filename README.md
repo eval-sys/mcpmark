@@ -125,28 +125,21 @@ python -m src.aggregators.aggregate_results --exp-name exp
 
 Please visit `docs/introduction.md` for choices of *MODEL*.
 
-Tip: MCPMark supports **auto-resume**. When re-running commands, only unfinished tasks will execute. Tasks previously failed due to pipeline errors (e.g., `State Duplication Error`, `MCP Network Error`) will be retried automatically.
+Tip: MCPMark supports **auto-resume**. When re-running, only unfinished tasks will execute. Failures matching our retryable patterns (see [RETRYABLE_PATTERNS](src/errors.py)) are retried automatically. Models may emit different error strings—if you encounter a new resumable error, please open a PR or issue.
 
 ---
 
 ## Service setup and authentication
 
-- **Notion**: environment isolation (Source Hub / Eval Hub), integration creation and grants, browser login verification.
-  - Guide and Setup: `docs/mcp/notion.md`
+| Service     | Setup summary                                                                                                  | Docs                                  |
+|-------------|-----------------------------------------------------------------------------------------------------------------|---------------------------------------|
+| Notion      | Environment isolation (Source Hub / Eval Hub), integration creation and grants, browser login verification.     | [Guide](docs/mcp/notion.md)           |
+| GitHub      | Multi-account token pooling recommended; import pre-exported repo state if needed.                              | [Guide](docs/mcp/github.md)           |
+| Postgres    | Start via Docker and import sample databases.                                                                   | [Setup](docs/mcp/postgres.md)         |
+| Playwright  | Install browsers before first run; defaults to `chromium`.                                                      | [Setup](docs/mcp/playwright.md)       |
+| Filesystem  | Zero-configuration, run directly.                                                                               | [Config](docs/mcp/filesystem.md)      |
 
-- **GitHub**: multi-account token pooling recommended; import pre-exported repo state if needed.
-  - Guide and Setup: `docs/mcp/github.md`
-
-- **Postgres**: start via Docker and import sample databases.
-  - Env setup: `docs/mcp/postgres.md`
-
-- **Playwright**: install browsers before first run; defaults to `chromium`.
-  - Env setup: `docs/mcp/playwright.md`
-
-- **Filesystem**: zero-configuration, run directly.
-  - Configuration: `docs/mcp/filesystem.md`
-
-You can also follow `docs/quickstart.md` for the shortest end-to-end path.
+You can also follow [Quickstart](docs/quickstart.md) for the shortest end-to-end path.
 
 ---
 
