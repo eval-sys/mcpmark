@@ -523,7 +523,7 @@ class NotionStateManager(BaseStateManager):
                 # Sometimes duplication succeeds but UI navigates to parent instead of the new page.
                 # In that case, try to find the most recently created page named exactly "<title> (1)".
                 logger.warning(
-                    "| ⚠️ Duplicate URL pattern mismatch. Attempting recovery by searching for latest '%s (1)' page...",
+                    "| ✗ Duplicate URL pattern mismatch. Attempting recovery by searching for latest '%s (1)' page...",
                     original_initial_state_title,
                 )
 
@@ -761,7 +761,7 @@ class NotionStateManager(BaseStateManager):
                 last_exc = e
                 if attempt < max_retries:
                     logger.warning(
-                        "| ⚠️ Duplication attempt %d failed: %s. Retrying...",
+                        "| ✗ Duplication attempt %d failed: %s. Retrying...",
                         attempt + 1,
                         e,
                     )
