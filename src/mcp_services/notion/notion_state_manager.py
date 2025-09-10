@@ -520,18 +520,91 @@ class NotionStateManager(BaseStateManager):
             duplicated_url = page.url
             # Validate that the resulting URL is a genuine duplicate of the original template.
             if not self._is_valid_duplicate_url(original_url, duplicated_url):
-                logger.error(
-                    "| ✗ Unexpected URL after duplication – URL does not match expected duplicate pattern.\n  Original: %s\n  Observed: %s",
-                    original_url,
-                    duplicated_url,
+                # Sometimes duplication succeeds but UI navigates to parent instead of the new page.
+                # In that case, try to find the most recently created page named exactly "<title> (1)".
+                logger.warning(
+                    "| ⚠️ Duplicate URL pattern mismatch. Attempting recovery by searching for latest '%s (1)' page...",
+                    original_initial_state_title,
                 )
-                # Attempt to clean up stray duplicate before propagating error.
-                self._cleanup_orphan_duplicate(
-                    original_initial_state_id, original_initial_state_title
-                )
-                raise RuntimeError(
-                    "Duplicate URL pattern mismatch – duplication likely failed"
-                )
+
+                target_title = f"{original_initial_state_title} (1)"
+                try:
+                    # Wait 5 seconds before the first search to allow Notion to index the new page
+                    time.sleep(5)
+
+                    attempts = 3
+                    for retry_idx in range(attempts):
+                        response = self.source_notion_client.search(
+                            query=target_title,
+                            filter={"property": "object", "value": "page"},
+                        )
+
+                        candidates = []
+                        for res in response.get("results", []):
+                            props = res.get("properties", {})
+                            title_prop = props.get("title", {}).get("title") or props.get(
+                                "Name", {}
+                            ).get("title")
+                            title_plain = "".join(
+                                t.get("plain_text", "") for t in (title_prop or [])
+                            ).strip()
+                            if title_plain == target_title:
+                                created_time = res.get("created_time") or res.get(
+                                    "last_edited_time"
+                                )
+                                candidates.append((created_time, res))
+
+                        if candidates:
+                            # Pick the most recently created/edited candidate (ISO8601 strings are lexicographically comparable)
+                            latest_res = max(candidates, key=lambda x: x[0])[1]
+                            fallback_url = latest_res.get("url")
+                            if fallback_url:
+                                logger.info(
+                                    "| ○ Navigating directly to latest '%s' duplicate via API result...",
+                                    target_title,
+                                )
+                                page.goto(fallback_url, wait_until="load", timeout=60_000)
+                                time.sleep(5)
+                                duplicated_url = page.url
+                                break
+
+                        if retry_idx < attempts - 1:
+                            logger.debug(
+                                "| ○ '%s' not visible yet via search. Waiting 5s before retry %d/%d...",
+                                target_title,
+                                retry_idx + 1,
+                                attempts - 1,
+                            )
+                            time.sleep(5)
+
+                    # Re-validate after attempted recovery
+                    if not self._is_valid_duplicate_url(original_url, duplicated_url):
+                        logger.error(
+                            "| ✗ Could not locate a valid '%s' duplicate after recovery attempt.\n  Original: %s\n  Observed: %s",
+                            target_title,
+                            original_url,
+                            duplicated_url,
+                        )
+                        # Attempt to clean up stray duplicate before propagating error.
+                        self._cleanup_orphan_duplicate(
+                            original_initial_state_id, original_initial_state_title
+                        )
+                        raise RuntimeError(
+                            "Duplicate URL pattern mismatch – duplication likely failed"
+                        )
+                except Exception as search_exc:
+                    logger.error(
+                        "| ✗ Failed during recovery search for '%s': %s",
+                        target_title,
+                        search_exc,
+                    )
+                    # Attempt to clean up stray duplicate before propagating error.
+                    self._cleanup_orphan_duplicate(
+                        original_initial_state_id, original_initial_state_title
+                    )
+                    raise RuntimeError(
+                        "Duplicate URL pattern mismatch – duplication likely failed"
+                    ) from search_exc
 
             duplicated_initial_state_id = self._extract_initial_state_id_from_url(
                 duplicated_url
