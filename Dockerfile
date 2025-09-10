@@ -1,20 +1,4 @@
 # MCPMark Docker image with optimized layer caching
-# Stage 1: Builder for Python dependencies only
-FROM python:3.12-slim AS builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /build
-
-# Copy and install Python dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Stage 2: Final image with all runtime dependencies
 FROM python:3.12-slim
 
 # Layer 1: Core system dependencies (very stable, rarely changes)
@@ -67,13 +51,6 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir pipx && \
     pipx ensurepath
 
-# Layer 7: Copy Python packages from builder (changes with dependencies)
-COPY --from=builder /root/.local /root/.local
-
-# Layer 8: Playwright browsers (changes with browser versions)
-RUN python3 -m playwright install chromium && \
-    npx -y playwright install chromium
-
 # Layer 9: Install PostgreSQL MCP server (Python, used via `pipx run postgres-mcp`)
 RUN pipx install postgres-mcp
 
@@ -85,6 +62,13 @@ RUN mkdir -p /app/results
 
 # Layer 10: Application code (changes frequently)
 COPY . .
+
+# Install Python package and dependencies from pyproject (editable mode)
+RUN pip install --no-cache-dir -e .
+
+# Install Playwright browsers after Playwright is available
+RUN python3 -m playwright install chromium && \
+    npx -y playwright install chromium
 
 # Set environment
 ENV PATH="/root/.local/bin:/root/.local/pipx/venvs/*/bin:${PATH}"
