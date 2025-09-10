@@ -65,7 +65,7 @@ See `docs/introduction.md` and the service guides below for more details.
 
 Local (Recommended)
 ```bash
-pip install -e .
+pip install --no-cache-dir -e .
 # If you'll use browser-based tasks, install Playwright browsers first
 playwright install
 ```
