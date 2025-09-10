@@ -20,7 +20,11 @@ RETRYABLE_PATTERNS = {
     "internal server error",  # 500s
     "network error",          # generic network issue
     "quota",                  # budget/quota exceeded
+    # "llm provider not provided",  # litellm error
     # pipeline infra signals
+    "double quotes", # actually json error
+    "account balance",
+    "expecting value",
     "mcp network error",
     "state duplication error",
 }
