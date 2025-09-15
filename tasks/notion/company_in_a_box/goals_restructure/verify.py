@@ -150,6 +150,12 @@ def verify(notion: Client, main_id: str = None) -> bool:
 
     # 5. Validate that each toggle has at least one child paragraph/description
     for tb in toggle_blocks:
+        if (
+            _normalize_string(NEW_GOAL_HEADING).lower()
+            in _normalize_string(_plain(tb)).lower()
+        ):
+            # Skip checking the new goal itself, as it does not have a description yet.
+            continue
         if not tb.get("has_children", False):
             print(
                 f"Error: Toggle '{_normalize_string(_plain(tb))}' has no child blocks (description not moved).",
