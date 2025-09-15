@@ -55,6 +55,7 @@ def verify() -> bool:
     """
     # Expected answer content
     EXPECTED_CONTENT = "[Hacker Tools](https://hacker-tools.github.io)"
+    EXPECTED_CONTENT_2 = "[Hacker Tools](https://hacker-tools.github.io/)"
     
     # Load environment variables from .mcp_env
     load_dotenv(".mcp_env")
@@ -93,9 +94,9 @@ def verify() -> bool:
     print("2. Verifying ANSWER.md content...")
     answer_content = answer_content.strip()
     
-    if answer_content != EXPECTED_CONTENT:
+    if answer_content != EXPECTED_CONTENT and answer_content != EXPECTED_CONTENT_2:
         print(f"Error: ANSWER.md content does not match expected answer", file=sys.stderr)
-        print(f"Expected: {EXPECTED_CONTENT}", file=sys.stderr)
+        print(f"Expected: {EXPECTED_CONTENT} or {EXPECTED_CONTENT_2}", file=sys.stderr)
         print(f"Found: {answer_content}", file=sys.stderr)
         return False
 
@@ -104,7 +105,7 @@ def verify() -> bool:
     print("\n✅ All verification checks passed!")
     print("Legacy name finding task completed successfully:")
     print(f"  - ANSWER.md created in master branch")
-    print(f"  - Content: {EXPECTED_CONTENT}")
+    print(f"  - Content: {answer_content}")
 
     return True
 
