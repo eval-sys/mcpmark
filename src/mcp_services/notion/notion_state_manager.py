@@ -86,6 +86,10 @@ class NotionStateManager(BaseStateManager):
         # Source hub page that contains all initial-state templates
         self.source_parent_page_title = source_parent_page_title
 
+        # Cache resolved parent page IDs to avoid repeated workspace-wide searches
+        self._eval_parent_page_id: Optional[str] = None
+        self._source_hub_page_id: Optional[str] = None
+
         # Validate initialization
         if not self.source_notion_client or not self.eval_notion_client:
             raise ValueError(
@@ -106,24 +110,7 @@ class NotionStateManager(BaseStateManager):
     def _cleanup_eval_hub_orphans(self) -> None:
         """Clean up all pages in MCPMark Eval Hub before creating new task state."""
         try:
-            # Search for the MCPMark Eval Hub parent page in eval workspace
-            response = self.eval_notion_client.search(
-                query=self.eval_parent_page_title,
-                filter={"property": "object", "value": "page"},
-            )
-
-            # Find the parent page ID
-            parent_page_id = None
-            for result in response.get("results", []):
-                props = result.get("properties", {})
-                title_prop = props.get("title", {}).get("title") or props.get(
-                    "Name", {}
-                ).get("title")
-                if title_prop:
-                    title = "".join(t.get("plain_text", "") for t in title_prop).strip()
-                    if title == self.eval_parent_page_title:
-                        parent_page_id = result.get("id")
-                        break
+            parent_page_id = self._ensure_eval_parent_page_id()
 
             if not parent_page_id:
                 logger.debug(
@@ -158,6 +145,81 @@ class NotionStateManager(BaseStateManager):
         except Exception as e:
             logger.warning("Orphan cleanup failed (non-critical, continuing): %s", e)
             # Don't raise exception - allow execution to continue
+
+    def _ensure_eval_parent_page_id(self) -> Optional[str]:
+        """Resolve and cache the evaluation hub parent page ID."""
+        if self._eval_parent_page_id:
+            return self._eval_parent_page_id
+
+        try:
+            response = self.eval_notion_client.search(
+                query=self.eval_parent_page_title,
+                filter={"property": "object", "value": "page"},
+            )
+
+            for result in response.get("results", []):
+                props = result.get("properties", {})
+                title_prop = props.get("title", {}).get("title") or props.get(
+                    "Name", {}
+                ).get("title")
+                if not title_prop:
+                    continue
+
+                title = "".join(t.get("plain_text", "") for t in title_prop).strip()
+                if title == self.eval_parent_page_title:
+                    self._eval_parent_page_id = result.get("id")
+                    break
+
+            if not self._eval_parent_page_id:
+                logger.debug(
+                    "| ✗ Eval parent page '%s' not found via search",
+                    self.eval_parent_page_title,
+                )
+        except Exception as e:
+            logger.error(
+                "| ✗ Failed to resolve eval parent page '%s': %s",
+                self.eval_parent_page_title,
+                e,
+            )
+
+        return self._eval_parent_page_id
+
+    def _ensure_source_hub_page_id(self) -> Optional[str]:
+        """Resolve and cache the source hub parent page ID used for initial states."""
+        if self._source_hub_page_id:
+            return self._source_hub_page_id
+
+        try:
+            hub_search = self.source_notion_client.search(
+                query=self.source_parent_page_title,
+                filter={"property": "object", "value": "page"},
+            )
+
+            for result in hub_search.get("results", []):
+                props = result.get("properties", {})
+                title_prop = props.get("title", {}).get("title") or props.get(
+                    "Name", {}
+                ).get("title")
+                current_title = "".join(
+                    t.get("plain_text", "") for t in (title_prop or [])
+                ).strip()
+                if current_title == self.source_parent_page_title:
+                    self._source_hub_page_id = result.get("id")
+                    break
+
+            if not self._source_hub_page_id:
+                logger.error(
+                    "| ✗ Source hub page '%s' not found.",
+                    self.source_parent_page_title,
+                )
+        except Exception as e:
+            logger.error(
+                "| ✗ Failed to resolve source hub page '%s': %s",
+                self.source_parent_page_title,
+                e,
+            )
+
+        return self._source_hub_page_id
 
     def _wait_for_database_ready(
         self,
@@ -474,24 +536,10 @@ class NotionStateManager(BaseStateManager):
         - Return the page ID and URL (retrieved via `pages.retrieve`).
         """
         try:
-            # 1) Find the source hub page ID by exact title match
-            hub_search = self.source_notion_client.search(
-                query=self.source_parent_page_title,
-                filter={"property": "object", "value": "page"},
-            )
-
-            source_hub_id = None
-
-            for result in hub_search.get("results", []):
-                props = result.get("properties", {})
-                title_prop = props.get("title", {}).get("title") or props.get("Name", {}).get("title")
-                current_title = "".join(t.get("plain_text", "") for t in (title_prop or [])).strip()
-                if current_title == self.source_parent_page_title:
-                    source_hub_id = result.get("id")
-                    break
+            # 1) Resolve the source hub page once and reuse its ID
+            source_hub_id = self._ensure_source_hub_page_id()
 
             if not source_hub_id:
-                logger.error("| ✗ Source hub page '%s' not found.", self.source_parent_page_title)
                 return None
 
             # 2) List first-level children of the hub page and find exact title match
@@ -590,49 +638,81 @@ class NotionStateManager(BaseStateManager):
                     time.sleep(5)
 
                     attempts = 3
-                    for retry_idx in range(attempts):
-                        response = self.source_notion_client.search(
-                            query=target_title,
-                            filter={"property": "object", "value": "page"},
+                    source_hub_id = self._ensure_source_hub_page_id()
+                    if not source_hub_id:
+                        logger.error(
+                            "| ✗ Cannot resolve source hub ID while locating '%s' duplicate.",
+                            target_title,
                         )
+                    else:
+                        for retry_idx in range(attempts):
+                            candidates = []
+                            next_cursor = None
 
-                        candidates = []
-                        for res in response.get("results", []):
-                            props = res.get("properties", {})
-                            title_prop = props.get("title", {}).get("title") or props.get(
-                                "Name", {}
-                            ).get("title")
-                            title_plain = "".join(
-                                t.get("plain_text", "") for t in (title_prop or [])
-                            ).strip()
-                            if title_plain == target_title:
-                                created_time = res.get("created_time") or res.get(
-                                    "last_edited_time"
-                                )
-                                candidates.append((created_time, res))
+                            while True:
+                                kwargs: Dict[str, Any] = {"block_id": source_hub_id}
+                                if next_cursor:
+                                    kwargs["start_cursor"] = next_cursor
 
-                        if candidates:
-                            # Pick the most recently created/edited candidate (ISO8601 strings are lexicographically comparable)
-                            latest_res = max(candidates, key=lambda x: x[0])[1]
-                            fallback_url = latest_res.get("url")
-                            if fallback_url:
-                                logger.info(
-                                    "| ○ Navigating directly to latest '%s' duplicate via API result...",
+                                children = self.source_notion_client.blocks.children.list(**kwargs)
+                                for child in children.get("results", []):
+                                    if child.get("type") != "child_page":
+                                        continue
+                                    child_id = child.get("id")
+                                    if child_id == original_initial_state_id:
+                                        continue
+
+                                    child_title = (
+                                        (child.get("child_page", {}) or {})
+                                        .get("title", "")
+                                        .strip()
+                                    )
+                                    if child_title != target_title:
+                                        continue
+
+                                    created_time = child.get("created_time") or child.get(
+                                        "last_edited_time"
+                                    )
+                                    candidates.append((created_time or "", child_id))
+
+                                if not children.get("has_more"):
+                                    break
+
+                                next_cursor = children.get("next_cursor")
+
+                            if candidates:
+                                latest_child_id = max(candidates, key=lambda x: x[0])[1]
+                                fallback_url = None
+                                try:
+                                    page_obj = self.source_notion_client.pages.retrieve(
+                                        page_id=latest_child_id
+                                    )
+                                    fallback_url = page_obj.get("url")
+                                except Exception as retrieve_error:
+                                    logger.warning(
+                                        "| ✗ Failed to resolve URL for duplicate '%s': %s",
+                                        latest_child_id,
+                                        retrieve_error,
+                                    )
+
+                                if fallback_url:
+                                    logger.info(
+                                        "| ○ Navigating directly to latest '%s' duplicate via children list...",
+                                        target_title,
+                                    )
+                                    page.goto(fallback_url, wait_until="load", timeout=60_000)
+                                    time.sleep(5)
+                                    duplicated_url = page.url
+                                    break
+
+                            if retry_idx < attempts - 1:
+                                logger.debug(
+                                    "| ○ '%s' not visible yet via children listing. Waiting 5s before retry %d/%d...",
                                     target_title,
+                                    retry_idx + 1,
+                                    attempts - 1,
                                 )
-                                page.goto(fallback_url, wait_until="load", timeout=60_000)
                                 time.sleep(5)
-                                duplicated_url = page.url
-                                break
-
-                        if retry_idx < attempts - 1:
-                            logger.debug(
-                                "| ○ '%s' not visible yet via search. Waiting 5s before retry %d/%d...",
-                                target_title,
-                                retry_idx + 1,
-                                attempts - 1,
-                            )
-                            time.sleep(5)
 
                     # Re-validate after attempted recovery
                     if not self._is_valid_duplicate_url(original_url, duplicated_url):
@@ -716,39 +796,53 @@ class NotionStateManager(BaseStateManager):
         Returns True if at least one orphan duplicate was archived.
         """
         try:
-            response = self.source_notion_client.search(
-                query=initial_state_title,
-                filter={"property": "object", "value": "page"},
-            )
+            source_hub_id = self._ensure_source_hub_page_id()
+            if not source_hub_id:
+                logger.error(
+                    "| ✗ Cannot resolve source hub while cleaning up duplicates for '%s'",
+                    initial_state_title,
+                )
+                return False
 
             # Only consider exactly one copy "Title (1)".
             title_regex = re.compile(rf"^{re.escape(initial_state_title)}\s*\(1\)$")
 
-            def _extract_title(res):
-                props = res.get("properties", {})
-                title_prop = props.get("title", {}).get("title") or props.get(
-                    "Name", {}
-                ).get("title")
-                return "".join(t.get("plain_text", "") for t in (title_prop or []))
-
             archived_any = False
-            for res in response.get("results", []):
-                if res.get("id") == original_initial_state_id:
-                    continue  # skip the source initial state
+            next_cursor = None
+            while True:
+                kwargs: Dict[str, Any] = {"block_id": source_hub_id}
+                if next_cursor:
+                    kwargs["start_cursor"] = next_cursor
 
-                title_plain = _extract_title(res).strip()
-                if not title_regex.match(title_plain):
-                    continue  # not a numbered duplicate
+                children = self.source_notion_client.blocks.children.list(**kwargs)
+                for child in children.get("results", []):
+                    if child.get("type") != "child_page":
+                        continue
 
-                dup_id = res["id"]
-                try:
-                    self.source_notion_client.pages.update(
-                        page_id=dup_id, archived=True
-                    )
-                    logger.info("| ✓ Archived orphan duplicate (%s): %s", "page", dup_id)
-                    archived_any = True
-                except Exception as exc:
-                    logger.warning("| ✗ Failed to archive orphan page %s: %s", dup_id, exc)
+                    dup_id = child.get("id")
+                    if dup_id == original_initial_state_id:
+                        continue
+
+                    title_plain = (
+                        (child.get("child_page", {}) or {}).get("title", "")
+                    ).strip()
+                    if not title_regex.match(title_plain):
+                        continue  # not a numbered duplicate
+
+                    try:
+                        self.source_notion_client.pages.update(
+                            page_id=dup_id, archived=True
+                        )
+                        logger.info("| ✓ Archived orphan duplicate (%s): %s", "page", dup_id)
+                        archived_any = True
+                    except Exception as exc:
+                        logger.warning("| ✗ Failed to archive orphan page %s: %s", dup_id, exc)
+
+                if not children.get("has_more"):
+                    break
+
+                next_cursor = children.get("next_cursor")
+
             return archived_any
         except Exception as exc:
             logger.warning(
