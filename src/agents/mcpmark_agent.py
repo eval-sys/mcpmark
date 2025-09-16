@@ -366,13 +366,11 @@ class MCPMarkAgent:
                     timeout=self.timeout
                 )
                 response.raise_for_status()
-                return response.json()
+                return response.json(), None
             except httpx.HTTPStatusError as e:
-                logger.error(f"Claude API error: {e.response.text}")
-                raise
+                return None, e.response.text
             except Exception as e:
-                logger.error(f"Claude API call failed: {e}")
-                raise
+                return None, e
     
 
     async def _execute_anthropic_native_tool_loop(
@@ -402,17 +400,16 @@ class MCPMarkAgent:
             turn_count += 1
             
             # Call Claude native API
-            try:
-                response = await self._call_claude_native_api(
-                    messages=messages,
-                    thinking_budget=thinking_budget,
-                    tools=tools,
-                    system=system_text
-                )
-                if turn_count == 1:
-                    self.litellm_run_model_name = response['model'].split("/")[-1]
-            except Exception as e:
-                logger.error(f"Claude API call failed on turn {turn_count}: {e}")
+            response, error_msg = await self._call_claude_native_api(
+                messages=messages,
+                thinking_budget=thinking_budget,
+                tools=tools,
+                system=system_text
+            )
+            if turn_count == 1:
+                self.litellm_run_model_name = response['model'].split("/")[-1]
+            
+            if error_msg:
                 break
             
             # Update token usage
@@ -518,15 +515,24 @@ class MCPMarkAgent:
             self._update_progress(messages, total_tokens, turn_count)
         
         # Detect if we exited due to hitting the turn limit
-        if (not ended_normally) and (turn_count >= max_turns):
-            hit_turn_limit = True
-            logger.warning(f"| Max turns ({max_turns}) exceeded; returning failure with partial output.")
-            if tool_call_log_file:
-                try:
-                    with open(tool_call_log_file, 'a', encoding='utf-8') as f:
-                        f.write(f"| Max turns ({max_turns}) exceeded\n")
-                except Exception:
-                    pass
+        if not ended_normally:
+            if turn_count >= max_turns:
+                hit_turn_limit = True
+                logger.warning(f"| Max turns ({max_turns}) exceeded; returning failure with partial output.")
+                if tool_call_log_file:
+                    try:
+                        with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                            f.write(f"| Max turns ({max_turns}) exceeded\n")
+                    except Exception:
+                        pass
+            elif error_msg:
+                logger.warning(f"| {error_msg}\n")
+                if tool_call_log_file:
+                    try:
+                        with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                            f.write(f"| {error_msg}\n")
+                    except Exception:
+                        pass
         
         # Display final token usage
         if total_tokens["total_tokens"] > 0:
@@ -543,12 +549,32 @@ class MCPMarkAgent:
         # Convert messages to SDK format
         sdk_format_messages = self._convert_to_sdk_format(messages)
         
+        if hit_turn_limit:
+            return {
+                "success": False,
+                "output": sdk_format_messages,
+                "token_usage": total_tokens,
+                "turn_count": turn_count,
+                "error": f"Max turns ({max_turns}) exceeded",
+                "litellm_run_model_name": self.litellm_run_model_name,
+            }
+        
+        if error_msg:
+            return {
+                "success": False,
+                "output": sdk_format_messages,
+                "token_usage": total_tokens,
+                "turn_count": turn_count,
+                "error": error_msg,
+                "litellm_run_model_name": self.litellm_run_model_name,
+            }
+        
         return {
-            "success": not hit_turn_limit,
+            "success": True,
             "output": sdk_format_messages,
             "token_usage": total_tokens,
             "turn_count": turn_count,
-            "error": (f"Max turns ({max_turns}) exceeded" if hit_turn_limit else None),
+            "error": None,
             "litellm_run_model_name": self.litellm_run_model_name,
         }
 
@@ -763,6 +789,7 @@ class MCPMarkAgent:
                     self._update_progress(messages, total_tokens, turn_count)
                     ended_normally = True
                     break
+                
         except Exception as loop_error:
             # On any error, return partial conversation, token usage, and turn count
             logger.error(f"Manual MCP loop failed: {loop_error}", exc_info=True)
