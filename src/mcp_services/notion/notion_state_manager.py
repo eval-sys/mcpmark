@@ -49,6 +49,7 @@ class NotionStateManager(BaseStateManager):
         headless: bool = True,
         browser: str = "firefox",
         eval_parent_page_title: str = "MCPMark Eval Hub",
+        source_parent_page_title: str = "MCPMark Source Hub",
     ):
         """
         Initializes the Notion state manager.
@@ -82,6 +83,8 @@ class NotionStateManager(BaseStateManager):
         self.state_file = Path("notion_state.json")
         # Parent page under which duplicated pages should be moved for evaluation
         self.eval_parent_page_title = eval_parent_page_title
+        # Source hub page that contains all initial-state templates
+        self.source_parent_page_title = source_parent_page_title
 
         # Validate initialization
         if not self.source_notion_client or not self.eval_notion_client:
@@ -157,54 +160,54 @@ class NotionStateManager(BaseStateManager):
             # Don't raise exception - allow execution to continue
 
     def _wait_for_database_ready(
-        self, 
-        page_id: str, 
+        self,
+        page_id: str,
         max_retries: int = 10,
         retry_delay: int = 2
     ) -> bool:
         """
         Wait for the database backend to be ready by checking page accessibility.
-        
+
         Args:
             page_id: The ID of the page to check
             max_retries: Maximum number of retry attempts
             retry_delay: Delay between retries in seconds
-            
+
         Returns:
             True if the database is ready, False if timeout
         """
         logger.info("| ○ Starting heartbeat detection for page %s", page_id)
-        
+
         for attempt in range(max_retries):
             try:
                 # Try to retrieve the page from the evaluation workspace
                 result = self.eval_notion_client.pages.retrieve(page_id=page_id)
-                
+
                 # Check if we got a valid response
                 if result and isinstance(result, dict):
                     # Additional check: try to get page properties
                     if "properties" in result:
                         logger.info(
-                            "| ✓ Database backend is ready (attempt %d/%d)", 
-                            attempt + 1, 
+                            "| ✓ Database backend is ready (attempt %d/%d)",
+                            attempt + 1,
                             max_retries
                         )
                         return True
-                        
+
             except Exception as e:
                 logger.debug(
-                    "| ✗ Database not ready yet (attempt %d/%d): %s", 
-                    attempt + 1, 
-                    max_retries, 
+                    "| ✗ Database not ready yet (attempt %d/%d): %s",
+                    attempt + 1,
+                    max_retries,
                     str(e)
                 )
-            
+
             # Wait before next retry
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
-        
+
         logger.error(
-            "| ✗ Database backend failed to become ready after %d attempts", 
+            "| ✗ Database backend failed to become ready after %d attempts",
             max_retries
         )
         return False
@@ -235,7 +238,7 @@ class NotionStateManager(BaseStateManager):
             duplicated_url, duplicated_id = self._duplicate_initial_state_for_task(
                 initial_state_url, task.category_id, task.name
             )
-            
+
             # Wait for database backend to be ready
             logger.info("| ○ Checking database backend accessibility for duplicated page...")
             if not self._wait_for_database_ready(duplicated_id):
@@ -251,7 +254,7 @@ class NotionStateManager(BaseStateManager):
                     logger.info("| ✓ Cleaned up inaccessible duplicated page: %s", duplicated_id)
                 except Exception as cleanup_error:
                     logger.error("| ✗ Failed to clean up duplicated page: %s", cleanup_error)
-                
+
                 raise RuntimeError(
                     f"| ✗ Database backend failed to become ready for duplicated page {duplicated_id}"
                 )
@@ -462,25 +465,79 @@ class NotionStateManager(BaseStateManager):
         return suffix.isdigit()
 
     def _find_initial_state_by_title(self, title: str) -> Optional[Tuple[str, str]]:
-        """Finds a Notion page by its exact title"""
+        """Find a child page under the source hub by exact title.
+
+        Strategy:
+        - Locate the source hub page ("MCPBench Source Hub") via search to get its ID.
+        - List its first-level children via `blocks.children.list`.
+        - Find a `child_page` whose title exactly matches `title`.
+        - Return the page ID and URL (retrieved via `pages.retrieve`).
+        """
         try:
-            response = self.source_notion_client.search(
-                query=title, filter={"property": "object", "value": "page"}
+            # 1) Find the source hub page ID by exact title match
+            hub_search = self.source_notion_client.search(
+                query=self.source_parent_page_title,
+                filter={"property": "object", "value": "page"},
             )
-            for result in response.get("results", []):
+
+            source_hub_id = None
+
+            for result in hub_search.get("results", []):
                 props = result.get("properties", {})
-                title_prop = props.get("title", {}).get("title") or props.get(
-                    "Name", {}
-                ).get("title")
-                if (
-                    title_prop
-                    and "".join(t.get("plain_text", "") for t in title_prop).strip()
-                    == title
-                ):
-                    return result.get("id"), result.get("url")
+                title_prop = props.get("title", {}).get("title") or props.get("Name", {}).get("title")
+                current_title = "".join(t.get("plain_text", "") for t in (title_prop or [])).strip()
+                if current_title == self.source_parent_page_title:
+                    source_hub_id = result.get("id")
+                    break
+
+            if not source_hub_id:
+                logger.error("| ✗ Source hub page '%s' not found.", self.source_parent_page_title)
+                return None
+
+            # 2) List first-level children of the hub page and find exact title match
+            matched_child_id: Optional[str] = None
+            next_cursor = None
+
+            while True:
+                kwargs = {"block_id": source_hub_id}
+                if next_cursor:
+                    kwargs["start_cursor"] = next_cursor
+
+                children = self.source_notion_client.blocks.children.list(**kwargs)
+                for child in children.get("results", []):
+                    if child.get("type") != "child_page":
+                        continue  # Only consider child pages
+                    child_title = (child.get("child_page", {}) or {}).get("title", "").strip()
+                    if child_title == title:
+                        matched_child_id = child.get("id")
+                        break
+
+                if matched_child_id or not children.get("has_more"):
+                    break
+
+                next_cursor = children.get("next_cursor")
+
+            if not matched_child_id:
+                logger.debug("| ✗ No child page titled '%s' under '%s'", title, self.source_parent_page_title)
+                return None
+
+            # 3) Retrieve the page to get its canonical URL
+            try:
+                page_obj = self.source_notion_client.pages.retrieve(page_id=matched_child_id)
+                page_url = page_obj.get("url")
+            except Exception as e:
+                logger.warning("| ✗ Failed to retrieve page URL for '%s' (%s): %s", title, matched_child_id, e)
+                page_url = None
+
+            if not page_url:
+                # Fall back to returning just the ID if URL couldn't be retrieved
+                logger.debug("| ○ Returning page ID without URL for '%s'", title)
+                return matched_child_id, ""
+
+            return matched_child_id, page_url
         except Exception as e:
-            logger.error("| ✗ Error searching for initial state '%s': %s", title, e)
-        return None
+            logger.error("| ✗ Error locating initial state '%s' via children listing: %s", title, e)
+            return None
 
     # =========================================================================
     # Duplication and State Management

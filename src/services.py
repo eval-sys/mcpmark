@@ -27,6 +27,12 @@ SERVICES = {
                 "required": True,
                 "description": "Notion API key for evaluation hub",
             },
+            "source_parent_page_title": {
+                "env_var": "SOURCE_PARENT_PAGE_TITLE",
+                "default": "MCPMark Source Hub",
+                "required": False,
+                "description": "Title of the source hub page that contains all initial states",
+            },
             "eval_parent_page_title": {
                 "env_var": "EVAL_PARENT_PAGE_TITLE",
                 "required": True,
@@ -59,6 +65,7 @@ SERVICES = {
                 "eval_notion_key": "eval_api_key",
                 "headless": "playwright_headless",
                 "browser": "playwright_browser",
+                "source_parent_page_title": "source_parent_page_title",
                 "eval_parent_page_title": "eval_parent_page_title",
             },
             "login_helper": {

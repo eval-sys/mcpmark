@@ -15,6 +15,7 @@ This guide walks you through preparing your Notion environment for MCPMark and a
      - **Source Hub**: Stores all the template databases/pages. Managed by `SOURCE_NOTION_API_KEY`.
      - **Eval Hub**: Only contains the duplicated templates for the current evaluation. Managed by `EVAL_NOTION_API_KEY`.
    - In Notion, create an **empty page** in your Eval Hub. The page name **must exactly match** the value you set for `EVAL_PARENT_PAGE_TITLE` in your environment variables (e.g., `MCPMark Eval Hub`).
+   - Name your **Source Hub** page to match `SOURCE_PARENT_PAGE_TITLE` (default: `MCPMark Source Hub`). This is where all initial-state templates live; we enumerate this page’s first-level children by exact title.
    - In Notion's **Connections** settings:
      - Bind the integration corresponding to `EVAL_NOTION_API_KEY` to the Eval Hub parent page you just created.
      - Bind the integration corresponding to `SOURCE_NOTION_API_KEY` to your Source Hub (where the templates are stored).
@@ -53,6 +54,7 @@ The verification script will tell you which browser is working properly. The pip
 ## Notion
 SOURCE_NOTION_API_KEY="your-source-notion-api-key"   # For Source Hub (templates)
 EVAL_NOTION_API_KEY="your-eval-notion-api-key"       # For Eval Hub (active evaluation)
+SOURCE_PARENT_PAGE_TITLE="MCPMark Source Hub"        # Source hub page name (exact match)
 EVAL_PARENT_PAGE_TITLE="MCPMark Eval Hub"           # Must match the name of the empty page you created in Eval Hub
 PLAYWRIGHT_BROWSER="chromium" # default to chromium, you can also choose firefox
 PLAYWRIGHT_HEADLESS="True"
