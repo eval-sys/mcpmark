@@ -231,10 +231,18 @@ class MCPMarkAgent:
                 turn_count=self._partial_turn_count or 0,
                 execution_time=execution_time
             )
-            
+
+            if self._partial_messages:
+                if not self.is_claude:
+                    final_msg = self._convert_to_sdk_format(self._partial_messages)
+                else:
+                    final_msg = self._partial_messages
+            else:
+                final_msg = []
+                
             return {
                 "success": False,
-                "output": self._convert_to_sdk_format(self._partial_messages) if self._partial_messages else [],
+                "output": final_msg,
                 "token_usage": self._partial_token_usage or {},
                 "turn_count": self._partial_turn_count or 0,
                 "execution_time": execution_time,
@@ -325,7 +333,8 @@ class MCPMarkAgent:
             "x-api-key": self.api_key,
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
-        }
+            "anthropic-beta": "context-1m-2025-08-07" # by default
+        } 
         
         # Build payload
         max_tokens = max(thinking_budget + 4096, 4096)
@@ -547,12 +556,12 @@ class MCPMarkAgent:
             logger.info(f"| Turns: {turn_count}")
         
         # Convert messages to SDK format
-        sdk_format_messages = self._convert_to_sdk_format(messages)
+        # sdk_format_messages = self._convert_to_sdk_format(messages)
         
         if hit_turn_limit:
             return {
                 "success": False,
-                "output": sdk_format_messages,
+                "output": messages,
                 "token_usage": total_tokens,
                 "turn_count": turn_count,
                 "error": f"Max turns ({max_turns}) exceeded",
@@ -562,7 +571,7 @@ class MCPMarkAgent:
         if error_msg:
             return {
                 "success": False,
-                "output": sdk_format_messages,
+                "output": messages,
                 "token_usage": total_tokens,
                 "turn_count": turn_count,
                 "error": error_msg,
@@ -571,7 +580,7 @@ class MCPMarkAgent:
         
         return {
             "success": True,
-            "output": sdk_format_messages,
+            "output": messages,
             "token_usage": total_tokens,
             "turn_count": turn_count,
             "error": None,

@@ -717,7 +717,7 @@ class NotionStateManager(BaseStateManager):
                     # Re-validate after attempted recovery
                     if not self._is_valid_duplicate_url(original_url, duplicated_url):
                         logger.error(
-                            "| ✗ Could not locate a valid '%s' duplicate after recovery attempt.\n  Original: %s\n  Observed: %s",
+                            "| ✗ Could not locate a valid '%s' duplicate after recovery attempt.\n|  Original: %s\n|  Observed: %s",
                             target_title,
                             original_url,
                             duplicated_url,
