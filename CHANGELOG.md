@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This version includes multiple important feature enhancements, particularly improvements in cost calculation, error handling, and Notion integration. Added per-model cost calculation, comprehensive aggregator functionality, and more robust error recovery mechanisms.
 ### ✨ Features
-- **Add 1m parameter & improve log** (#198) - Added 1-minute parameter option and enhanced logging functionality
+- **Add 1m parameter & improve log** (#198) - Added claude-1m-context option and enhanced logging functionality
 - **Refine Notion parent resolution and duplicate recovery** (#197) - Improved Notion parent page resolution and duplicate content recovery mechanism
 - **Comprehensive aggregator, enable push to new branch** (#185) - Implemented comprehensive aggregator functionality with support for pushing to new branches
 - **Support price cost calculating per model** (#186) - Added per-model price cost calculation functionality
