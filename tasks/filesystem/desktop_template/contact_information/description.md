@@ -14,8 +14,9 @@ Your task is to compile all contact information from all the files into a single
    - Second column: Email (required)
    - Third column: Phone (required)
    - Additional columns: Any other contact information types found
-5. **Consolidate information** by merging the same types of information into single columns
+5. **Consolidate information** by merging the same types of information across entries into single columns
 6. **Leave cells blank** if specific information is not available for a person/organization
+7. Each entry from different files should be processed and listed separately, without any secondary processing.
 
 ### Expected Output
 
