@@ -14,7 +14,8 @@ from typing import Optional
 # Keep this list short and generic; aim to catch API/infrastructure issues only.
 RETRYABLE_PATTERNS = {
     "ratelimit",              # e.g., RateLimitError, too many requests
-    "connection",             # connection refused/reset/error
+    # "connection",             # connection refused/reset/error
+    "agent execution failed",
     "unavailable",            # service unavailable
     # "execution timed out",    # timeout
     "internal server error",  # 500s
@@ -22,9 +23,7 @@ RETRYABLE_PATTERNS = {
     "quota",                  # budget/quota exceeded
     # "llm provider not provided",  # litellm error
     # pipeline infra signals
-    "double quotes", # actually json error
     "account balance",
-    "expecting value",
     "mcp network error",
     "state duplication error",
 }
