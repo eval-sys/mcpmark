@@ -11,7 +11,7 @@ Therefore, each MCPMark task consists of three files
 
 Here, `metadata.json` includes the meta information of the task, `description.md` describes the purpose and setting of the task, as well as the instruction to complete the task. `verify.py` checks whether the task is completed successfully.
 
-For example, you can ask the model agent to create a file with specific name and write specific content to the file, which belongs to the cateogry of operating the file context. The structure looks like
+For example, you can ask the model agent to create a file with specific name and write specific content to the file, which belongs to the category of operating the file context. The structure looks like
 
 ```
 tasks 
@@ -32,8 +32,8 @@ Note that all tasks are placed under `tasks/`. `filesystem` refers to the enviro
 - task_id: the id of the task.
 - task_name: full name of the task.
 - description: task description.
-- cateogry_id: the id of task category.
-- cateogry_name: the full name of task categeory.
+- category_id: the id of task category.
+- category_name: the full name of task categeory.
 - author: the author of the task.
 - difficulty: the task difficulty level.
 - created_at: the timestamp of task creation.
@@ -41,7 +41,7 @@ Note that all tasks are placed under `tasks/`. `filesystem` refers to the enviro
 - mcp: a list of MCP services it belongs to.
 - metadata: other meta information.
 
-Here `cateogry_name` describes the shared feature or the environment across different tasks (e.g. the github repository or notion page the task is built on). In this running example, `category_name` refers to `file_context`.
+Here `category_name` describes the shared feature or the environment across different tasks (e.g. the github repository or notion page the task is built on). In this running example, `category_name` refers to `file_context`.
 
 `description.md` could include the following information
 
