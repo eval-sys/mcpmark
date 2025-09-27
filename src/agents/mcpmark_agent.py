@@ -645,6 +645,20 @@ class MCPMarkAgent:
         # Convert functions to tools format for newer models
         tools = [{"type": "function", "function": func} for func in functions] if functions else None
 
+        if tool_call_log_file and tools:
+            max_name_length = max(
+                len(tool.get("function", {}).get("name", ""))
+                for tool in tools
+            ) if tools else 15
+            with open(tool_call_log_file, 'a', encoding='utf-8') as f:
+                f.write("===== Available Tools =====\n")
+                for tool in tools:
+                    function_info = tool.get("function", {})
+                    tool_name = function_info.get("name", "N/A")
+                    description = function_info.get("description", "N/A")
+                    f.write(f"- ToolName: {tool_name:<{max_name_length}} Description: {description}\n")
+                f.write("\n===== Execution Logs =====\n")
+
         # Record initial state
         self._update_progress(messages, total_tokens, turn_count)
         
