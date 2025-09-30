@@ -181,11 +181,14 @@ Contributions are welcome:
 If you find our works useful for your research, please consider citing:
 
 ```bibtex
-@misc{mcpmark_2025,
-  title        = {MCPMark: Stress-Testing Comprehensive MCP Use},
-  author       = {The MCPMark Team},
-  howpublished = {\url{https://github.com/eval-sys/mcpmark}},
-  year         = {2025}
+@misc{wu2025mcpmark,
+      title={MCPMark: A Benchmark for Stress-Testing Realistic and Comprehensive MCP Use}, 
+      author={Zijian Wu and Xiangyan Liu and Xinyuan Zhang and Lingjun Chen and Fanqing Meng and Lingxiao Du and Yiran Zhao and Fanshi Zhang and Yaoqi Ye and Jiawei Wang and Zirui Wang and Jinjie Ni and Yufan Yang and Arvin Xu and Michael Qizhe Shieh},
+      year={2025},
+      eprint={2509.24002},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2509.24002}, 
 }
 ```
 
