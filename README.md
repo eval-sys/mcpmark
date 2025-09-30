@@ -3,6 +3,7 @@
 # MCPMark: Stress-Testing Comprehensive MCP Use
 
 [![Website](https://img.shields.io/badge/Website-mcpmark.ai-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://mcpmark.ai)
+[![arXiv](https://img.shields.io/badge/arXiv-2509.24002-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2509.24002)
 [![Discord](https://img.shields.io/badge/Join_our_discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/HrKkJAxDnA)
 [![Docs](https://img.shields.io/badge/Docs-000000?style=for-the-badge&logo=mdbook&color=105864)](https://mcpmark.ai/docs)
 [![Hugging Face](https://img.shields.io/badge/Trajectory_Logs-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/datasets/Jakumetsu/mcpmark-trajectory-log)
@@ -181,11 +182,14 @@ Contributions are welcome:
 If you find our works useful for your research, please consider citing:
 
 ```bibtex
-@misc{mcpmark_2025,
-  title        = {MCPMark: Stress-Testing Comprehensive MCP Use},
-  author       = {The MCPMark Team},
-  howpublished = {\url{https://github.com/eval-sys/mcpmark}},
-  year         = {2025}
+@misc{wu2025mcpmark,
+      title={MCPMark: A Benchmark for Stress-Testing Realistic and Comprehensive MCP Use}, 
+      author={Zijian Wu and Xiangyan Liu and Xinyuan Zhang and Lingjun Chen and Fanqing Meng and Lingxiao Du and Yiran Zhao and Fanshi Zhang and Yaoqi Ye and Jiawei Wang and Zirui Wang and Jinjie Ni and Yufan Yang and Arvin Xu and Michael Qizhe Shieh},
+      year={2025},
+      eprint={2509.24002},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2509.24002}, 
 }
 ```
 
