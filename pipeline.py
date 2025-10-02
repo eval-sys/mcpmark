@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from src.logger import get_logger
 from src.evaluator import MCPEvaluator
+from src.agents import AGENT_REGISTRY
 from src.factory import MCPServiceFactory
 from src.model_config import ModelConfig
 
@@ -40,6 +41,13 @@ def main():
         "--models",
         required=True,
         help="Comma-separated list of models to evaluate (e.g., 'o3,k2,gpt-4.1')",
+    )
+
+    parser.add_argument(
+        "--agent",
+        default="mcpmark",
+        choices=sorted(AGENT_REGISTRY.keys()),
+        help="Agent implementation to use (default: mcpmark)",
     )
     parser.add_argument(
         "--tasks",
@@ -138,6 +146,7 @@ def main():
                 exp_name=run_exp_name,
                 output_dir=run_output_dir,
                 reasoning_effort=args.reasoning_effort,
+                agent_name=args.agent,
             )
 
             pipeline.run_evaluation(args.tasks)

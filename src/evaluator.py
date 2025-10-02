@@ -11,7 +11,7 @@ from src.factory import MCPServiceFactory
 from src.model_config import ModelConfig
 from src.results_reporter import EvaluationReport, ResultsReporter, TaskResult
 from src.errors import is_retryable_error
-from src.agents import MCPMarkAgent
+from src.agents import AGENT_REGISTRY
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -26,10 +26,14 @@ class MCPEvaluator:
         exp_name: str = "test-run",
         output_dir: Path = None,
         reasoning_effort: str = "default",
+        agent_name: str = "mcpmark",
     ):
         # Main configuration
         self.mcp_service = mcp_service
         self.timeout = timeout
+        self.agent_name = (agent_name or "mcpmark").lower()
+        if self.agent_name not in AGENT_REGISTRY:
+            raise ValueError(f"Unsupported agent '{agent_name}'. Available: {sorted(AGENT_REGISTRY)}")
         
         # Initialize model configuration
         self.reasoning_effort = reasoning_effort
@@ -54,8 +58,9 @@ class MCPEvaluator:
         # automatically refresh its service configuration from the state
         # manager before each execution, so per-task manual updates are no
         # longer needed.
-        self.agent = MCPMarkAgent(
-            litellm_input_model_name=self.litellm_input_model_name,  # Use the original model name for detection
+        agent_cls = AGENT_REGISTRY[self.agent_name]
+        self.agent = agent_cls(
+            litellm_input_model_name=self.litellm_input_model_name,
             api_key=self.api_key,
             base_url=self.base_url,
             mcp_service=mcp_service,
@@ -352,6 +357,7 @@ class MCPEvaluator:
                 "litellm_run_model_name": self.litellm_run_model_name,
                 "reasoning_effort": self.reasoning_effort,
                 "timeout": self.timeout,
+                "agent_name": self.agent_name,
             }
             self.results_reporter.save_meta_json(
                 task_result,
@@ -398,6 +404,7 @@ class MCPEvaluator:
                 "litellm_run_model_name": self.litellm_run_model_name,
                 "reasoning_effort": self.reasoning_effort,
                 "timeout": self.timeout,
+                "agent_name": self.agent_name,
             },
             total_tasks=len(final_results),
             successful_tasks=sum(1 for r in final_results if r.success),

@@ -2,10 +2,17 @@
 MCPMark Agent Module
 ====================
 
-Provides a unified agent implementation using LiteLLM for model interactions
-and minimal MCP server management.
+Provides agent implementations and registry for MCPMark.
 """
 
+from .base_agent import BaseMCPAgent
 from .mcpmark_agent import MCPMarkAgent
+from .react_agent import ReActAgent
 
-__all__ = ["MCPMarkAgent"]
+AGENT_REGISTRY = {
+    "mcpmark": MCPMarkAgent,
+    "react": ReActAgent,
+}
+
+__all__ = ["BaseMCPAgent", "MCPMarkAgent", "ReActAgent", "AGENT_REGISTRY"]
+
