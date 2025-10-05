@@ -8,9 +8,6 @@ Unified agent using LiteLLM for all model interactions with minimal MCP support.
 import asyncio
 import json
 import time
-import uuid
-import copy
- 
 from typing import Any, Dict, List, Optional, Callable
 
 import httpx
@@ -18,8 +15,8 @@ import litellm
 import nest_asyncio
 
 from src.logger import get_logger
+from .base_agent import BaseMCPAgent
 from .mcp import MCPStdioServer, MCPHttpServer
-from .utils import TokenUsageTracker
 
 # Apply nested asyncio support
 nest_asyncio.apply()
@@ -29,34 +26,20 @@ litellm.suppress_debug_info = True
 
 logger = get_logger(__name__)
 
-class MCPMarkAgent:
+class MCPMarkAgent(BaseMCPAgent):
     """
     Unified agent for LLM and MCP server management using LiteLLM.
-    
+
     - Anthropic models: Native MCP support via extra_body
     - Other models: Manual MCP server management with function calling
     """
-    
-    # Constants
+
     MAX_TURNS = 100
-    DEFAULT_TIMEOUT = 600
     SYSTEM_PROMPT = (
         "You are a helpful agent that uses tools iteratively to complete the user's task, "
         "and when finished, provides the final answer or simply states \"Task completed\" without further tool calls."
     )
-    
-    # Service categories
-    STDIO_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena", "postgres"]
-    HTTP_SERVICES = ["github"]
-    
-    # Claude thinking budget mapping
-    CLAUDE_THINKING_BUDGETS = {
-        "low": 1024,
-        "medium": 2048,
-        "high": 4096
-    }
-    
-    # ==================== Initialization and Configuration ====================
+    DEFAULT_TIMEOUT = BaseMCPAgent.DEFAULT_TIMEOUT
 
     def __init__(
         self,
@@ -66,98 +49,27 @@ class MCPMarkAgent:
         mcp_service: str,
         timeout: int = DEFAULT_TIMEOUT,
         service_config: Optional[Dict[str, Any]] = None,
-        service_config_provider: Optional[Callable[[], Dict]] = None,
+        service_config_provider: Optional[Callable[[], Dict[str, Any]]] = None,
         reasoning_effort: Optional[str] = "default",
     ):
-        """
-        Initialize the MCPMark agent.
-        
-        Args:
-            model_name: Name of the LLM model
-            api_key: API key for the model provider
-            base_url: Base url
-            mcp_service: MCP service type
-            timeout: Execution timeout in seconds
-            service_config: Service-specific configuration
-            service_config_provider: Optional provider for dynamic config
-            reasoning_effort: Reasoning effort level ("default", "minimal", "low", "medium", "high")
-        """
-        self.litellm_input_model_name = litellm_input_model_name
-        self.api_key = api_key
-        self.base_url = base_url
-        self.mcp_service = mcp_service
-        self.timeout = timeout
-        self.service_config = service_config or {}
-        self._service_config_provider = service_config_provider
-        self.reasoning_effort = reasoning_effort
-        
-        # Detect if this is a Claude model
-        self.is_claude = self._is_anthropic_model(litellm_input_model_name)
-        
-        # Determine execution path: Claude with thinking or LiteLLM
-        self.use_claude_thinking = self.is_claude and reasoning_effort != "default"
-        
-        # Initialize usage tracker
-        self.usage_tracker = TokenUsageTracker()
-        
-        # Track the actual model name from responses
-        self.litellm_run_model_name = None
-
-        # Track partial progress for error/timeout handling
-        self._partial_messages = []
-        self._partial_token_usage = {}
-        self._partial_turn_count = 0
-        
+        super().__init__(
+            litellm_input_model_name=litellm_input_model_name,
+            api_key=api_key,
+            base_url=base_url,
+            mcp_service=mcp_service,
+            timeout=timeout,
+            service_config=service_config,
+            service_config_provider=service_config_provider,
+            reasoning_effort=reasoning_effort,
+        )
         logger.debug(
-            f"Initialized MCPMarkAgent for '{mcp_service}' with model '{litellm_input_model_name}' "
-            f"(Claude: {self.is_claude}, Thinking: {self.use_claude_thinking}, Reasoning: {reasoning_effort})"
+            "Initialized MCPMarkAgent for '%s' with model '%s' (Claude: %s, Thinking: %s, Reasoning: %s)",
+            mcp_service,
+            litellm_input_model_name,
+            self.is_claude,
+            self.use_claude_thinking,
+            reasoning_effort,
         )
-    
-
-    def __repr__(self):
-        return (
-            f"MCPMarkAgent(service='{self.mcp_service}', model='{self.litellm_input_model_name}', "
-        )
-
-    def _is_anthropic_model(self, model_name: str) -> bool:
-        """Check if the model is an Anthropic model."""
-        return "claude" in model_name.lower()
-    
-
-    def _get_claude_thinking_budget(self) -> Optional[int]:
-        """Get thinking budget for Claude based on reasoning effort."""
-        if not self.use_claude_thinking:
-            return None
-        return self.CLAUDE_THINKING_BUDGETS.get(self.reasoning_effort, 2048)
-    
-
-    def _refresh_service_config(self):
-        """Refresh service config from provider if available."""
-        if self._service_config_provider:
-            try:
-                latest_cfg = self._service_config_provider() or {}
-                self.service_config.update(latest_cfg)
-            except Exception as e:
-                logger.warning(f"| Failed to refresh service config: {e}")
-
-    def _reset_progress(self):
-        """Reset stored partial progress for a new execution run."""
-        self._partial_messages = []
-        self._partial_token_usage = {}
-        self._partial_turn_count = 0
-
-    def _update_progress(self, messages: List[Dict], token_usage: Dict, turn_count: int):
-        """Record partial progress so we can return it on timeout/errors."""
-        try:
-            # Deep copy to avoid mutation by callers
-            self._partial_messages = copy.deepcopy(messages)
-            self._partial_token_usage = dict(token_usage or {})
-            self._partial_turn_count = int(turn_count or 0)
-        except Exception:
-            # Best-effort; don't let progress recording crash execution
-            pass
-    
-
 
     # ==================== Public Interface Methods ====================
 
@@ -864,293 +776,6 @@ class MCPMarkAgent:
 
 
     # ==================== Format Conversion Methods ====================
-
-    def _convert_to_sdk_format(self, messages: List[Dict]) -> List[Dict]:
-        """Convert OpenAI messages format to old SDK format for backward compatibility."""
-        sdk_format = []
-        function_call_map = {}  # Track function names to call IDs for legacy format
-
-        for msg in messages:
-            role = msg.get("role")
-
-            if role == "user":
-                # User messages stay mostly the same
-                user_content = msg.get("content", "")
-                
-                # Handle tool_result messages (content as list)
-                if isinstance(user_content, list):
-                    # Check if this is a tool_result message
-                    tool_results = [item for item in user_content if isinstance(item, dict) and item.get("type") == "tool_result"]
-                    if tool_results:
-                        # Convert tool_results to function_call_output format
-                        for tr in tool_results:
-                            content_items = tr.get("content", [])
-                            text_content = ""
-                            for ci in content_items:
-                                if isinstance(ci, dict) and ci.get("type") == "text":
-                                    text_content = ci.get("text", "")
-                                    break
-                            sdk_format.append({
-                                "call_id": tr.get("tool_use_id", ""),
-                                "output": json.dumps({
-                                    "type": "text",
-                                    "text": text_content,
-                                    "annotations": None,
-                                    "meta": None
-                                }),
-                                "type": "function_call_output"
-                            })
-                    else:
-                        # Regular user content as list - extract text
-                        text_parts = []
-                        for item in user_content:
-                            if isinstance(item, dict) and item.get("type") == "text":
-                                text_parts.append(item.get("text", ""))
-                        sdk_format.append({
-                            "content": "\n".join(text_parts) if text_parts else "",
-                            "role": "user"
-                        })
-                else:
-                    # String content
-                    sdk_format.append({
-                        "content": user_content,
-                        "role": "user"
-                    })
-
-            elif role == "assistant":
-                # === CHANGED ORDER START ===
-                tool_calls = msg.get("tool_calls", [])
-                function_call = msg.get("function_call")
-                content = msg.get("content")
-
-                # Handle both string content and list content (for Claude thinking)
-                if isinstance(content, list):
-                    # Extract text from content blocks (e.g., Claude responses with thinking)
-                    text_parts = []
-                    claude_tool_uses = []
-                    for block in content:
-                        if isinstance(block, dict):
-                            if block.get("type") == "text":
-                                text_parts.append(block.get("text", ""))
-                            elif block.get("type") == "thinking":
-                                # Include thinking in output (marked as such)
-                                thinking_text = block.get("thinking", "")
-                                if thinking_text:
-                                    text_parts.append(f"<think>\n{thinking_text}\n</think>")
-                            elif block.get("type") == "tool_use":
-                                # Store tool_use blocks for later processing
-                                claude_tool_uses.append(block)
-                    content = "\n".join(text_parts) if text_parts else ""
-                    
-                    # Add Claude tool_uses to regular tool_calls
-                    if claude_tool_uses and not tool_calls:
-                        tool_calls = []
-                        for tu in claude_tool_uses:
-                            tool_calls.append({
-                                "id": tu.get("id"),
-                                "function": {
-                                    "name": tu.get("name"),
-                                    "arguments": json.dumps(tu.get("input", {}))
-                                }
-                            })
-                
-                # 1) First add assistant's text content (if present)
-                if content:
-                    sdk_format.append({
-                        "id": "__fake_id__",
-                        "content": [
-                            {
-                                "annotations": [],
-                                "text": content if content else "",
-                                "type": "output_text"
-                            }
-                        ],
-                        "role": "assistant",
-                        "status": "completed",
-                        "type": "message"
-                    })
-
-                # 2) Then add (new format) tool_calls
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        call_id = tool_call.get("id", f"call_{uuid.uuid4().hex}")
-                        func_name = tool_call.get("function", {}).get("name", "")
-                        sdk_format.append({
-                            "arguments": tool_call.get("function", {}).get("arguments", "{}"),
-                            "call_id": call_id,
-                            "name": func_name,
-                            "type": "function_call",
-                            "id": "__fake_id__"
-                        })
-
-                # 3) Finally handle (legacy format) function_call
-                if function_call:
-                    func_name = function_call.get("name", "")
-                    call_id = f"call_{uuid.uuid4().hex}"
-                    function_call_map[func_name] = call_id  # Store for matching responses
-                    sdk_format.append({
-                        "arguments": function_call.get("arguments", "{}"),
-                        "call_id": call_id,
-                        "name": func_name,
-                        "type": "function_call",
-                        "id": "__fake_id__"
-                    })
-
-                # 4) If neither content nor any calls exist, maintain fallback behavior
-                if not content and not tool_calls and not function_call:
-                    sdk_format.append({
-                        "id": "__fake_id__",
-                        "content": [
-                            {
-                                "annotations": [],
-                                "text": "",
-                                "type": "output_text"
-                            }
-                        ],
-                        "role": "assistant",
-                        "status": "completed",
-                        "type": "message"
-                    })
-                # === CHANGED ORDER END ===
-
-            elif role == "tool":
-                # Tool responses
-                sdk_format.append({
-                    "call_id": msg.get("tool_call_id", ""),
-                    "output": json.dumps({
-                        "type": "text",
-                        "text": msg.get("content", ""),
-                        "annotations": None,
-                        "meta": None
-                    }),
-                    "type": "function_call_output"
-                })
-
-            elif role == "function":
-                # Legacy function responses - try to match with stored call ID
-                func_name = msg.get("name", "")
-                call_id = function_call_map.get(func_name, f"call_{uuid.uuid4().hex}")
-                sdk_format.append({
-                    "call_id": call_id,
-                    "output": json.dumps({
-                        "type": "text",
-                        "text": msg.get("content", ""),
-                        "annotations": None,
-                        "meta": None
-                    }),
-                    "type": "function_call_output"
-                })
-
-        return sdk_format
-
-    
-
-    def _convert_to_anthropic_format(self, tools: List[Dict]) -> List[Dict]:
-        """Convert MCP tool definitions to Anthropic format."""
-        anthropic_tools = []
-        
-        for tool in tools:
-            anthropic_tool = {
-                "name": tool.get("name"),
-                "description": tool.get("description", ""),
-                "input_schema": tool.get("inputSchema", {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                })
-            }
-            anthropic_tools.append(anthropic_tool)
-        
-        return anthropic_tools
-    
-    def _is_gemini_model(self) -> bool:
-        """Check if the model is a Gemini model."""
-        model_lower = self.litellm_input_model_name.lower()
-        return "gemini" in model_lower or "bison" in model_lower
-    
-    def _simplify_schema_for_gemini(self, schema: Dict) -> Dict:
-        """
-        Simplify nested schemas for Gemini compatibility.
-        Gemini has issues with deeply nested array type definitions.
-        
-        Note: This is a compatibility layer for Gemini API via LiteLLM.
-        Can be removed once LiteLLM handles this internally.
-        """
-        if not isinstance(schema, dict):
-            return schema
-        
-        simplified = {}
-        
-        for key, value in schema.items():
-            if key == "type" and isinstance(value, list):
-                # Gemini doesn't like type as array, use first type
-                simplified[key] = value[0] if value else "string"
-            elif key == "items" and isinstance(value, dict):
-                # Recursively simplify items
-                simplified[key] = self._simplify_schema_for_gemini(value)
-            elif key == "properties" and isinstance(value, dict):
-                # Recursively simplify each property
-                simplified[key] = {
-                    prop_key: self._simplify_schema_for_gemini(prop_val)
-                    for prop_key, prop_val in value.items()
-                }
-            elif isinstance(value, dict):
-                # Recursively simplify nested objects
-                simplified[key] = self._simplify_schema_for_gemini(value)
-            elif isinstance(value, list) and key not in ["required", "enum"]:
-                # For non-special arrays, check if they contain schemas
-                simplified[key] = [
-                    self._simplify_schema_for_gemini(item) if isinstance(item, dict) else item
-                    for item in value
-                ]
-            else:
-                simplified[key] = value
-        
-        return simplified
-    
-
-    def _convert_to_openai_format(self, tools: List[Dict]) -> List[Dict]:
-        """
-        Convert MCP tool definitions to OpenAI function format.
-        
-        For Gemini models, applies schema simplification to handle
-        compatibility issues with deeply nested array type definitions.
-        """
-        functions = []
-        is_gemini = self._is_gemini_model()
-        
-        if is_gemini:
-            logger.debug(f"Detected Gemini model: {self.litellm_input_model_name}")
-            logger.debug(f"Processing {len(tools)} tools for Gemini compatibility")
-        
-        for i, tool in enumerate(tools):
-            # Get the input schema
-            input_schema = tool.get("inputSchema", {
-                "type": "object",
-                "properties": {},
-                "required": []
-            })
-            
-            # Simplify schema for Gemini if needed
-            if is_gemini:
-                original_schema = input_schema.copy()  # Keep for debugging
-                input_schema = self._simplify_schema_for_gemini(input_schema)
-                
-                # Log significant changes for debugging
-                if input_schema != original_schema:
-                    logger.debug(f"Simplified schema for tool #{i} '{tool.get('name')}'")
-            
-            function = {
-                "name": tool.get("name"),
-                "description": tool.get("description", ""),
-                "parameters": input_schema
-            }
-            functions.append(function)
-        
-        if is_gemini:
-            logger.info(f"| Converted {len(functions)} tools for Gemini model with schema simplification")
-        
-        return functions
 
     
 
