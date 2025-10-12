@@ -71,6 +71,8 @@ pip install -e .
 playwright install
 ```
 
+MCPMark defaults to the built-in orchestration agent (`MCPMarkAgent`). To experiment with the ReAct-style agent, pass `--agent react` to `pipeline.py` (other settings stay the same).
+
 Docker
 ```bash
 ./build-docker.sh
