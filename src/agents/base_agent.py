@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 class BaseMCPAgent(ABC):
     """Base class with shared functionality for MCPMark agents."""
 
-    STDIO_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena", "postgres"]
+    STDIO_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena", "postgres", "insforge"]
     HTTP_SERVICES = ["github"]
     DEFAULT_TIMEOUT = 600
 
@@ -205,6 +205,20 @@ class BaseMCPAgent(ABC):
                 command="pipx",
                 args=["run", "postgres-mcp", "--access-mode=unrestricted"],
                 env={"DATABASE_URI": database_url},
+            )
+
+        if self.mcp_service == "insforge":
+            api_key = self.service_config.get("api_key")
+            backend_url = self.service_config.get("backend_url")
+            if not all([api_key, backend_url]):
+                raise ValueError("Insforge requires api_key and backend_url")
+            return MCPStdioServer(
+                command="npx",
+                args=["-y", "@insforge/mcp"],
+                env={
+                    "INSFORGE_API_KEY": api_key,
+                    "INSFORGE_BACKEND_URL": backend_url,
+                },
             )
 
         raise ValueError(f"Unsupported stdio service: {self.mcp_service}")

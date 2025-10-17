@@ -269,6 +269,37 @@ SERVICES = {
         "mcp_server": None,
         "eval_config": None,
     },
+    "insforge": {
+        "config_schema": {
+            "api_key": {
+                "env_var": "INSFORGE_API_KEY",
+                "required": True,
+                "description": "Insforge backend API key for authentication",
+            },
+            "backend_url": {
+                "env_var": "INSFORGE_BACKEND_URL",
+                "required": True,
+                "description": "Insforge backend URL (e.g., https://your-app.insforge.app)",
+            },
+        },
+        "components": {
+            "task_manager": "src.mcp_services.insforge.insforge_task_manager.InsforgeTaskManager",
+            "state_manager": "src.mcp_services.insforge.insforge_state_manager.InsforgeStateManager",
+            "login_helper": "src.mcp_services.insforge.insforge_login_helper.InsforgeLoginHelper",
+        },
+        "config_mapping": {
+            "state_manager": {
+                "api_key": "api_key",
+                "backend_url": "backend_url",
+            },
+            "login_helper": {
+                "api_key": "api_key",
+                "backend_url": "backend_url",
+            },
+        },
+        "mcp_server": None,
+        "eval_config": None,
+    },
     "playwright_webarena": {
         "config_schema": {
             "browser": {

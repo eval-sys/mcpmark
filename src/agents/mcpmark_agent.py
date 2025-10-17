@@ -844,18 +844,32 @@ class MCPMarkAgent(BaseMCPAgent):
             username = self.service_config.get("username")
             password = self.service_config.get("password")
             database = self.service_config.get("current_database") or self.service_config.get("database")
-            
+
             if not all([username, password, database]):
                 raise ValueError("PostgreSQL requires username, password, and database")
-            
+
             database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
-            
+
             return MCPStdioServer(
                 command="pipx",
                 args=["run", "postgres-mcp", "--access-mode=unrestricted"],
                 env={"DATABASE_URI": database_url}
             )
-        
+
+        elif self.mcp_service == "insforge":
+            api_key = self.service_config.get("api_key")
+            backend_url = self.service_config.get("backend_url")
+            if not all([api_key, backend_url]):
+                raise ValueError("Insforge requires api_key and backend_url")
+            return MCPStdioServer(
+                command="npx",
+                args=["-y", "@insforge/mcp"],
+                env={
+                    "INSFORGE_API_KEY": api_key,
+                    "INSFORGE_BACKEND_URL": backend_url,
+                },
+            )
+
         else:
             raise ValueError(f"Unsupported stdio service: {self.mcp_service}")
     
