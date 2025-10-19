@@ -300,6 +300,70 @@ SERVICES = {
         "mcp_server": None,
         "eval_config": None,
     },
+    "supabase": {
+        "config_schema": {
+            "api_url": {
+                "env_var": "SUPABASE_API_URL",
+                "required": False,
+                "description": "Supabase PostgREST API URL (default: http://localhost:54321 from CLI)",
+                "default": "http://localhost:54321",
+            },
+            "api_key": {
+                "env_var": "SUPABASE_API_KEY",
+                "required": False,
+                "description": "Supabase API key (anon or service_role key from 'supabase status')",
+            },
+            "postgres_host": {
+                "env_var": "SUPABASE_DB_HOST",
+                "required": False,
+                "description": "PostgreSQL host for Supabase CLI instance",
+                "default": "localhost",
+            },
+            "postgres_port": {
+                "env_var": "SUPABASE_DB_PORT",
+                "required": False,
+                "description": "PostgreSQL port for Supabase CLI instance (default: 54322)",
+                "default": 54322,
+            },
+            "postgres_user": {
+                "env_var": "SUPABASE_DB_USER",
+                "required": False,
+                "description": "PostgreSQL username",
+                "default": "postgres",
+            },
+            "postgres_password": {
+                "env_var": "SUPABASE_DB_PASSWORD",
+                "required": False,
+                "description": "PostgreSQL password",
+                "default": "postgres",
+            },
+            "postgres_database": {
+                "env_var": "SUPABASE_DB_NAME",
+                "required": False,
+                "description": "PostgreSQL database name",
+                "default": "postgres",
+            },
+        },
+        "components": {
+            "task_manager": "src.mcp_services.supabase.supabase_task_manager.SupabaseTaskManager",
+            "state_manager": "src.mcp_services.supabase.supabase_state_manager.SupabaseStateManager",
+            "login_helper": "src.mcp_services.supabase.supabase_login_helper.SupabaseLoginHelper",
+        },
+        "config_mapping": {
+            "state_manager": {
+                "api_url": "api_url",
+                "api_key": "api_key",
+                "postgres_host": "postgres_host",
+                "postgres_port": "postgres_port",
+                "postgres_user": "postgres_user",
+                "postgres_password": "postgres_password",
+                "postgres_database": "postgres_database",
+            },
+            "login_helper": {},
+        },
+        "mcp_server": None,
+        "eval_config": None,
+    },
     "playwright_webarena": {
         "config_schema": {
             "browser": {

@@ -1,15 +1,16 @@
 """
-Insforge State Manager for MCPMark
-===================================
+Supabase State Manager for MCPMark
+====================================
 
-Manages backend state for Insforge tasks including setup via prepare_environment.py
-and resource cleanup tracking.
+Manages database state for Supabase tasks using the same PostgreSQL backend
+as Insforge, but accessed via PostgREST/Supabase MCP server.
 """
 
 import os
 import sys
 import subprocess
-import requests
+import psycopg2
+from psycopg2 import sql
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -20,30 +21,45 @@ from src.logger import get_logger
 logger = get_logger(__name__)
 
 
-class InsforgeStateManager(BaseStateManager):
-    """Manages Insforge backend state for task evaluation."""
+class SupabaseStateManager(BaseStateManager):
+    """Manages Supabase/PostgREST database state for task evaluation.
+
+    Uses the same PostgreSQL database as Insforge but exposes it via
+    PostgREST API for the Supabase MCP server to access.
+    """
 
     def __init__(
         self,
+        api_url: str,
         api_key: str,
-        backend_url: str,
+        postgres_host: str = "localhost",
+        postgres_port: int = 54322,  # Supabase CLI default port
+        postgres_user: str = "postgres",
+        postgres_password: str = "postgres",
+        postgres_database: str = "postgres",  # Supabase CLI default database
     ):
-        """Initialize Insforge state manager.
+        """Initialize Supabase state manager.
 
         Args:
-            api_key: Insforge backend API key for authentication
-            backend_url: Insforge backend URL (e.g., https://your-app.insforge.app)
+            api_url: PostgREST API URL from Supabase CLI (default: http://localhost:54321)
+            api_key: API key from Supabase CLI (anon or service_role key)
+            postgres_host: PostgreSQL host for direct database operations
+            postgres_port: PostgreSQL port (Supabase CLI uses 54322)
+            postgres_user: PostgreSQL username
+            postgres_password: PostgreSQL password
+            postgres_database: Main PostgreSQL database name
         """
-        super().__init__(service_name="insforge")
+        super().__init__(service_name="supabase")
 
+        self.api_url = api_url.rstrip('/')
         self.api_key = api_key
-        self.backend_url = backend_url.rstrip('/')
 
-        # HTTP headers for API requests
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        # PostgreSQL connection for state management (Supabase CLI instance)
+        self.postgres_host = postgres_host
+        self.postgres_port = postgres_port
+        self.postgres_user = postgres_user
+        self.postgres_password = postgres_password
+        self.postgres_database = postgres_database
 
         # Track current task context for agent configuration
         self._current_task_context: Optional[Dict[str, Any]] = None
@@ -51,9 +67,9 @@ class InsforgeStateManager(BaseStateManager):
         # Validate connection on initialization
         try:
             self._test_connection()
-            logger.info("Insforge state manager initialized successfully")
+            logger.info("Supabase state manager initialized successfully")
         except Exception as e:
-            raise RuntimeError(f"Insforge initialization failed: {e}")
+            raise RuntimeError(f"Supabase initialization failed: {e}")
 
         # Store baseline tables (system tables that exist before any tasks run)
         self._baseline_tables = set(
@@ -62,26 +78,20 @@ class InsforgeStateManager(BaseStateManager):
         logger.debug(f"Stored baseline: {len(self._baseline_tables)} tables")
 
     def _test_connection(self):
-        """Test backend connection."""
+        """Test PostgreSQL connection."""
         try:
-            # Simple connectivity test - try any endpoint
-            response = requests.get(
-                f"{self.backend_url}/api/health",
-                timeout=5,
-            )
-            # Any response (even 404) means backend is reachable
-            logger.debug(f"Insforge backend connectivity test: {response.status_code}")
-        except requests.exceptions.RequestException:
-            # Try with API key
-            try:
-                response = requests.get(
-                    f"{self.backend_url}/api/auth/sessions/current",
-                    headers=self.headers,
-                    timeout=5,
-                )
-                logger.debug(f"Insforge backend auth test: {response.status_code}")
-            except Exception as inner_e:
-                raise RuntimeError(f"Cannot connect to Insforge backend: {inner_e}")
+            conn_params = {
+                "host": self.postgres_host,
+                "port": self.postgres_port,
+                "user": self.postgres_user,
+                "password": self.postgres_password,
+                "database": self.postgres_database,
+            }
+            conn = psycopg2.connect(**conn_params)
+            conn.close()
+            logger.debug("PostgreSQL connection test successful")
+        except Exception as e:
+            raise RuntimeError(f"Cannot connect to PostgreSQL: {e}")
 
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
         """Create initial backend state for a task.
@@ -99,14 +109,16 @@ class InsforgeStateManager(BaseStateManager):
             state_id = f"{task.category_id}_{task.task_id}_{self._get_timestamp()}"
             schema_name = task.category_id
 
-            logger.info(f"| Creating initial state for Insforge task: {task.name}")
+            logger.info(f"| Creating initial state for Supabase task: {task.name}")
+
+            # Drop schema first (cleanup from previous runs)
+            self._drop_schema(schema_name)
 
             # Get list of existing tables before restore (to track what we create)
             tables_before = self._get_all_tables()
             logger.info(f"| Tables before restore: {len(tables_before)}")
 
             # Create schema for this task (in case backup uses it)
-            self._drop_schema(schema_name)
             self._create_schema(schema_name)
 
             # Restore from backup if backup exists (may create tables in public or task schema)
@@ -140,12 +152,12 @@ class InsforgeStateManager(BaseStateManager):
                 "task_id": task.task_id,
                 "task_name": task.name,
                 "schema": schema_name,
-                "created_tables": created_tables,  # Track all created tables
+                "created_tables": created_tables,
             }
 
             return InitialStateInfo(
                 state_id=state_id,
-                state_url=self.backend_url,
+                state_url=self.api_url,
                 metadata=context,
             )
 
@@ -158,7 +170,7 @@ class InsforgeStateManager(BaseStateManager):
     ) -> None:
         """Store backend info in task object for agent access."""
         if hasattr(task, "__dict__"):
-            task.backend_url = self.backend_url
+            task.api_url = self.api_url
             task.api_key = self.api_key
             task.state_id = state_info.state_id
 
@@ -224,9 +236,6 @@ class InsforgeStateManager(BaseStateManager):
     def _cleanup_single_resource(self, resource: Dict[str, Any]) -> bool:
         """Clean up a single tracked resource.
 
-        This is a placeholder for resource-specific cleanup logic.
-        Tasks should handle their own cleanup via cleanup scripts.
-
         Args:
             resource: Resource dictionary with type, id, and metadata
 
@@ -242,7 +251,7 @@ class InsforgeStateManager(BaseStateManager):
     def _run_prepare_environment(self, task: BaseTask) -> bool:
         """Run prepare_environment.py script if it exists in the task directory.
 
-        The script should use Insforge MCP tools or HTTP API to set up required state.
+        The script should use database operations to set up required state.
 
         Args:
             task: Task for which to prepare environment
@@ -262,8 +271,13 @@ class InsforgeStateManager(BaseStateManager):
         # Set up environment variables for the script
         env = os.environ.copy()
         env.update({
-            "INSFORGE_BACKEND_URL": self.backend_url,
-            "INSFORGE_API_KEY": self.api_key,
+            "SUPABASE_API_URL": self.api_url,
+            "SUPABASE_API_KEY": self.api_key,
+            "POSTGRES_HOST": self.postgres_host,
+            "POSTGRES_PORT": str(self.postgres_port),
+            "POSTGRES_DATABASE": self.postgres_database,
+            "POSTGRES_USERNAME": self.postgres_user,
+            "POSTGRES_PASSWORD": self.postgres_password,
         })
 
         try:
@@ -297,20 +311,16 @@ class InsforgeStateManager(BaseStateManager):
     def _get_timestamp(self) -> str:
         """Get timestamp for unique naming."""
         from datetime import datetime
-
         return datetime.now().strftime("%Y%m%d%H%M%S")
 
     def _drop_schema(self, schema_name: str) -> None:
         """Drop schema and all its contents."""
-        import psycopg2
-        from psycopg2 import sql
-
         conn_params = {
-            "host": "localhost",
-            "port": 5432,
-            "user": "postgres",
-            "password": "postgres",
-            "database": "insforge",
+            "host": self.postgres_host,
+            "port": self.postgres_port,
+            "user": self.postgres_user,
+            "password": self.postgres_password,
+            "database": self.postgres_database,
         }
 
         conn = psycopg2.connect(**conn_params)
@@ -328,15 +338,12 @@ class InsforgeStateManager(BaseStateManager):
 
     def _create_schema(self, schema_name: str) -> None:
         """Create empty schema."""
-        import psycopg2
-        from psycopg2 import sql
-
         conn_params = {
-            "host": "localhost",
-            "port": 5432,
-            "user": "postgres",
-            "password": "postgres",
-            "database": "insforge",
+            "host": self.postgres_host,
+            "port": self.postgres_port,
+            "user": self.postgres_user,
+            "password": self.postgres_password,
+            "database": self.postgres_database,
         }
 
         conn = psycopg2.connect(**conn_params)
@@ -356,14 +363,12 @@ class InsforgeStateManager(BaseStateManager):
         Returns:
             List of dicts with 'schema' and 'name' keys
         """
-        import psycopg2
-
         conn_params = {
-            "host": "localhost",
-            "port": 5432,
-            "user": "postgres",
-            "password": "postgres",
-            "database": "insforge",
+            "host": self.postgres_host,
+            "port": self.postgres_port,
+            "user": self.postgres_user,
+            "password": self.postgres_password,
+            "database": self.postgres_database,
         }
 
         conn = psycopg2.connect(**conn_params)
@@ -385,15 +390,12 @@ class InsforgeStateManager(BaseStateManager):
 
     def _drop_table(self, schema_name: str, table_name: str) -> None:
         """Drop a specific table."""
-        import psycopg2
-        from psycopg2 import sql
-
         conn_params = {
-            "host": "localhost",
-            "port": 5432,
-            "user": "postgres",
-            "password": "postgres",
-            "database": "insforge",
+            "host": self.postgres_host,
+            "port": self.postgres_port,
+            "user": self.postgres_user,
+            "password": self.postgres_password,
+            "database": self.postgres_database,
         }
 
         conn = psycopg2.connect(**conn_params)
@@ -422,12 +424,11 @@ class InsforgeStateManager(BaseStateManager):
         Returns:
             True if backup was restored, False if no backup exists
         """
-        # Path to backup file
+        # Path to backup file (same as used by Insforge/Postgres)
         backup_dir = Path(__file__).parent.parent.parent.parent / "postgres_state"
         backup_file = backup_dir / f"{category_name}.backup"
 
         logger.debug(f"| Looking for backup at: {backup_file}")
-        logger.debug(f"| Backup exists: {backup_file.exists()}")
 
         if not backup_file.exists():
             logger.info(f"| ○ No backup file found: {backup_file}")
@@ -437,17 +438,17 @@ class InsforgeStateManager(BaseStateManager):
 
         # Set up environment for pg_restore
         env = os.environ.copy()
-        env["PGPASSWORD"] = "postgres"
+        env["PGPASSWORD"] = self.postgres_password
 
         try:
-            # Restore backup without schema filter (tables go to whatever schema they're in)
+            # Restore backup
             result = subprocess.run(
                 [
                     "pg_restore",
-                    "-h", "localhost",
-                    "-p", "5432",
-                    "-U", "postgres",
-                    "-d", "insforge",
+                    "-h", self.postgres_host,
+                    "-p", str(self.postgres_port),
+                    "-U", self.postgres_user,
+                    "-d", self.postgres_database,
                     "-v",
                     str(backup_file),
                 ],
@@ -475,19 +476,23 @@ class InsforgeStateManager(BaseStateManager):
         """Get configuration for agent execution.
 
         This configuration is passed to the agent/MCP server so it can
-        connect to the Insforge backend.
+        connect to the Supabase/PostgREST endpoint.
 
         Returns:
-            Dictionary containing backend URL and API key
+            Dictionary containing API URL and API key
         """
         config = {
-            "backend_url": self.backend_url,
+            "api_url": self.api_url,
             "api_key": self.api_key,
+            "schema": "public",  # Default schema for PostgREST
         }
 
         # Include current task context if available
         if self._current_task_context:
             config["task_context"] = self._current_task_context
+            # If task uses a specific schema, include it
+            if self._current_task_context.get("schema"):
+                config["schema"] = self._current_task_context["schema"]
 
         return config
 
@@ -497,18 +502,17 @@ class InsforgeStateManager(BaseStateManager):
         Args:
             messages_path: Optional path to messages.json file for verification
         """
-        os.environ["INSFORGE_BACKEND_URL"] = self.backend_url
-        os.environ["INSFORGE_API_KEY"] = self.api_key
+        os.environ["SUPABASE_API_URL"] = self.api_url
+        os.environ["SUPABASE_API_KEY"] = self.api_key
 
         # Set PostgreSQL connection details for direct database verification
-        # (Insforge exposes its internal postgres database for verification)
-        os.environ["POSTGRES_HOST"] = "localhost"
-        os.environ["POSTGRES_PORT"] = "5432"
-        os.environ["POSTGRES_DATABASE"] = "insforge"
-        os.environ["POSTGRES_USERNAME"] = "postgres"
-        os.environ["POSTGRES_PASSWORD"] = "postgres"
+        os.environ["POSTGRES_HOST"] = self.postgres_host
+        os.environ["POSTGRES_PORT"] = str(self.postgres_port)
+        os.environ["POSTGRES_DATABASE"] = self.postgres_database
+        os.environ["POSTGRES_USERNAME"] = self.postgres_user
+        os.environ["POSTGRES_PASSWORD"] = self.postgres_password
 
         if messages_path:
             os.environ["MCP_MESSAGES"] = str(messages_path)
 
-        logger.debug("Verification environment variables set for Insforge (including direct postgres access)")
+        logger.debug("Verification environment variables set for Supabase (including direct postgres access)")

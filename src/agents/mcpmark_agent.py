@@ -863,7 +863,7 @@ class MCPMarkAgent(BaseMCPAgent):
                 raise ValueError("Insforge requires api_key and backend_url")
             return MCPStdioServer(
                 command="npx",
-                args=["-y", "@insforge/mcp"],
+                args=["-y", "@insforge/mcp@dev"],
                 env={
                     "INSFORGE_API_KEY": api_key,
                     "INSFORGE_BACKEND_URL": backend_url,
@@ -880,7 +880,7 @@ class MCPMarkAgent(BaseMCPAgent):
             github_token = self.service_config.get("github_token")
             if not github_token:
                 raise ValueError("GitHub token required")
-            
+
             return MCPHttpServer(
                 url="https://api.githubcopilot.com/mcp/",
                 headers={
@@ -888,6 +888,26 @@ class MCPMarkAgent(BaseMCPAgent):
                     "User-Agent": "MCPMark/1.0"
                 }
             )
+
+        elif self.mcp_service == "supabase":
+            # Use built-in MCP server from Supabase CLI
+            api_url = self.service_config.get("api_url", "http://localhost:54321")
+            api_key = self.service_config.get("api_key", "")
+
+            if not api_key:
+                raise ValueError("Supabase requires api_key (use secret key from 'supabase status')")
+
+            # Supabase CLI exposes MCP at /mcp endpoint
+            mcp_url = f"{api_url}/mcp"
+
+            return MCPHttpServer(
+                url=mcp_url,
+                headers={
+                    "apikey": api_key,
+                    "Authorization": f"Bearer {api_key}",
+                }
+            )
+
         else:
             raise ValueError(f"Unsupported HTTP service: {self.mcp_service}")
     

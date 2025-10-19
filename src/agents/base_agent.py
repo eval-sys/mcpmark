@@ -20,7 +20,7 @@ class BaseMCPAgent(ABC):
     """Base class with shared functionality for MCPMark agents."""
 
     STDIO_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena", "postgres", "insforge"]
-    HTTP_SERVICES = ["github"]
+    HTTP_SERVICES = ["github", "supabase"]
     DEFAULT_TIMEOUT = 600
 
     CLAUDE_THINKING_BUDGETS = {
@@ -214,7 +214,7 @@ class BaseMCPAgent(ABC):
                 raise ValueError("Insforge requires api_key and backend_url")
             return MCPStdioServer(
                 command="npx",
-                args=["-y", "@insforge/mcp"],
+                args=["-y", "@insforge/mcp@dev"],
                 env={
                     "INSFORGE_API_KEY": api_key,
                     "INSFORGE_BACKEND_URL": backend_url,
