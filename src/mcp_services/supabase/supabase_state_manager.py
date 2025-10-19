@@ -118,8 +118,7 @@ class SupabaseStateManager(BaseStateManager):
             tables_before = self._get_all_tables()
             logger.info(f"| Tables before restore: {len(tables_before)}")
 
-            # Create schema for this task (in case backup uses it)
-            self._create_schema(schema_name)
+            # Note: Don't create schema here - pg_restore will create it from the backup
 
             # Restore from backup if backup exists (may create tables in public or task schema)
             if self._restore_from_backup(schema_name):

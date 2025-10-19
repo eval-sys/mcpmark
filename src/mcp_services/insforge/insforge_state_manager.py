@@ -101,13 +101,14 @@ class InsforgeStateManager(BaseStateManager):
 
             logger.info(f"| Creating initial state for Insforge task: {task.name}")
 
+            # Drop schema first (cleanup from previous runs)
+            self._drop_schema(schema_name)
+
             # Get list of existing tables before restore (to track what we create)
             tables_before = self._get_all_tables()
             logger.info(f"| Tables before restore: {len(tables_before)}")
 
-            # Create schema for this task (in case backup uses it)
-            self._drop_schema(schema_name)
-            self._create_schema(schema_name)
+            # Note: Don't create schema here - pg_restore will create it from the backup
 
             # Restore from backup if backup exists (may create tables in public or task schema)
             if self._restore_from_backup(schema_name):
