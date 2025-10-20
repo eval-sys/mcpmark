@@ -385,7 +385,7 @@ class InsforgeStateManager(BaseStateManager):
             conn.close()
 
     def _drop_table(self, schema_name: str, table_name: str) -> None:
-        """Drop a specific table."""
+        """Drop a specific table or materialized view."""
         import psycopg2
         from psycopg2 import sql
 
@@ -401,13 +401,21 @@ class InsforgeStateManager(BaseStateManager):
         conn.autocommit = True
         try:
             with conn.cursor() as cur:
+                # Try dropping as table first
                 cur.execute(
                     sql.SQL("DROP TABLE IF EXISTS {}.{} CASCADE").format(
                         sql.Identifier(schema_name),
                         sql.Identifier(table_name)
                     )
                 )
-                logger.debug(f"| Dropped table: {schema_name}.{table_name}")
+                # Also try dropping as materialized view (in case agent created one)
+                cur.execute(
+                    sql.SQL("DROP MATERIALIZED VIEW IF EXISTS {}.{} CASCADE").format(
+                        sql.Identifier(schema_name),
+                        sql.Identifier(table_name)
+                    )
+                )
+                logger.debug(f"| Dropped table/view: {schema_name}.{table_name}")
         finally:
             conn.close()
 

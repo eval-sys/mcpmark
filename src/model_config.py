@@ -97,6 +97,11 @@ class ModelConfig:
             "api_key_var": "ANTHROPIC_API_KEY",
             "litellm_input_model_name": "anthropic/claude-sonnet-4-20250514",
         },
+        "claude-sonnet-4.5": {
+            "provider": "anthropic",
+            "api_key_var": "ANTHROPIC_API_KEY",
+            "litellm_input_model_name": "anthropic/claude-sonnet-4-5-20250929",
+        },
         "claude-opus-4": {
             "provider": "anthropic",
             "api_key_var": "ANTHROPIC_API_KEY",
