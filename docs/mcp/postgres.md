@@ -43,6 +43,8 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
    ```
 
 2. **Create Databases and Restore from Backups**
+   > Make sure your Postgres client version matches the server's version (e.g., pg17).
+
    ```bash
    # Set the password environment variable
    export PGPASSWORD=password
@@ -64,7 +66,7 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
    pg_restore -h localhost -U postgres -d lego -v ./postgres_state/lego.backup
    ```
 
-3. **Verify Databases are Imported**
+4. **Verify Databases are Imported**
    ```bash
    # List all databases
    PGPASSWORD=password psql -h localhost -U postgres -c "\l"
