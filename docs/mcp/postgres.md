@@ -66,7 +66,7 @@ This guide walks you through preparing your PostgreSQL environment for MCPMark e
    pg_restore -h localhost -U postgres -d lego -v ./postgres_state/lego.backup
    ```
 
-4. **Verify Databases are Imported**
+3. **Verify Databases are Imported**
    ```bash
    # List all databases
    PGPASSWORD=password psql -h localhost -U postgres -c "\l"
