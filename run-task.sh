@@ -139,6 +139,16 @@ elif [ "$SERVICE" = "filesystem" ]; then
         $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
         "$DOCKER_IMAGE" \
         python3 -m pipeline --mcp "$SERVICE" --k 1 "$@"
+elif [ "$SERVICE" = "insforge" ]; then
+    # For Insforge service, use host network to access Insforge backend on host
+    docker run --rm \
+        --memory="$DOCKER_MEMORY_LIMIT" \
+        --cpus="$DOCKER_CPU_LIMIT" \
+        --add-host=host.docker.internal:host-gateway \
+        -v "$(pwd)/results:/app/results" \
+        $([ -f .mcp_env ] && echo "-v $(pwd)/.mcp_env:/app/.mcp_env:ro") \
+        "$DOCKER_IMAGE" \
+        python3 -m pipeline --mcp "$SERVICE" --k 1 "$@"
 else
     # For other services (notion, github, playwright, etc.)
     docker run --rm \

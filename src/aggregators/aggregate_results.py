@@ -23,9 +23,9 @@ from src.aggregators.pricing import compute_cost_usd
 def discover_tasks() -> Dict[str, List[str]]:
     """Discover all tasks from ./tasks directory."""
     tasks_dir = Path("./tasks")
-    
+
     all_tasks = {}
-    
+
     # Handle each MCP service
     # Note: playwright and playwright_webarena both map to "playwright" MCP
     service_mappings = {
@@ -33,9 +33,9 @@ def discover_tasks() -> Dict[str, List[str]]:
         "github": ["github"],
         "notion": ["notion"],
         "playwright": ["playwright", "playwright_webarena"],  # Both count as playwright
-        "postgres": ["postgres"]
+        "postgres": ["postgres", "supabase", "insforge"]  # All map to postgres
     }
-    
+
     for mcp_service, task_dirs in service_mappings.items():
         tasks = []
         for task_dir_name in task_dirs:
@@ -68,9 +68,11 @@ def collect_results(exp_dir: Path, k: int) -> Dict[str, Dict[str, Any]]:
             continue
         
         model, service = model_service_dir.name.split("__", 1)
-        # Normalize service name: treat playwright_webarena as playwright
+        # Normalize service names
         if service == "playwright_webarena":
             service = "playwright"
+        elif service in ["supabase", "insforge"]:
+            service = "postgres"
         
         for run_idx in range(1, k + 1):
             run_dir = model_service_dir / f"run-{run_idx}"
@@ -874,23 +876,23 @@ def main():
         help="Comma-separated list of models that only need run-1"
     )
     parser.add_argument("--push", action="store_true", help="Push to GitHub (default to main)")
-    
+
     args = parser.parse_args()
-    
+
     # Parse single-run models
     single_run_models = []
     if args.single_run_models:
         single_run_models = [m.strip() for m in args.single_run_models.split(",")]
         print(f"📌 Single-run models: {', '.join(single_run_models)}")
-    
+
     # Setup paths
     exp_dir = Path("./results") / args.exp_name
     if not exp_dir.exists():
         print(f"❌ Experiment directory {exp_dir} does not exist")
         return 1
-    
+
     print(f"🔄 Processing experiment: {args.exp_name}")
-    
+
     # Discover all tasks
     print("📋 Discovering tasks...")
     all_tasks = discover_tasks()
