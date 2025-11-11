@@ -1,0 +1,25 @@
+{
+  "task_id": "buyitforlife_research_easy",
+  "task_name": "Buy It For Life Research (Easy)",
+  "category_id": "reddit",
+  "category_name": "Reddit",
+  "description": "Capture just the top two durable-goods threads plus the standout comment and summarize them for the BuyItForLife forum.",
+  "author": "Fanqing Meng",
+  "created_at": "2025-08-12",
+  "difficulty": "L2",
+  "tags": [
+    "user interaction",
+    "data extraction",
+    "search aggregation",
+    "content submission"
+  ],
+  "mcp": [
+    "playwright"
+  ],
+  "meta_data": {
+    "stateType": "video",
+    "stateContent": null,
+    "stateUrl": "https://storage.mcpmark.ai/tasks_state/playwright_video/postmill.mp4",
+    "stateOriginalUrl": "https://github.com/web-arena-x/webarena/tree/main/environment_docker"
+  }
+}
