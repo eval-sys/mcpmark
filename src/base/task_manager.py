@@ -253,12 +253,22 @@ class BaseTaskManager(ABC):
             TaskVerificationError: If verification fails or times out
         """
         try:
-            return subprocess.run(
+            result = subprocess.run(
                 self._get_verification_command(task),
                 capture_output=True,  # Capture stdout and stderr for logging
                 text=True,
                 timeout=300,
+                check=False,  # Don't raise on non-zero exit, we check returncode below
             )
+            # Check return code manually and raise if non-zero
+            if result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    result.returncode,
+                    self._get_verification_command(task),
+                    result.stdout,
+                    result.stderr
+                )
+            return result
         except subprocess.TimeoutExpired as e:
             raise TaskVerificationError(
                 task_name=task.name,
