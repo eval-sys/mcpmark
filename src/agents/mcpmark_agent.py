@@ -15,6 +15,15 @@ import litellm
 import nest_asyncio
 
 from src.logger import get_logger
+from src.exceptions import (
+    AgentExecutionError,
+    AgentTimeoutError,
+    LLMRateLimitError,
+    LLMQuotaExceededError,
+    LLMContextWindowExceededError,
+    MissingConfigurationError,
+    InvalidConfigurationError,
+)
 from .base_agent import BaseMCPAgent
 from .mcp import MCPStdioServer, MCPHttpServer
 
@@ -133,9 +142,22 @@ class MCPMarkAgent(BaseMCPAgent):
             if isinstance(e, asyncio.TimeoutError):
                 error_msg = f"Execution timed out after {self.timeout} seconds"
                 logger.error(error_msg)
+                # Convert to AgentTimeoutError but don't raise - return error result
+                timeout_error = AgentTimeoutError(
+                    agent_name=self.__class__.__name__,
+                    timeout=self.timeout,
+                    cause=e
+                )
+                error_msg = str(timeout_error)
             else:
-                error_msg = f"Agent execution failed: {e}"
-                logger.error(error_msg, exc_info=True)
+                # Check if it's already an MCPMarkException
+                if isinstance(e, (AgentExecutionError, AgentTimeoutError, 
+                                 LLMRateLimitError, LLMQuotaExceededError, 
+                                 LLMContextWindowExceededError)):
+                    error_msg = str(e)
+                else:
+                    error_msg = f"Agent execution failed: {e}"
+                    logger.error(error_msg, exc_info=True)
             
             self.usage_tracker.update(
                 success=False,
@@ -606,17 +628,46 @@ class MCPMarkAgent(BaseMCPAgent):
                     logger.warning(f"| ✗ LLM call timed out on turn {turn_count + 1}")
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
-                        raise Exception(f"Too many consecutive failures ({consecutive_failures})")
+                        raise AgentTimeoutError(
+                            agent_name=self.__class__.__name__,
+                            timeout=self.timeout / 2,
+                            cause=asyncio.TimeoutError(f"Too many consecutive failures ({consecutive_failures})")
+                        )
                     await asyncio.sleep(8 ** consecutive_failures)  # Exponential backoff
                     continue
                 except Exception as e:
                     logger.error(f"| ✗ LLM call failed on turn {turn_count + 1}: {e}")
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
-                        raise
+                        # Convert to appropriate exception type
+                        error_str = str(e)
+                        if "ContextWindowExceededError" in error_str:
+                            raise LLMContextWindowExceededError(
+                                model_name=self.litellm_input_model_name,
+                                cause=e
+                            )
+                        elif "RateLimitError" in error_str or "rate limit" in error_str.lower():
+                            raise LLMRateLimitError(
+                                model_name=self.litellm_input_model_name,
+                                cause=e
+                            )
+                        elif "quota" in error_str.lower() or "account balance" in error_str.lower():
+                            raise LLMQuotaExceededError(
+                                model_name=self.litellm_input_model_name,
+                                cause=e
+                            )
+                        else:
+                            raise AgentExecutionError(
+                                agent_name=self.__class__.__name__,
+                                reason=str(e),
+                                cause=e
+                            )
                     if "ContextWindowExceededError" in str(e):
-                        raise
-                    elif "RateLimitError" in str(e):
+                        raise LLMContextWindowExceededError(
+                            model_name=self.litellm_input_model_name,
+                            cause=e
+                        )
+                    elif "RateLimitError" in str(e) or "rate limit" in str(e).lower():
                         await asyncio.sleep(12 ** consecutive_failures)
                     else:
                         await asyncio.sleep(2 ** consecutive_failures)
@@ -789,7 +840,11 @@ class MCPMarkAgent(BaseMCPAgent):
         elif self.mcp_service in self.HTTP_SERVICES:
             return self._create_http_server()
         else:
-            raise ValueError(f"Unsupported MCP service: {self.mcp_service}")
+            raise InvalidConfigurationError(
+                config_key="mcp_service",
+                value=self.mcp_service,
+                reason=f"Unsupported MCP service. STDIO services: {self.STDIO_SERVICES}, HTTP services: {self.HTTP_SERVICES}"
+            )
     
 
     def _create_stdio_server(self) -> MCPStdioServer:
@@ -797,7 +852,10 @@ class MCPMarkAgent(BaseMCPAgent):
         if self.mcp_service == "notion":
             notion_key = self.service_config.get("notion_key")
             if not notion_key:
-                raise ValueError("Notion API key required")
+                raise MissingConfigurationError(
+                    config_key="notion_key",
+                    service="notion"
+                )
             
             return MCPStdioServer(
                 command="npx",
@@ -813,7 +871,10 @@ class MCPMarkAgent(BaseMCPAgent):
         elif self.mcp_service == "filesystem":
             test_directory = self.service_config.get("test_directory")
             if not test_directory:
-                raise ValueError("Test directory required for filesystem service")
+                raise MissingConfigurationError(
+                    config_key="test_directory",
+                    service="filesystem"
+                )
             
             return MCPStdioServer(
                 command="npx",
@@ -846,7 +907,11 @@ class MCPMarkAgent(BaseMCPAgent):
             database = self.service_config.get("current_database") or self.service_config.get("database")
 
             if not all([username, password, database]):
-                raise ValueError("PostgreSQL requires username, password, and database")
+                missing = [k for k, v in [("username", username), ("password", password), ("database", database)] if not v]
+                raise MissingConfigurationError(
+                    config_key=", ".join(missing),
+                    service="postgres"
+                )
 
             database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
 
@@ -860,7 +925,11 @@ class MCPMarkAgent(BaseMCPAgent):
             api_key = self.service_config.get("api_key")
             backend_url = self.service_config.get("backend_url")
             if not all([api_key, backend_url]):
-                raise ValueError("Insforge requires api_key and backend_url")
+                missing = [k for k, v in [("api_key", api_key), ("backend_url", backend_url)] if not v]
+                raise MissingConfigurationError(
+                    config_key=", ".join(missing),
+                    service="insforge"
+                )
             return MCPStdioServer(
                 command="npx",
                 args=["-y", "@insforge/mcp@dev"],
@@ -871,7 +940,11 @@ class MCPMarkAgent(BaseMCPAgent):
             )
 
         else:
-            raise ValueError(f"Unsupported stdio service: {self.mcp_service}")
+            raise InvalidConfigurationError(
+                config_key="mcp_service",
+                value=self.mcp_service,
+                reason=f"Unsupported stdio service. Supported: {self.STDIO_SERVICES}"
+            )
     
 
     def _create_http_server(self) -> MCPHttpServer:
@@ -879,7 +952,10 @@ class MCPMarkAgent(BaseMCPAgent):
         if self.mcp_service == "github":
             github_token = self.service_config.get("github_token")
             if not github_token:
-                raise ValueError("GitHub token required")
+                raise MissingConfigurationError(
+                    config_key="github_token",
+                    service="github"
+                )
 
             return MCPHttpServer(
                 url="https://api.githubcopilot.com/mcp/",
@@ -895,7 +971,10 @@ class MCPMarkAgent(BaseMCPAgent):
             api_key = self.service_config.get("api_key", "")
 
             if not api_key:
-                raise ValueError("Supabase requires api_key (use secret key from 'supabase status')")
+                raise MissingConfigurationError(
+                    config_key="api_key",
+                    service="supabase"
+                )
 
             # Supabase CLI exposes MCP at /mcp endpoint
             mcp_url = f"{api_url}/mcp"
@@ -909,5 +988,9 @@ class MCPMarkAgent(BaseMCPAgent):
             )
 
         else:
-            raise ValueError(f"Unsupported HTTP service: {self.mcp_service}")
+            raise InvalidConfigurationError(
+                config_key="mcp_service",
+                value=self.mcp_service,
+                reason=f"Unsupported HTTP service. Supported: {self.HTTP_SERVICES}"
+            )
     

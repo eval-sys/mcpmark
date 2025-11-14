@@ -21,6 +21,7 @@ from src.base.state_manager import BaseStateManager
 from src.base.task_manager import BaseTaskManager
 from src.config.config_schema import ConfigRegistry
 from src.services import get_service_definition, get_supported_mcp_services
+from src.exceptions import ConfigurationError
 
 
 @dataclass
@@ -37,9 +38,16 @@ def import_class(module_path: str):
     """Dynamically import a class from module path string."""
     if not module_path:
         return None
-    module_name, class_name = module_path.rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    return getattr(module, class_name)
+    try:
+        module_name, class_name = module_path.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        return getattr(module, class_name)
+    except (ImportError, AttributeError) as e:
+        raise ConfigurationError(
+            message=f"Failed to import class from '{module_path}': {e}",
+            context={"module_path": module_path},
+            cause=e
+        )
 
 
 def apply_config_mapping(config: dict, mapping: dict) -> dict:

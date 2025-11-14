@@ -10,6 +10,11 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Callable
 
 from src.logger import get_logger
+from src.exceptions import (
+    MissingConfigurationError,
+    InvalidConfigurationError,
+    MCPServiceError,
+)
 from .mcp import MCPStdioServer, MCPHttpServer
 from .utils import TokenUsageTracker
 
@@ -144,13 +149,20 @@ class BaseMCPAgent(ABC):
             return self._create_stdio_server()
         if self.mcp_service in self.HTTP_SERVICES:
             return self._create_http_server()
-        raise ValueError(f"Unsupported MCP service: {self.mcp_service}")
+        raise InvalidConfigurationError(
+            config_key="mcp_service",
+            value=self.mcp_service,
+            reason=f"Unsupported MCP service. STDIO services: {self.STDIO_SERVICES}, HTTP services: {self.HTTP_SERVICES}"
+        )
 
     def _create_stdio_server(self) -> MCPStdioServer:
         if self.mcp_service == "notion":
             notion_key = self.service_config.get("notion_key")
             if not notion_key:
-                raise ValueError("Notion API key required")
+                raise MissingConfigurationError(
+                    config_key="notion_key",
+                    service="notion"
+                )
             return MCPStdioServer(
                 command="npx",
                 args=["-y", "@notionhq/notion-mcp-server"],
@@ -165,7 +177,10 @@ class BaseMCPAgent(ABC):
         if self.mcp_service == "filesystem":
             test_directory = self.service_config.get("test_directory")
             if not test_directory:
-                raise ValueError("Test directory required for filesystem service")
+                raise MissingConfigurationError(
+                    config_key="test_directory",
+                    service="filesystem"
+                )
             return MCPStdioServer(
                 command="npx",
                 args=["-y", "@modelcontextprotocol/server-filesystem", str(test_directory)],
@@ -199,7 +214,11 @@ class BaseMCPAgent(ABC):
             password = self.service_config.get("password")
             database = self.service_config.get("current_database") or self.service_config.get("database")
             if not all([username, password, database]):
-                raise ValueError("PostgreSQL requires username, password, and database")
+                missing = [k for k, v in [("username", username), ("password", password), ("database", database)] if not v]
+                raise MissingConfigurationError(
+                    config_key=", ".join(missing),
+                    service="postgres"
+                )
             database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
             return MCPStdioServer(
                 command="pipx",
@@ -211,7 +230,11 @@ class BaseMCPAgent(ABC):
             api_key = self.service_config.get("api_key")
             backend_url = self.service_config.get("backend_url")
             if not all([api_key, backend_url]):
-                raise ValueError("Insforge requires api_key and backend_url")
+                missing = [k for k, v in [("api_key", api_key), ("backend_url", backend_url)] if not v]
+                raise MissingConfigurationError(
+                    config_key=", ".join(missing),
+                    service="insforge"
+                )
             return MCPStdioServer(
                 command="npx",
                 args=["-y", "@insforge/mcp@dev"],
@@ -221,13 +244,20 @@ class BaseMCPAgent(ABC):
                 },
             )
 
-        raise ValueError(f"Unsupported stdio service: {self.mcp_service}")
+        raise InvalidConfigurationError(
+            config_key="mcp_service",
+            value=self.mcp_service,
+            reason=f"Unsupported stdio service. Supported: {self.STDIO_SERVICES}"
+        )
 
     def _create_http_server(self) -> MCPHttpServer:
         if self.mcp_service == "github":
             github_token = self.service_config.get("github_token")
             if not github_token:
-                raise ValueError("GitHub token required")
+                raise MissingConfigurationError(
+                    config_key="github_token",
+                    service="github"
+                )
             return MCPHttpServer(
                 url="https://api.githubcopilot.com/mcp/",
                 headers={
@@ -235,7 +265,11 @@ class BaseMCPAgent(ABC):
                     "User-Agent": "MCPMark/1.0",
                 },
             )
-        raise ValueError(f"Unsupported HTTP service: {self.mcp_service}")
+        raise InvalidConfigurationError(
+            config_key="mcp_service",
+            value=self.mcp_service,
+            reason=f"Unsupported HTTP service. Supported: {self.HTTP_SERVICES}"
+        )
 
     # ------------------------------------------------------------------
     # Message/Tool formatting helpers

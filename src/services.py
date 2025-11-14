@@ -445,7 +445,12 @@ SERVICES = {
 def get_service_definition(service_name: str) -> dict:
     """Get MCP service definition by name."""
     if service_name not in SERVICES:
-        raise ValueError(f"Unknown MCP service: {service_name}")
+        from src.exceptions import InvalidConfigurationError
+        raise InvalidConfigurationError(
+            config_key="service_name",
+            value=service_name,
+            reason=f"Unknown MCP service. Available: {sorted(SERVICES.keys())}"
+        )
     return SERVICES[service_name]
 
 
