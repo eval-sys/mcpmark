@@ -349,14 +349,17 @@ class MCPMarkAgent(BaseMCPAgent):
                 tools=tools,
                 system=system_text
             )
-            if turn_count == 1:
-                self.litellm_run_model_name = response['model'].split("/")[-1]
             
+            # Check for errors immediately after API call, before accessing response
             if error_msg:
                 break
             
+            # Now safe to access response fields
+            if turn_count == 1 and response and "model" in response:
+                self.litellm_run_model_name = response['model'].split("/")[-1]
+            
             # Update token usage
-            if "usage" in response:
+            if response and "usage" in response:
                 usage = response["usage"]
                 input_tokens = usage.get("input_tokens", 0)
                 output_tokens = usage.get("output_tokens", 0)
@@ -370,7 +373,7 @@ class MCPMarkAgent(BaseMCPAgent):
                 ## TODO: add reasoning tokens for claude
             
             # Extract blocks from response
-            blocks = response.get("content", [])
+            blocks = response.get("content", []) if response else []
             tool_uses = [b for b in blocks if b.get("type") == "tool_use"]
             thinking_blocks = [b for b in blocks if b.get("type") == "thinking"]
             text_blocks = [b for b in blocks if b.get("type") == "text"]
