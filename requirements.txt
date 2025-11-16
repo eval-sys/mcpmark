@@ -10,3 +10,4 @@ psycopg2
 pyyaml
 nest_asyncio
 litellm==1.76.0
+pydantic
