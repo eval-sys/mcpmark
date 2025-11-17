@@ -56,8 +56,8 @@ class PlaywrightStateManager(BaseStateManager):
         super().__init__(service_name="playwright")
 
         self.browser_name = browser
-        # self.headless = headless
-        self.headless = False
+        self.headless = headless
+        # self.headless = False
         self.state_path = state_path or Path.cwd() / "playwright_state.json"
         self.network_origins = network_origins
         self.user_profile = user_profile

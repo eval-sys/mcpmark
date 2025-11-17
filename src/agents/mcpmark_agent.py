@@ -9,6 +9,7 @@ import asyncio
 import json
 import time
 from typing import Any, Dict, List, Optional, Callable
+from pydantic import AnyUrl
 
 import httpx
 import litellm
@@ -26,6 +27,16 @@ litellm.suppress_debug_info = True
 
 logger = get_logger(__name__)
 
+
+# To fix the "Object of type AnyUrl is not JSON serializable" error in the find_file_contents function.
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, AnyUrl):
+            return str(obj)  
+        return super().default(obj)  
+
+        
+        
 class MCPMarkAgent(BaseMCPAgent):
     """
     Unified agent for LLM and MCP server management using LiteLLM.
@@ -421,7 +432,7 @@ class MCPMarkAgent(BaseMCPAgent):
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tu["id"],
-                        "content": [{"type": "text", "text": json.dumps(result)}],
+                        "content": [{"type": "text", "text": json.dumps(result, cls=CustomJSONEncoder)}],
                     })
                 except Exception as e:
                     logger.error(f"Tool call failed: {e}")
@@ -679,7 +690,7 @@ class MCPMarkAgent(BaseMCPAgent):
                             messages.append({
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
-                                "content": json.dumps(result)
+                                "content": json.dumps(result, cls=CustomJSONEncoder)
                             })
                         except asyncio.TimeoutError:
                             error_msg = f"Tool call '{func_name}' timed out after 60 seconds"
@@ -844,18 +855,32 @@ class MCPMarkAgent(BaseMCPAgent):
             username = self.service_config.get("username")
             password = self.service_config.get("password")
             database = self.service_config.get("current_database") or self.service_config.get("database")
-            
+
             if not all([username, password, database]):
                 raise ValueError("PostgreSQL requires username, password, and database")
-            
+
             database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
-            
+
             return MCPStdioServer(
                 command="pipx",
                 args=["run", "postgres-mcp", "--access-mode=unrestricted"],
                 env={"DATABASE_URI": database_url}
             )
-        
+
+        elif self.mcp_service == "insforge":
+            api_key = self.service_config.get("api_key")
+            backend_url = self.service_config.get("backend_url")
+            if not all([api_key, backend_url]):
+                raise ValueError("Insforge requires api_key and backend_url")
+            return MCPStdioServer(
+                command="npx",
+                args=["-y", "@insforge/mcp@dev"],
+                env={
+                    "INSFORGE_API_KEY": api_key,
+                    "INSFORGE_BACKEND_URL": backend_url,
+                },
+            )
+
         else:
             raise ValueError(f"Unsupported stdio service: {self.mcp_service}")
     
@@ -866,7 +891,7 @@ class MCPMarkAgent(BaseMCPAgent):
             github_token = self.service_config.get("github_token")
             if not github_token:
                 raise ValueError("GitHub token required")
-            
+
             return MCPHttpServer(
                 url="https://api.githubcopilot.com/mcp/",
                 headers={
@@ -874,6 +899,26 @@ class MCPMarkAgent(BaseMCPAgent):
                     "User-Agent": "MCPMark/1.0"
                 }
             )
+
+        elif self.mcp_service == "supabase":
+            # Use built-in MCP server from Supabase CLI
+            api_url = self.service_config.get("api_url", "http://localhost:54321")
+            api_key = self.service_config.get("api_key", "")
+
+            if not api_key:
+                raise ValueError("Supabase requires api_key (use secret key from 'supabase status')")
+
+            # Supabase CLI exposes MCP at /mcp endpoint
+            mcp_url = f"{api_url}/mcp"
+
+            return MCPHttpServer(
+                url=mcp_url,
+                headers={
+                    "apikey": api_key,
+                    "Authorization": f"Bearer {api_key}",
+                }
+            )
+
         else:
             raise ValueError(f"Unsupported HTTP service: {self.mcp_service}")
     
