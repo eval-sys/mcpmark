@@ -1,0 +1,24 @@
+{
+  "task_id": "find_ga_tracking_id",
+  "task_name": "Find GA Tracking ID",
+  "category_id": "missing-semester",
+  "category_name": "Missing Semester (Easy)",
+  "description": "Use GitHub MCP to discover the single Google Analytics tracking ID declared in the site configuration, write it to ANSWER.md, and push the change to master.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "config search",
+    "analytics",
+    "answer file"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/missing-semester",
+    "stateOriginalUrl": "https://github.com/missing-semester/missing-semester"
+  }
+}

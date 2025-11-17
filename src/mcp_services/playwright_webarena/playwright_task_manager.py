@@ -19,7 +19,12 @@ logger = get_logger(__name__)
 class PlaywrightTaskManager(BaseTaskManager):
     """Task manager for Playwright tasks against a WebArena environment."""
 
-    def __init__(self, tasks_root: Path | None = None, base_url: str | None = None):
+    def __init__(
+        self,
+        tasks_root: Path | None = None,
+        base_url: str | None = None,
+        task_suite: str = "standard",
+    ):
         if tasks_root is None:
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
         super().__init__(
@@ -27,6 +32,7 @@ class PlaywrightTaskManager(BaseTaskManager):
             mcp_service="playwright_webarena",
             task_class=BaseTask,
             task_organization="directory",
+            task_suite=task_suite,
         )
 
     def _create_task_from_files(

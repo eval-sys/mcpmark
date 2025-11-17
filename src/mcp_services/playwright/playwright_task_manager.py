@@ -26,7 +26,7 @@ class PlaywrightTask(BaseTask):
 class PlaywrightTaskManager(BaseTaskManager):
     """Simple task manager for Playwright MCP tasks."""
 
-    def __init__(self, tasks_root: Path = None):
+    def __init__(self, tasks_root: Path = None, task_suite: str = "standard"):
         """Initialize with tasks directory."""
         if tasks_root is None:
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
@@ -36,6 +36,7 @@ class PlaywrightTaskManager(BaseTaskManager):
             mcp_service="playwright",
             task_class=PlaywrightTask,
             task_organization="directory",
+            task_suite=task_suite,
         )
 
     def _create_task_from_files(

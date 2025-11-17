@@ -67,17 +67,18 @@ class NotionTask(BaseTask):
 class NotionTaskManager(BaseTaskManager):
     """Manages task discovery, filtering, and verification for Notion-based MCPMark evaluation."""
 
-    def __init__(self, tasks_root: Path = None):
+    def __init__(self, tasks_root: Path = None, task_suite: str = "standard"):
         """Initialize with the tasks directory path.
 
         Args:
             tasks_root: Path to the tasks directory
+            task_suite: Logical task suite (e.g., 'standard', 'easy')
         """
         if tasks_root is None:
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
 
         # Call parent constructor
-        super().__init__(tasks_root, mcp_service="notion")
+        super().__init__(tasks_root, mcp_service="notion", task_suite=task_suite)
 
     # =========================================================================
     # Service-specific implementations for template methods

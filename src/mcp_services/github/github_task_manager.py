@@ -42,7 +42,7 @@ class GitHubTask(BaseTask):
 class GitHubTaskManager(BaseTaskManager):
     """Manages task discovery, filtering, and verification for GitHub-based MCPMark evaluation."""
 
-    def __init__(self, tasks_root: Path = None):
+    def __init__(self, tasks_root: Path = None, task_suite: str = "standard"):
         """Initialize GitHub task manager.
 
         Args:
@@ -57,6 +57,7 @@ class GitHubTaskManager(BaseTaskManager):
             mcp_service="github",
             task_class=GitHubTask,
             task_organization="file",
+            task_suite=task_suite,
         )  # GitHub uses file-based tasks
 
     # =========================================================================

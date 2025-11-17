@@ -55,6 +55,7 @@ class BaseTaskManager(ABC):
         mcp_service: str = None,
         task_class: type = None,
         task_organization: str = None,
+        task_suite: str | None = "standard",
     ):
         """Initialize the base task manager.
 
@@ -63,6 +64,7 @@ class BaseTaskManager(ABC):
             mcp_service: MCP service name (e.g., 'notion', 'github', 'filesystem')
             task_class: Custom task class to use (defaults to BaseTask)
             task_organization: 'file' or 'directory' based task organization
+            task_suite: Logical task suite (e.g., 'standard', 'easy')
         """
         self.tasks_root = tasks_root
         self.mcp_service = mcp_service or self.__class__.__name__.lower().replace(
@@ -70,6 +72,7 @@ class BaseTaskManager(ABC):
         )
         self.task_class = task_class or BaseTask
         self.task_organization = task_organization
+        self.task_suite = task_suite
         self._tasks_cache = None
 
     # =========================================================================
@@ -85,6 +88,8 @@ class BaseTaskManager(ABC):
         service_dir = self.tasks_root / (
             self.mcp_service or self._get_service_directory_name()
         )
+        if self.task_suite:
+            service_dir = service_dir / self.task_suite
 
         if not service_dir.exists():
             logger.warning(
@@ -112,9 +117,10 @@ class BaseTaskManager(ABC):
         # Sort by category_id and a stringified task_id to handle both numeric IDs and slugs uniformly
         self._tasks_cache = sorted(tasks, key=lambda t: (t.category_id, str(t.task_id)))
         logger.info(
-            "Discovered %d %s tasks across all categories",
+            "Discovered %d %s tasks across all categories (suite=%s)",
             len(self._tasks_cache),
             self.mcp_service.title(),
+            self.task_suite or "default",
         )
         return self._tasks_cache
 

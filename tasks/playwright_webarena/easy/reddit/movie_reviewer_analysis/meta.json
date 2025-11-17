@@ -1,0 +1,25 @@
+{
+  "task_id": "movie_reviewer_analysis_easy",
+  "task_name": "Movie Reviewer Analysis (Easy)",
+  "category_id": "reddit",
+  "category_name": "Reddit",
+  "description": "Grab the first-page movie signals plus the Rittenhouse poster stats and share them in a concise recap post.",
+  "author": "Fanqing Meng",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "user interaction",
+    "data extraction",
+    "comparative analysis",
+    "content submission"
+  ],
+  "mcp": [
+    "playwright"
+  ],
+  "meta_data": {
+    "stateType": "video",
+    "stateContent": null,
+    "stateUrl": "https://storage.mcpmark.ai/tasks_state/playwright_video/postmill.mp4",
+    "stateOriginalUrl": "https://github.com/web-arena-x/webarena/tree/main/environment_docker"
+  }
+}

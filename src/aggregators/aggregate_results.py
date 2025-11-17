@@ -20,8 +20,12 @@ from src.errors import is_retryable_error
 from src.aggregators.pricing import compute_cost_usd
 
 
-def discover_tasks() -> Dict[str, List[str]]:
-    """Discover all tasks from ./tasks directory."""
+# Supported difficulty splits in ./tasks/<service>/<task_set>/
+SUPPORTED_TASK_SETS = {"standard", "easy"}
+
+
+def discover_tasks(task_set: str = "standard") -> Dict[str, List[str]]:
+    """Discover all tasks from ./tasks directory filtered by task set."""
     tasks_dir = Path("./tasks")
     
     all_tasks = {}
@@ -37,22 +41,39 @@ def discover_tasks() -> Dict[str, List[str]]:
     }
     
     for mcp_service, task_dirs in service_mappings.items():
-        tasks = []
+        tasks: List[str] = []
         for task_dir_name in task_dirs:
             service_path = tasks_dir / task_dir_name
             if not service_path.exists():
                 continue
-            
-            # Find all category/task combinations
-            for category_dir in service_path.iterdir():
-                if not category_dir.is_dir() or category_dir.name.startswith("__"):
-                    continue
-                
-                for task_dir in category_dir.iterdir():
-                    if task_dir.is_dir():
-                        # Use unified naming for both playwright and webarena variants
-                        tasks.append(f"{category_dir.name}__{task_dir.name}")
-        
+
+            selected_root = service_path / task_set
+
+            # Detect if this service has partitioned task sets (e.g. standard/easy)
+            has_partitioned_layout = any(
+                child.is_dir() and child.name in SUPPORTED_TASK_SETS
+                for child in service_path.iterdir()
+            )
+
+            if selected_root.exists():
+                search_roots = [selected_root]
+            elif has_partitioned_layout:
+                # Requested task set missing for this service; skip it for this run
+                print(f"  ⚠️ No '{task_set}' tasks found under {service_path}")
+                search_roots = []
+            else:
+                # Legacy layout without task sets – fall back to original structure
+                search_roots = [service_path]
+
+            for root in search_roots:
+                for category_dir in root.iterdir():
+                    if not category_dir.is_dir() or category_dir.name.startswith("__"):
+                        continue
+
+                    for task_dir in category_dir.iterdir():
+                        if task_dir.is_dir() and not task_dir.name.startswith("__"):
+                            tasks.append(f"{category_dir.name}__{task_dir.name}")
+
         all_tasks[mcp_service] = sorted(tasks)
     
     return all_tasks
@@ -653,14 +674,19 @@ def generate_readme(exp_name: str, summary: Dict, k: int) -> str:
         f"# {exp_name} - Evaluation Results",
         "",
         f"Generated: {summary['generated_at']}",
-        "",
     ]
+
+    task_set = summary.get("task_set")
+    if task_set:
+        lines.append(f"Task set: {task_set}")
+
+    lines.append("")
 
     # Overall table
     lines.extend(render_section("Overall Performance", summary.get("overall", {})))
 
     # Service tables: infer service keys from summary
-    reserved = {"overall", "generated_at", "k", "experiment_name"}
+    reserved = {"overall", "generated_at", "k", "experiment_name", "task_set"}
     service_keys = [key for key in summary.keys() if key not in reserved]
     # Keep stable order
     for service in sorted(service_keys):
@@ -873,6 +899,12 @@ def main():
         type=str,
         help="Comma-separated list of models that only need run-1"
     )
+    parser.add_argument(
+        "--task-set",
+        choices=sorted(SUPPORTED_TASK_SETS),
+        default="standard",
+        help="Which task subset to aggregate (default: standard)"
+    )
     parser.add_argument("--push", action="store_true", help="Push to GitHub (default to main)")
     
     args = parser.parse_args()
@@ -892,8 +924,8 @@ def main():
     print(f"🔄 Processing experiment: {args.exp_name}")
     
     # Discover all tasks
-    print("📋 Discovering tasks...")
-    all_tasks = discover_tasks()
+    print(f"📋 Discovering tasks (task set: {args.task_set})...")
+    all_tasks = discover_tasks(args.task_set)
     total_tasks = sum(len(tasks) for tasks in all_tasks.values())
     print(f"  Found {total_tasks} tasks across {len(all_tasks)} services")
     
@@ -918,6 +950,7 @@ def main():
     print("\n📊 Calculating metrics...")
     summary = calculate_metrics(complete_models, all_tasks, args.k, single_run_models)
     summary["experiment_name"] = args.exp_name
+    summary["task_set"] = args.task_set
     
     # Save summary
     summary_path = exp_dir / "summary.json"

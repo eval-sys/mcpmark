@@ -1,0 +1,206 @@
+import sys
+from notion_client import Client
+from tasks.utils import notion_utils
+
+
+def verify(notion: Client, main_id: str = None) -> bool:
+    """
+    Verifies that the Skills Development Tracker database was created correctly.
+    """
+    page_id = None
+    if main_id:
+        found_id, object_type = notion_utils.find_page_or_database_by_id(
+            notion, main_id
+        )
+        if found_id and object_type == "page":
+            page_id = found_id
+
+    if not page_id:
+        page_id = notion_utils.find_page(notion, "New Online Resume")
+    if not page_id:
+        print("Error: Page 'New Online Resume' not found.", file=sys.stderr)
+        return False
+
+    # Step 1: Verify Skills Development Tracker database exists
+    tracker_db_id = notion_utils.find_database_in_block(
+        notion, page_id, "Skills Development Tracker"
+    )
+    if not tracker_db_id:
+        print(
+            "Error: Database 'Skills Development Tracker' not found.", file=sys.stderr
+        )
+        return False
+
+    # Step 2: Verify database schema
+    try:
+        db_info = notion.databases.retrieve(database_id=tracker_db_id)
+        properties = db_info.get("properties", {})
+
+        # Check required properties
+        required_props = {
+            "Name": "title",
+            "Current Skill": "relation",
+            "Current Proficiency": "rollup",
+            "Target Proficiency": "number",
+            "Gap": "formula",
+            "Learning Resources": "rich_text",
+            "Progress Notes": "rich_text",
+        }
+
+        for prop_name, expected_type in required_props.items():
+            if prop_name not in properties:
+                print(
+                    f"Error: Property '{prop_name}' not found in database.",
+                    file=sys.stderr,
+                )
+                return False
+            if properties[prop_name]["type"] != expected_type:
+                print(
+                    f"Error: Property '{prop_name}' has incorrect type. Expected '{expected_type}', got '{properties[prop_name]['type']}'.",
+                    file=sys.stderr,
+                )
+                return False
+
+        # Verify Target Proficiency is percent format
+        if (
+            properties["Target Proficiency"].get("number", {}).get("format")
+            != "percent"
+        ):
+            print(
+                "Error: Target Proficiency should have 'percent' format.",
+                file=sys.stderr,
+            )
+            return False
+
+    except Exception as e:
+        print(f"Error retrieving database info: {e}", file=sys.stderr)
+        return False
+
+    # Step 3: Get Skills database to check entries
+    skills_db_id = notion_utils.find_database_in_block(notion, page_id, "Skills")
+    if not skills_db_id:
+        print("Error: Skills database not found.", file=sys.stderr)
+        return False
+
+    # Get all skills with proficiency < 70%
+    skills_below_70 = []
+    try:
+        skills_results = notion.databases.query(database_id=skills_db_id).get(
+            "results", []
+        )
+        for skill in skills_results:
+            skill_level = (
+                skill.get("properties", {}).get("Skill Level", {}).get("number", 1.0)
+            )
+            if skill_level < 0.7:
+                skill_name = (
+                    skill.get("properties", {}).get("Skill", {}).get("title", [])
+                )
+                if skill_name:
+                    skill_name_text = skill_name[0].get("text", {}).get("content", "")
+                    skills_below_70.append(
+                        {
+                            "name": skill_name_text,
+                            "id": skill["id"],
+                            "level": skill_level,
+                        }
+                    )
+    except Exception as e:
+        print(f"Error querying Skills database: {e}", file=sys.stderr)
+        return False
+
+    if not skills_below_70:
+        print("Warning: No skills found with proficiency below 70%.", file=sys.stderr)
+        # This might be OK if all skills are above 70%
+
+    # Step 4: Verify entries in Skills Development Tracker
+    try:
+        tracker_results = notion.databases.query(database_id=tracker_db_id).get(
+            "results", []
+        )
+
+        # Check that we have entries for skills below 70%
+        if len(skills_below_70) > 0 and len(tracker_results) == 0:
+            print(
+                "Error: No entries found in Skills Development Tracker database.",
+                file=sys.stderr,
+            )
+            return False
+
+        # Verify each entry
+        for entry in tracker_results:
+            props = entry.get("properties", {})
+
+            # Check name format
+            name_prop = props.get("Name", {}).get("title", [])
+            if not name_prop:
+                print("Error: Entry missing Name property.", file=sys.stderr)
+                return False
+            name_text = name_prop[0].get("text", {}).get("content", "")
+            if not name_text.endswith(" Development Plan"):
+                print(
+                    f"Error: Entry name '{name_text}' doesn't follow expected format.",
+                    file=sys.stderr,
+                )
+                return False
+
+            # Check relation to Skills database
+            skill_relation = props.get("Current Skill", {}).get("relation", [])
+            if not skill_relation:
+                print(
+                    f"Error: Entry '{name_text}' missing Current Skill relation.",
+                    file=sys.stderr,
+                )
+                return False
+
+            # Check Target Proficiency (should be set)
+            target_prof = props.get("Target Proficiency", {}).get("number")
+            if target_prof is None:
+                print(
+                    f"Error: Entry '{name_text}' missing Target Proficiency.",
+                    file=sys.stderr,
+                )
+                return False
+
+            # Check Learning Resources
+            learning_resources = props.get("Learning Resources", {}).get(
+                "rich_text", []
+            )
+            if not learning_resources:
+                print(
+                    f"Error: Entry '{name_text}' missing Learning Resources.",
+                    file=sys.stderr,
+                )
+                return False
+
+            # Check Progress Notes
+            progress_notes = props.get("Progress Notes", {}).get("rich_text", [])
+            if not progress_notes:
+                print(
+                    f"Error: Entry '{name_text}' missing Progress Notes.",
+                    file=sys.stderr,
+                )
+                return False
+
+    except Exception as e:
+        print(f"Error querying Skills Development Tracker: {e}", file=sys.stderr)
+        return False
+
+    print("Success: Skills Development Tracker database verified successfully.")
+    return True
+
+
+def main():
+    """
+    Executes the verification process and exits with a status code.
+    """
+    notion = notion_utils.get_notion_client()
+    main_id = sys.argv[1] if len(sys.argv) > 1 else None
+    if verify(notion, main_id):
+        sys.exit(0)
+    else:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

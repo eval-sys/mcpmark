@@ -1,0 +1,23 @@
+{
+  "task_id": "pattern_matching",
+  "task_name": "Pattern Matching",
+  "category_id": "file_context",
+  "category_name": "File Context",
+  "description": "Scan file_01.txt through file_20.txt for any 30+ character substring that also appears in large_file.txt and list each matching filename in answer.txt.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "pattern analysis",
+    "search and filtering"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "meta_data": {
+    "stateType": "text",
+    "stateContent": "file_context/\n    \u251c\u2500\u2500 file_01.txt\n    \u251c\u2500\u2500 file_02.txt\n    \u251c\u2500\u2500 file_03.txt\n    \u251c\u2500\u2500 file_04.txt\n    \u251c\u2500\u2500 file_05.txt\n    \u251c\u2500\u2500 file_06.txt\n    \u251c\u2500\u2500 file_07.txt\n    \u251c\u2500\u2500 file_08.txt\n    \u251c\u2500\u2500 file_09.txt\n    \u251c\u2500\u2500 file_10.txt\n    \u251c\u2500\u2500 file_11.txt\n    \u251c\u2500\u2500 file_12.txt\n    \u251c\u2500\u2500 file_13.txt\n    \u251c\u2500\u2500 file_14.txt\n    \u251c\u2500\u2500 file_15.txt\n    \u251c\u2500\u2500 file_16.txt\n    \u251c\u2500\u2500 file_17.txt\n    \u251c\u2500\u2500 file_18.txt\n    \u251c\u2500\u2500 file_19.txt\n    \u251c\u2500\u2500 file_20.txt\n    \u2514\u2500\u2500 large_file.txt",
+    "stateUrl": "https://storage.mcpmark.ai/filesystem/file_context.zip",
+    "stateOriginalUrl": null
+  }
+}

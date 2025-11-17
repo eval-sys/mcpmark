@@ -1,0 +1,24 @@
+{
+  "task_id": "ny_expansion_analysis_easy",
+  "task_name": "NY Expansion Analysis (Easy)",
+  "category_id": "shopping_admin",
+  "category_name": "Shopping Admin",
+  "description": "Capture just the dashboard, tax, order-status, store, and inventory facts required to judge if New York can launch without heavy configuration work.",
+  "author": "Fanqing Meng",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "data extraction",
+    "comparative analysis",
+    "content submission"
+  ],
+  "mcp": [
+    "playwright"
+  ],
+  "meta_data": {
+    "stateType": "video",
+    "stateContent": null,
+    "stateUrl": "https://storage.mcpmark.ai/tasks_state/playwright_video/magento-admin.mp4",
+    "stateOriginalUrl": "https://github.com/web-arena-x/webarena/tree/main/environment_docker"
+  }
+}

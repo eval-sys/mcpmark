@@ -1,0 +1,23 @@
+{
+  "task_id": "txt_merging",
+  "task_name": "Text File Merging",
+  "category_id": "file_property",
+  "category_name": "File Property",
+  "description": "Combine the contents of every .txt file into a single merge.txt file so the archive has one consolidated view.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "content consolidation",
+    "file automation"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "meta_data": {
+    "stateType": "text",
+    "stateContent": "file_property/\n    \u251c\u2500\u2500 bear.jpg\n    \u251c\u2500\u2500 bridge.jpg\n    \u251c\u2500\u2500 bus.MOV\n    \u251c\u2500\u2500 random_file_1.txt\n    \u251c\u2500\u2500 random_file_2.txt\n    \u251c\u2500\u2500 random_file_3.txt\n    \u251c\u2500\u2500 road.MOV\n    \u2514\u2500\u2500 sg.jpg",
+    "stateUrl": "https://storage.mcpmark.ai/filesystem/file_property.zip",
+    "stateOriginalUrl": null
+  }
+}
