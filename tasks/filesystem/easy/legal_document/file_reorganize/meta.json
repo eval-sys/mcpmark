@@ -1,0 +1,23 @@
+{
+  "task_id": "file_reorganize",
+  "task_name": "File Reorganize",
+  "category_id": "legal_document",
+  "category_name": "Legal Document",
+  "description": "Determine the final Stock Purchase Agreement version and create an empty copy of that filename inside legal_files/final_version/.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "file organization",
+    "version management"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "meta_data": {
+    "stateType": "text",
+    "stateContent": "legal_document/\n    \u2514\u2500\u2500 legal_files/\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v0.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v1.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v2.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v3.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v4.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v5.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v6.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v7.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v8.txt\n            \u251c\u2500\u2500 Preferred_Stock_Purchase_Agreement_v9.txt\n            \u2514\u2500\u2500 Preferred_Stock_Purchase_Agreement_v10.txt",
+    "stateUrl": "https://storage.mcpmark.ai/filesystem/legal_document.zip",
+    "stateOriginalUrl": "https://www.cooleygo.com/documents/nvca-financing-documents"
+  }
+}

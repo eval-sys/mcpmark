@@ -1,0 +1,24 @@
+{
+  "task_id": "ai_data_analyst_easy",
+  "task_name": "AI Data Analyst (Easy)",
+  "category_id": "reddit",
+  "category_name": "Reddit",
+  "description": "Capture a lightweight AI/ML engagement snapshot by signing in, grabbing three key metrics, and posting them back to the MachineLearning forum.",
+  "author": "Fanqing Meng",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "user interaction",
+    "data extraction",
+    "comparative analysis"
+  ],
+  "mcp": [
+    "playwright"
+  ],
+  "meta_data": {
+    "stateType": "video",
+    "stateContent": null,
+    "stateUrl": "https://storage.mcpmark.ai/tasks_state/playwright_video/postmill.mp4",
+    "stateOriginalUrl": "https://github.com/web-arena-x/webarena/tree/main/environment_docker"
+  }
+}

@@ -44,7 +44,7 @@ The `run-task.sh` script provides simplified Docker usage:
 ./run-task.sh --mcp MCPSERVICE --models MODEL_NAME --exp-name EXPNAME --tasks TASK --k K
 ```
 
-where *MODEL_NAME* refers to the model choice from the supported models (see [Introduction Page](./introduction.md) for more information), *EXPNAME* refers to customized experiment name, *TASK* refers to specific task or task group (see `tasks/` for more information), *K* refers to the time of independent experiments.
+where *MODEL_NAME* refers to the model choice from the supported models (see [Introduction Page](./introduction.md) for more information), *EXPNAME* refers to customized experiment name, *TASK* refers to specific task or task group (see `tasks/<mcp>/<task_suite>/...` for more information), *K* refers to the time of independent experiments.
 
 
 Additionally, the `run-benchmark.sh` script evaluates models across all MCP services:

@@ -1,0 +1,23 @@
+{
+  "task_id": "add_terminal_shortcuts_doc",
+  "task_name": "Add Terminal Shortcuts Doc",
+  "category_id": "claude-code",
+  "category_name": "Claude Code (Easy)",
+  "description": "Add a simple terminal shortcuts reference file to docs/TERMINAL_SHORTCUTS.md and push it to main.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "docs update",
+    "content creation"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/claude-code",
+    "stateOriginalUrl": "https://github.com/anthropics/claude-code"
+  }
+}

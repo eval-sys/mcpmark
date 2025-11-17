@@ -1,0 +1,22 @@
+{
+  "task_id": "close_commented_issues",
+  "task_name": "Close Commented Issues",
+  "category_id": "build-your-own-x",
+  "category_name": "Build Your Own X (Easy)",
+  "description": "Use GitHub MCP tools to close every issue with comments in build-your-own-x and leave everything else alone.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "issue management"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/build-your-own-x",
+    "stateOriginalUrl": "https://github.com/codecrafters-io/build-your-own-x"
+  }
+}

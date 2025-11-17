@@ -1,0 +1,24 @@
+{
+  "task_id": "nightly_health_check",
+  "task_name": "Nightly Health Check",
+  "category_id": "mcpmark-cicd",
+  "category_name": "MCPMark CI/CD (Easy)",
+  "description": "Add a scheduled workflow that runs the npm health check script every night.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "ci/cd",
+    "github actions",
+    "scheduling"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/mcpmark-cicd",
+    "stateOriginalUrl": null
+  }
+}

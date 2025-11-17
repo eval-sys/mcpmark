@@ -1,0 +1,24 @@
+{
+  "task_id": "sales_inventory_analysis_easy",
+  "task_name": "Sales Inventory Analysis (Easy)",
+  "category_id": "shopping_admin",
+  "category_name": "Shopping Admin",
+  "description": "Follow one guided tour through Products, Orders, Dashboard, Customers, and Invoices to capture a compact set of sales-plus-inventory facts.",
+  "author": "Fanqing Meng",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "data extraction",
+    "comparative analysis",
+    "inventory management"
+  ],
+  "mcp": [
+    "playwright"
+  ],
+  "meta_data": {
+    "stateType": "video",
+    "stateContent": null,
+    "stateUrl": "https://storage.mcpmark.ai/tasks_state/playwright_video/magento-admin.mp4",
+    "stateOriginalUrl": "https://github.com/web-arena-x/webarena/tree/main/environment_docker"
+  }
+}

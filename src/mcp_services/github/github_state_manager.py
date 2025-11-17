@@ -626,7 +626,35 @@ class GitHubStateManager(BaseStateManager):
 
     # Initial state for each task category is resolved via self.initial_state_mapping
     def select_initial_state_for_task(self, task_category: str) -> Optional[str]:
-        return self.initial_state_mapping.get(task_category)
+        """Resolve template name for a task category with light normalization."""
+        if not task_category:
+            return None
+
+        candidate_keys = []
+        candidate_keys.append(task_category)
+
+        # Allow users to swap between hyphen/underscore naming conventions.
+        hyphen_to_underscore = task_category.replace("-", "_")
+        if hyphen_to_underscore not in candidate_keys:
+            candidate_keys.append(hyphen_to_underscore)
+
+        underscore_to_hyphen = task_category.replace("_", "-")
+        if underscore_to_hyphen not in candidate_keys:
+            candidate_keys.append(underscore_to_hyphen)
+
+        for key in candidate_keys:
+            template = self.initial_state_mapping.get(key)
+            if template:
+                if key != task_category:
+                    logger.debug(
+                        "| Resolved GitHub template for %s via alias %s -> %s",
+                        task_category,
+                        key,
+                        template,
+                    )
+                return template
+
+        return None
 
     def extract_repo_info_from_url(self, repo_url: str) -> tuple[str, str]:
         """Extract owner and repo name from GitHub URL."""

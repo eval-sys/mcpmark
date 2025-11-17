@@ -18,15 +18,17 @@ tasks
 │
 └───filesystem
    │
-   └───file_context
+   └───standard          # task_suite (also supports `easy`)
       │
-      └───create_file_write
-         │   meta.json 
-         │   description.md
-         │   verify.py
+      └───file_context   # category_id
+         │
+         └───create_file_write
+            │   meta.json 
+            │   description.md
+            │   verify.py
 ```
 
-Note that all tasks are placed under `tasks/`. `filesystem` refers to the environment for the MCP service.
+All tasks live under `tasks/<mcp>/<task_suite>/<category>/<task_id>/`. `filesystem` refers to the MCP service and `task_suite` captures the difficulty slice (`standard` benchmark vs `easy` smoke tests).
 
 `meta.json` includes the meta information about the task, including the following key
 - task_id: the id of the task.

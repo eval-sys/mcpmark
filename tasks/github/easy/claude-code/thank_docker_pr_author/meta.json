@@ -1,0 +1,23 @@
+{
+  "task_id": "thank_docker_pr_author",
+  "task_name": "Thank Docker PR Author",
+  "category_id": "claude-code",
+  "category_name": "Claude Code (Easy)",
+  "description": "Leave a thank-you comment on the Docker automation PR mentioning the workflow automation review keywords.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "pull request",
+    "comment"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/claude-code",
+    "stateOriginalUrl": "https://github.com/anthropics/claude-code"
+  }
+}

@@ -30,7 +30,7 @@ class FilesystemTask(BaseTask):
 class FilesystemTaskManager(BaseTaskManager):
     """Simplified filesystem task manager using enhanced base class."""
 
-    def __init__(self, tasks_root: Path = None):
+    def __init__(self, tasks_root: Path = None, task_suite: str = "standard"):
         """Initialize filesystem task manager."""
         if tasks_root is None:
             tasks_root = Path(__file__).resolve().parents[3] / "tasks"
@@ -40,6 +40,7 @@ class FilesystemTaskManager(BaseTaskManager):
             mcp_service="filesystem",
             task_class=FilesystemTask,
             task_organization="directory",
+            task_suite=task_suite,
         )
 
     # Override only what's needed for filesystem-specific behavior

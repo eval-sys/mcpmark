@@ -27,11 +27,13 @@ class MCPEvaluator:
         output_dir: Path = None,
         reasoning_effort: str = "default",
         agent_name: str = "mcpmark",
+        task_suite: str = "standard",
     ):
         # Main configuration
         self.mcp_service = mcp_service
         self.timeout = timeout
         self.agent_name = (agent_name or "mcpmark").lower()
+        self.task_suite = (task_suite or "standard").lower()
         if self.agent_name not in AGENT_REGISTRY:
             raise ValueError(f"Unsupported agent '{agent_name}'. Available: {sorted(AGENT_REGISTRY)}")
         
@@ -48,7 +50,9 @@ class MCPEvaluator:
         self.litellm_run_model_name = None
 
         # Initialize managers using the factory pattern (simplified)
-        self.task_manager = MCPServiceFactory.create_task_manager(mcp_service)
+        self.task_manager = MCPServiceFactory.create_task_manager(
+            mcp_service, task_suite=self.task_suite
+        )
         self.state_manager = MCPServiceFactory.create_state_manager(mcp_service)
 
         # Obtain static service configuration from state manager (e.g., notion_key)
@@ -80,7 +84,9 @@ class MCPEvaluator:
             model_slug = self.model_name.replace(".", "-")
 
         service_for_dir = "playwright" if mcp_service == "playwright_webarena" else mcp_service
-        self.base_experiment_dir = output_dir / f"{model_slug}__{service_for_dir}" / exp_name
+        suite_suffix = "" if self.task_suite in ("standard", "", None) else f"-{self.task_suite}"
+        service_dir_name = f"{service_for_dir}{suite_suffix}"
+        self.base_experiment_dir = output_dir / f"{model_slug}__{service_dir_name}" / exp_name
         self.base_experiment_dir.mkdir(parents=True, exist_ok=True)
 
     def _format_duration(self, seconds: float) -> str:

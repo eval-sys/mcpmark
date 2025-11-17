@@ -1,0 +1,23 @@
+{
+  "task_id": "record_recent_commits",
+  "task_name": "Record Recent Commits",
+  "category_id": "build-your-own-x",
+  "category_name": "Build Your Own X (Easy)",
+  "description": "Summarize the latest five commits by opening an issue with their SHAs, authors, and subjects.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "commits",
+    "issue"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/build-your-own-x",
+    "stateOriginalUrl": "https://github.com/codecrafters-io/build-your-own-x"
+  }
+}

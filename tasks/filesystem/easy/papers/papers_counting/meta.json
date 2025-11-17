@@ -1,0 +1,23 @@
+{
+  "task_id": "papers_counting",
+  "task_name": "Papers Counting",
+  "category_id": "papers",
+  "category_name": "Papers",
+  "description": "Count how many .html papers live in the directory and write just that number into count.txt.",
+  "author": "Lingjun Chen",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "data extraction",
+    "reporting"
+  ],
+  "mcp": [
+    "filesystem"
+  ],
+  "meta_data": {
+    "stateType": "text",
+    "stateContent": "papers/\n    \u251c\u2500\u2500 1707.06347.html\n    \u251c\u2500\u2500 2105.04165.html\n    \u251c\u2500\u2500 2201.11903.html\n    \u251c\u2500\u2500 2303.08774.html\n    \u251c\u2500\u2500 2306.08640.html\n    \u251c\u2500\u2500 2310.02255.html\n    \u251c\u2500\u2500 2310.08446.html\n    \u251c\u2500\u2500 2312.00849.html\n    \u251c\u2500\u2500 2312.07533.html\n    \u251c\u2500\u2500 2312.11805.html\n    \u251c\u2500\u2500 2402.00253.html\n    \u251c\u2500\u2500 2402.03300.html\n    \u251c\u2500\u2500 2403.05530.html\n    \u251c\u2500\u2500 2404.13046.html\n    \u251c\u2500\u2500 2404.14367.html\n    \u251c\u2500\u2500 2404.14396.html\n    \u251c\u2500\u2500 2405.09818.html\n    \u251c\u2500\u2500 2405.13911.html\n    \u251c\u2500\u2500 2405.16473.html\n    \u251c\u2500\u2500 2405.16640.html\n    \u251c\u2500\u2500 2406.08478.html\n    \u251c\u2500\u2500 2406.16852.html\n    \u251c\u2500\u2500 2406.17294.html\n    \u251c\u2500\u2500 2407.01284.html\n    \u251c\u2500\u2500 2407.01509.html\n    \u251c\u2500\u2500 2407.21783.html\n    \u251c\u2500\u2500 2408.03326.html\n    \u251c\u2500\u2500 2408.12528.html\n    \u251c\u2500\u2500 2409.19256.html\n    \u251c\u2500\u2500 2410.05993.html\n    \u251c\u2500\u2500 2410.06166.html\n    \u251c\u2500\u2500 2410.10563.html\n    \u251c\u2500\u2500 2410.13848.html\n    \u251c\u2500\u2500 2410.17885.html\n    \u251c\u2500\u2500 2410.21276.html\n    \u251c\u2500\u2500 2411.07975.html\n    \u251c\u2500\u2500 2411.10442.html\n    \u251c\u2500\u2500 2411.11930.html\n    \u251c\u2500\u2500 2411.14432.html\n    \u251c\u2500\u2500 2412.05271.html\n    \u251c\u2500\u2500 2412.08443.html\n    \u251c\u2500\u2500 2412.10302.html\n    \u251c\u2500\u2500 2412.15115.html\n    \u251c\u2500\u2500 2412.16720.html\n    \u251c\u2500\u2500 2412.17256.html\n    \u251c\u2500\u2500 2412.18319.html\n    \u251c\u2500\u2500 2412.20631.html\n    \u251c\u2500\u2500 2501.04686.html\n    \u251c\u2500\u2500 2501.06186.html\n    \u251c\u2500\u2500 2501.12599.html\n    \u251c\u2500\u2500 2501.12948.html\n    \u251c\u2500\u2500 2501.17811.html\n    \u251c\u2500\u2500 2502.01456.html\n    \u251c\u2500\u2500 2502.09621.html\n    \u251c\u2500\u2500 2502.10391.html\n    \u251c\u2500\u2500 2502.13923.html\n    \u251c\u2500\u2500 2503.01785.html\n    \u251c\u2500\u2500 2503.06520.html\n    \u251c\u2500\u2500 2503.06749.html\n    \u251c\u2500\u2500 2503.07065.html\n    \u251c\u2500\u2500 2503.07365.html\n    \u251c\u2500\u2500 2503.07536.html\n    \u251c\u2500\u2500 2503.10291.html\n    \u251c\u2500\u2500 2503.10615.html\n    \u251c\u2500\u2500 2503.12937.html\n    \u251c\u2500\u2500 2503.13939.html\n    \u251c\u2500\u2500 2503.14476.html\n    \u251c\u2500\u2500 2503.17352.html\n    \u251c\u2500\u2500 2503.18892.html\n    \u251c\u2500\u2500 2503.19786.html\n    \u251c\u2500\u2500 2503.20783.html\n    \u251c\u2500\u2500 2503.21620.html\n    \u251c\u2500\u2500 2503.21776.html\n    \u251c\u2500\u2500 2503.22679.html\n    \u251c\u2500\u2500 2504.02587.html\n    \u251c\u2500\u2500 2504.05599.html\n    \u251c\u2500\u2500 2504.07491.html\n    \u251c\u2500\u2500 2504.07934.html\n    \u251c\u2500\u2500 2504.07954.html\n    \u251c\u2500\u2500 2504.11455.html\n    \u251c\u2500\u2500 2504.14945.html\n    \u251c\u2500\u2500 2504.16656.html\n    \u251c\u2500\u2500 2505.00703.html\n    \u2514\u2500\u2500 arxiv_2025.bib",
+    "stateUrl": "https://storage.mcpmark.ai/filesystem/papers.zip",
+    "stateOriginalUrl": null
+  }
+}

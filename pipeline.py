@@ -55,6 +55,12 @@ def main():
         help='Tasks to run: (1). "all"; (2). "category"; or (3). "category/task".',
     )
     parser.add_argument(
+        "--task-suite",
+        default="standard",
+        choices=["standard", "easy"],
+        help="Task suite to run (default: standard). Use 'easy' to run the lightweight dataset.",
+    )
+    parser.add_argument(
         "--exp-name",
         default=None,
         help="Experiment name; results are saved under results/<exp-name>/ (default: YYYY-MM-DD-HH-MM-SS)",
@@ -111,6 +117,7 @@ def main():
 
     logger.info("MCPMark Evaluation")
     logger.info(f"Experiment: {args.exp_name} | {len(model_list)} Model(s): {', '.join(model_list)}")
+    logger.info(f"Task suite: {args.task_suite}")
     if args.k > 1:
         logger.info(f"Running {args.k} evaluation runs for pass@k metrics")
 
@@ -147,6 +154,7 @@ def main():
                 output_dir=run_output_dir,
                 reasoning_effort=args.reasoning_effort,
                 agent_name=args.agent,
+                task_suite=args.task_suite,
             )
 
             pipeline.run_evaluation(args.tasks)

@@ -85,13 +85,21 @@ python -m pipeline \
   --k 1 \ # run once to quick start
   --models gpt-5  \ # or any model you configured
   --tasks file_property/size_classification
+# Add --task-suite easy to run the lightweight dataset (where available)
 ```
 
-Results are saved to `./results/{exp_name}/{model}__{mcp}/run-*/...` (e.g., `./results/test-run/gpt-5__filesystem/run-1/...`).
+Results are saved to `./results/{exp_name}/{model}__{mcp}/run-*/...` for the standard suite and `./results/{exp_name}/{model}__{mcp}-easy/run-*/...` when you run `--task-suite easy` (e.g., `./results/test-run/gpt-5__filesystem/run-1/...` or `./results/test-run/gpt-5__github-easy/run-1/...`).
 
 ---
 
 ## Run your evaluations
+
+### Task suites (standard vs easy)
+
+- Each MCP service now stores tasks under `tasks/<mcp>/<task_suite>/<category>/<task>/`.
+- `standard` (default) covers the full benchmark (127 tasks today).
+- `easy` hosts 10 lightweight tasks per MCP, ideal for smoke tests and CI (GitHub’s are already available under `tasks/github/easy`).
+- Switch suites with `--task-suite easy` (defaults to `--task-suite standard`).
 
 ### Single run (k=1)
 ```bash
@@ -173,7 +181,7 @@ python -m src.aggregators.aggregate_results --exp-name exp --k 4 --single-run-mo
 ## Contributing
 
 Contributions are welcome:
-1. Add a new task under `tasks/<category_id>/<task_id>/` with `meta.json`, `description.md` and `verify.py`.
+1. Add a new task under `tasks/<mcp>/<task_suite>/<category_id>/<task_id>/` with `meta.json`, `description.md` and `verify.py`.
 2. Ensure local checks pass and open a PR.
 3. See `docs/contributing/make-contribution.md`.
 

@@ -1,0 +1,24 @@
+{
+  "task_id": "basic_ci_checks",
+  "task_name": "Basic CI Checks",
+  "category_id": "mcpmark-cicd",
+  "category_name": "MCPMark CI/CD (Easy)",
+  "description": "Add a lightweight GitHub Actions workflow that runs npm ci, npm run lint, and npm test whenever main is updated or receives a pull request.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "ci/cd",
+    "github actions",
+    "workflow basics"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/mcpmark-cicd",
+    "stateOriginalUrl": null
+  }
+}

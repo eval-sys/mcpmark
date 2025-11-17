@@ -1,0 +1,23 @@
+{
+  "task_id": "triage_missing_tool_result_issue",
+  "task_name": "Triage Missing Tool Result Issue",
+  "category_id": "claude-code",
+  "category_name": "Claude Code (Easy)",
+  "description": "Leave a predefined triage comment on issue #24 and remove the area:packaging label.",
+  "author": "Zijian Wu",
+  "created_at": "2025-11-15",
+  "difficulty": "L1",
+  "tags": [
+    "issue triage",
+    "github"
+  ],
+  "mcp": [
+    "github"
+  ],
+  "meta_data": {
+    "stateType": "url",
+    "stateContent": null,
+    "stateUrl": "https://github.com/mcpmark-source/claude-code",
+    "stateOriginalUrl": "https://github.com/anthropics/claude-code"
+  }
+}
