@@ -16,6 +16,15 @@ import litellm
 import nest_asyncio
 
 from src.logger import get_logger
+from src.exceptions import (
+    AgentExecutionError,
+    AgentTimeoutError,
+    LLMRateLimitError,
+    LLMQuotaExceededError,
+    LLMContextWindowExceededError,
+    MissingConfigurationError,
+    InvalidConfigurationError,
+)
 from .base_agent import BaseMCPAgent
 from .mcp import MCPStdioServer, MCPHttpServer
 
@@ -144,9 +153,22 @@ class MCPMarkAgent(BaseMCPAgent):
             if isinstance(e, asyncio.TimeoutError):
                 error_msg = f"Execution timed out after {self.timeout} seconds"
                 logger.error(error_msg)
+                # Convert to AgentTimeoutError but don't raise - return error result
+                timeout_error = AgentTimeoutError(
+                    agent_name=self.__class__.__name__,
+                    timeout=self.timeout,
+                    cause=e
+                )
+                error_msg = str(timeout_error)
             else:
-                error_msg = f"Agent execution failed: {e}"
-                logger.error(error_msg, exc_info=True)
+                # Check if it's already an MCPMarkException
+                if isinstance(e, (AgentExecutionError, AgentTimeoutError, 
+                                 LLMRateLimitError, LLMQuotaExceededError, 
+                                 LLMContextWindowExceededError)):
+                    error_msg = str(e)
+                else:
+                    error_msg = f"Agent execution failed: {e}"
+                    logger.error(error_msg, exc_info=True)
             
             self.usage_tracker.update(
                 success=False,
@@ -338,14 +360,17 @@ class MCPMarkAgent(BaseMCPAgent):
                 tools=tools,
                 system=system_text
             )
-            if turn_count == 1:
-                self.litellm_run_model_name = response['model'].split("/")[-1]
             
+            # Check for errors immediately after API call, before accessing response
             if error_msg:
                 break
             
+            # Now safe to access response fields
+            if turn_count == 1 and response and "model" in response:
+                self.litellm_run_model_name = response['model'].split("/")[-1]
+            
             # Update token usage
-            if "usage" in response:
+            if response and "usage" in response:
                 usage = response["usage"]
                 input_tokens = usage.get("input_tokens", 0)
                 output_tokens = usage.get("output_tokens", 0)
@@ -359,7 +384,7 @@ class MCPMarkAgent(BaseMCPAgent):
                 ## TODO: add reasoning tokens for claude
             
             # Extract blocks from response
-            blocks = response.get("content", [])
+            blocks = response.get("content", []) if response else []
             tool_uses = [b for b in blocks if b.get("type") == "tool_use"]
             thinking_blocks = [b for b in blocks if b.get("type") == "thinking"]
             text_blocks = [b for b in blocks if b.get("type") == "text"]
@@ -617,17 +642,47 @@ class MCPMarkAgent(BaseMCPAgent):
                     logger.warning(f"| ✗ LLM call timed out on turn {turn_count + 1}")
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
-                        raise Exception(f"Too many consecutive failures ({consecutive_failures})")
+                        raise AgentTimeoutError(
+                            agent_name=self.__class__.__name__,
+                            timeout=self.timeout / 2,
+                            cause=asyncio.TimeoutError(f"Too many consecutive failures ({consecutive_failures})")
+                        )
                     await asyncio.sleep(8 ** consecutive_failures)  # Exponential backoff
                     continue
                 except Exception as e:
                     logger.error(f"| ✗ LLM call failed on turn {turn_count + 1}: {e}")
                     consecutive_failures += 1
+                    
+                    # Handle specific error types that should not be retried
+                    error_str = str(e)
+                    if "ContextWindowExceededError" in error_str:
+                        raise LLMContextWindowExceededError(
+                            model_name=self.litellm_input_model_name,
+                            cause=e
+                        )
+                    
+                    # Check if we've exceeded max consecutive failures
                     if consecutive_failures >= max_consecutive_failures:
-                        raise
-                    if "ContextWindowExceededError" in str(e):
-                        raise
-                    elif "RateLimitError" in str(e):
+                        # Convert to appropriate exception type
+                        if "RateLimitError" in error_str or "rate limit" in error_str.lower():
+                            raise LLMRateLimitError(
+                                model_name=self.litellm_input_model_name,
+                                cause=e
+                            )
+                        elif "quota" in error_str.lower() or "account balance" in error_str.lower():
+                            raise LLMQuotaExceededError(
+                                model_name=self.litellm_input_model_name,
+                                cause=e
+                            )
+                        else:
+                            raise AgentExecutionError(
+                                agent_name=self.__class__.__name__,
+                                reason=str(e),
+                                cause=e
+                            )
+                    
+                    # Retry with exponential backoff for recoverable errors
+                    if "RateLimitError" in error_str or "rate limit" in error_str.lower():
                         await asyncio.sleep(12 ** consecutive_failures)
                     else:
                         await asyncio.sleep(2 ** consecutive_failures)
@@ -656,9 +711,13 @@ class MCPMarkAgent(BaseMCPAgent):
                 
                 # Get response message
                 choices = response.choices
-                if len(choices):
-                    message = choices[0].message
-                    message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
+                if not len(choices):
+                    logger.warning("| No choices in response, ending task")
+                    ended_normally = False
+                    break
+                
+                message = choices[0].message
+                message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
                     
                 # Log assistant's text content if present
                 if hasattr(message, 'content') and message.content:
@@ -723,9 +782,7 @@ class MCPMarkAgent(BaseMCPAgent):
                     continue
                 else:
                     # Log end reason
-                    if not choices:
-                        logger.info("|\n|\n| Task ended with no messages generated by the model.")
-                    elif choices[0].finish_reason == "stop":
+                    if choices[0].finish_reason == "stop":
                         logger.info("|\n|\n| Task ended with the finish reason from messages being 'stop'.")
                     
                     # No tool/function call, add message and we're done
@@ -800,7 +857,11 @@ class MCPMarkAgent(BaseMCPAgent):
         elif self.mcp_service in self.HTTP_SERVICES:
             return self._create_http_server()
         else:
-            raise ValueError(f"Unsupported MCP service: {self.mcp_service}")
+            raise InvalidConfigurationError(
+                config_key="mcp_service",
+                value=self.mcp_service,
+                reason=f"Unsupported MCP service. STDIO services: {self.STDIO_SERVICES}, HTTP services: {self.HTTP_SERVICES}"
+            )
     
 
     def _create_stdio_server(self) -> MCPStdioServer:
@@ -808,7 +869,10 @@ class MCPMarkAgent(BaseMCPAgent):
         if self.mcp_service == "notion":
             notion_key = self.service_config.get("notion_key")
             if not notion_key:
-                raise ValueError("Notion API key required")
+                raise MissingConfigurationError(
+                    config_key="notion_key",
+                    service="notion"
+                )
             
             return MCPStdioServer(
                 command="npx",
@@ -824,7 +888,10 @@ class MCPMarkAgent(BaseMCPAgent):
         elif self.mcp_service == "filesystem":
             test_directory = self.service_config.get("test_directory")
             if not test_directory:
-                raise ValueError("Test directory required for filesystem service")
+                raise MissingConfigurationError(
+                    config_key="test_directory",
+                    service="filesystem"
+                )
             
             return MCPStdioServer(
                 command="npx",
@@ -857,7 +924,11 @@ class MCPMarkAgent(BaseMCPAgent):
             database = self.service_config.get("current_database") or self.service_config.get("database")
 
             if not all([username, password, database]):
-                raise ValueError("PostgreSQL requires username, password, and database")
+                missing = [k for k, v in [("username", username), ("password", password), ("database", database)] if not v]
+                raise MissingConfigurationError(
+                    config_key=", ".join(missing),
+                    service="postgres"
+                )
 
             database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
 
@@ -871,7 +942,11 @@ class MCPMarkAgent(BaseMCPAgent):
             api_key = self.service_config.get("api_key")
             backend_url = self.service_config.get("backend_url")
             if not all([api_key, backend_url]):
-                raise ValueError("Insforge requires api_key and backend_url")
+                missing = [k for k, v in [("api_key", api_key), ("backend_url", backend_url)] if not v]
+                raise MissingConfigurationError(
+                    config_key=", ".join(missing),
+                    service="insforge"
+                )
             return MCPStdioServer(
                 command="npx",
                 args=["-y", "@insforge/mcp@dev"],
@@ -882,7 +957,11 @@ class MCPMarkAgent(BaseMCPAgent):
             )
 
         else:
-            raise ValueError(f"Unsupported stdio service: {self.mcp_service}")
+            raise InvalidConfigurationError(
+                config_key="mcp_service",
+                value=self.mcp_service,
+                reason=f"Unsupported stdio service. Supported: {self.STDIO_SERVICES}"
+            )
     
 
     def _create_http_server(self) -> MCPHttpServer:
@@ -890,7 +969,10 @@ class MCPMarkAgent(BaseMCPAgent):
         if self.mcp_service == "github":
             github_token = self.service_config.get("github_token")
             if not github_token:
-                raise ValueError("GitHub token required")
+                raise MissingConfigurationError(
+                    config_key="github_token",
+                    service="github"
+                )
 
             return MCPHttpServer(
                 url="https://api.githubcopilot.com/mcp/",
@@ -906,7 +988,10 @@ class MCPMarkAgent(BaseMCPAgent):
             api_key = self.service_config.get("api_key", "")
 
             if not api_key:
-                raise ValueError("Supabase requires api_key (use secret key from 'supabase status')")
+                raise MissingConfigurationError(
+                    config_key="api_key",
+                    service="supabase"
+                )
 
             # Supabase CLI exposes MCP at /mcp endpoint
             mcp_url = f"{api_url}/mcp"
@@ -920,5 +1005,9 @@ class MCPMarkAgent(BaseMCPAgent):
             )
 
         else:
-            raise ValueError(f"Unsupported HTTP service: {self.mcp_service}")
+            raise InvalidConfigurationError(
+                config_key="mcp_service",
+                value=self.mcp_service,
+                reason=f"Unsupported HTTP service. Supported: {self.HTTP_SERVICES}"
+            )
     

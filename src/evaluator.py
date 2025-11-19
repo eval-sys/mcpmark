@@ -12,6 +12,12 @@ from src.model_config import ModelConfig
 from src.results_reporter import EvaluationReport, ResultsReporter, TaskResult
 from src.errors import is_retryable_error
 from src.agents import AGENT_REGISTRY
+from src.exceptions import (
+    InvalidConfigurationError,
+    StateSetupError,
+    AgentExecutionError,
+    TaskExecutionError,
+)
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -35,7 +41,11 @@ class MCPEvaluator:
         self.agent_name = (agent_name or "mcpmark").lower()
         self.task_suite = (task_suite or "standard").lower()
         if self.agent_name not in AGENT_REGISTRY:
-            raise ValueError(f"Unsupported agent '{agent_name}'. Available: {sorted(AGENT_REGISTRY)}")
+            raise InvalidConfigurationError(
+                config_key="agent_name",
+                value=agent_name,
+                reason=f"Unsupported agent. Available: {sorted(AGENT_REGISTRY)}"
+            )
         
         # Initialize model configuration
         self.reasoning_effort = reasoning_effort
@@ -196,10 +206,12 @@ class MCPEvaluator:
         if not setup_success:
             logger.error(f"| State setup failed for task: {task.name}")
             task_total_time = time.time() - task_start_time
+            # Use StateSetupError for better error classification
+            error_msg = f"State setup failed for service '{self.mcp_service}' (task: {task.name})"
             return TaskResult(
                 task_name=task.name,
                 success=False,
-                error_message="State Duplication Error",
+                error_message=error_msg,
                 verification_error=None,
                 verification_output=None,
                 category_id=task.category_id,

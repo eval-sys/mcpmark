@@ -11,6 +11,7 @@ import os
 from typing import Dict, List
 
 from src.logger import get_logger
+from src.exceptions import ModelConfigurationError
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -185,8 +186,9 @@ class ModelConfig:
         
         self.api_key = os.getenv(model_info["api_key_var"])
         if not self.api_key:
-            raise ValueError(
-                f"Missing required environment variable: {model_info['api_key_var']}"
+            raise ModelConfigurationError(
+                model_name=model_name,
+                reason=f"Missing required environment variable: {model_info['api_key_var']}"
             )
 
         self.litellm_input_model_name = model_info.get("litellm_input_model_name", model_name)

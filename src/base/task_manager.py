@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from src.logger import get_logger
 from src.results_reporter import TaskResult
+from src.exceptions import TaskVerificationError
 
 logger = get_logger(__name__)
 
@@ -253,13 +254,39 @@ class BaseTaskManager(ABC):
 
         Default implementation runs the verification command.
         Services can override this to add environment variables or custom logic.
+        
+        Raises:
+            TaskVerificationError: If verification fails or times out
         """
-        return subprocess.run(
-            self._get_verification_command(task),
-            capture_output=True,  # Capture stdout and stderr for logging
-            text=True,
-            timeout=300,
-        )
+        try:
+            result = subprocess.run(
+                self._get_verification_command(task),
+                capture_output=True,  # Capture stdout and stderr for logging
+                text=True,
+                timeout=300,
+                check=False,  # Don't raise on non-zero exit, we check returncode below
+            )
+            # Check return code manually and raise if non-zero
+            if result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    result.returncode,
+                    self._get_verification_command(task),
+                    result.stdout,
+                    result.stderr
+                )
+            return result
+        except subprocess.TimeoutExpired as e:
+            raise TaskVerificationError(
+                task_name=task.name,
+                reason=f"Verification script timed out after 300s: {e}",
+                cause=e
+            )
+        except subprocess.CalledProcessError as e:
+            raise TaskVerificationError(
+                task_name=task.name,
+                reason=f"Verification script failed with exit code {e.returncode}",
+                cause=e
+            )
 
     # =========================================================================
     # Abstract Methods - Minimal Set Required

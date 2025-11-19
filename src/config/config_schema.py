@@ -17,6 +17,7 @@ import yaml
 from dotenv import load_dotenv
 
 from src.logger import get_logger
+from src.exceptions import MissingConfigurationError, InvalidConfigurationError
 
 logger = get_logger(__name__)
 
@@ -42,11 +43,18 @@ class ConfigValue:
     def validate(self) -> bool:
         """Validate the configuration value."""
         if self.required and self.value is None:
-            raise ValueError(f"Required configuration '{self.key}' is missing")
+            raise MissingConfigurationError(
+                config_key=self.key,
+                service=None,  # Could be passed from parent if available
+            )
 
         if self.validator and self.value is not None:
             if not self.validator(self.value):
-                raise ValueError(f"Invalid value for '{self.key}': {self.value}")
+                raise InvalidConfigurationError(
+                    config_key=self.key,
+                    value=self.value,
+                    reason="Validation failed"
+                )
 
         return True
 
