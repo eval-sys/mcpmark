@@ -123,6 +123,11 @@ class ModelConfig:
             "api_key_var": "GEMINI_API_KEY",
             "litellm_input_model_name": "gemini/gemini-2.5-flash",
         },
+        "gemini-3-pro-preview": {
+            "provider": "google",
+            "api_key_var": "GEMINI_API_KEY",
+            "litellm_input_model_name": "gemini/gemini-3-pro-preview",
+        },
         # Moonshot models
         "kimi-k2-0711": {
             "provider": "moonshot",

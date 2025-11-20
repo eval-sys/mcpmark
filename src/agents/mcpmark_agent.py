@@ -477,33 +477,33 @@ class MCPMarkAgent(BaseMCPAgent):
                 log_msg += f" | Reasoning: {total_tokens['reasoning_tokens']:,}"
             logger.info(log_msg)
             logger.info(f"| Turns: {turn_count}")
-        
+
         # Convert messages to SDK format
-        # sdk_format_messages = self._convert_to_sdk_format(messages)
-        
+        sdk_format_messages = self._convert_to_sdk_format(messages)
+
         if hit_turn_limit:
             return {
                 "success": False,
-                "output": messages,
+                "output": sdk_format_messages,
                 "token_usage": total_tokens,
                 "turn_count": turn_count,
                 "error": f"Max turns ({max_turns}) exceeded",
                 "litellm_run_model_name": self.litellm_run_model_name,
             }
-        
+
         if error_msg:
             return {
                 "success": False,
-                "output": messages,
+                "output": sdk_format_messages,
                 "token_usage": total_tokens,
                 "turn_count": turn_count,
                 "error": error_msg,
                 "litellm_run_model_name": self.litellm_run_model_name,
             }
-        
+
         return {
             "success": True,
-            "output": messages,
+            "output": sdk_format_messages,
             "token_usage": total_tokens,
             "turn_count": turn_count,
             "error": None,
@@ -632,45 +632,54 @@ class MCPMarkAgent(BaseMCPAgent):
                     else:
                         await asyncio.sleep(2 ** consecutive_failures)
                     continue
-                
+
                 # Extract actual model name from response (first turn only)
                 if turn_count == 0 and hasattr(response, 'model') and response.model:
                     self.litellm_run_model_name = response.model.split("/")[-1]
-                
+
                 # Update token usage including reasoning tokens
                 if hasattr(response, 'usage') and response.usage:
                     input_tokens = response.usage.prompt_tokens or 0
                     total_tokens_count = response.usage.total_tokens or 0
                     # Calculate output tokens as total - input for consistency
                     output_tokens = total_tokens_count - input_tokens if total_tokens_count > 0 else (response.usage.completion_tokens or 0)
-                    
+
                     total_tokens["input_tokens"] += input_tokens
                     total_tokens["output_tokens"] += output_tokens
                     total_tokens["total_tokens"] += total_tokens_count
-                    
+
                     # Extract reasoning tokens if available
                     if hasattr(response.usage, 'completion_tokens_details'):
                         details = response.usage.completion_tokens_details
                         if hasattr(details, 'reasoning_tokens'):
                             total_tokens["reasoning_tokens"] += details.reasoning_tokens or 0
-                
+
                 # Get response message
                 choices = response.choices
                 if len(choices):
                     message = choices[0].message
+                    # deeply dump the message to ensure we capture all fields
                     message_dict = message.model_dump() if hasattr(message, 'model_dump') else dict(message)
-                    
+
+                    # Explicitly preserve function_call if present (even if tool_calls exists),
+                    # as it may contain provider-specific metadata (e.g. Gemini thought_signature)
+                    if hasattr(message, 'function_call') and message.function_call:
+                        # Ensure it's in the dict if model_dump missed it or it was excluded
+                        if 'function_call' not in message_dict or not message_dict['function_call']:
+                            fc = message.function_call
+                            message_dict['function_call'] = fc.model_dump() if hasattr(fc, 'model_dump') else fc
+
                 # Log assistant's text content if present
                 if hasattr(message, 'content') and message.content:
                     # Display the content with line prefix
                     for line in message.content.splitlines():
                         logger.info(f"| {line}")
-                    
+
                     # Also log to file if specified
                     if tool_call_log_file:
                         with open(tool_call_log_file, 'a', encoding='utf-8') as f:
                             f.write(f"{message.content}\n")
-                
+
                 # Check for tool calls (newer format)
                 if hasattr(message, 'tool_calls') and message.tool_calls:
                     messages.append(message_dict)
