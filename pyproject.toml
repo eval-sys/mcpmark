@@ -19,7 +19,7 @@ dependencies = [
   "pixi",
   "pipx>=1.7.1,<2",
   "pgdumplib>=3.1.0,<4",
-  "litellm==1.76.0"
+  "litellm==1.80.0"
 ]
 
 [build-system]

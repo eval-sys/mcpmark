@@ -97,6 +97,11 @@ class ModelConfig:
             "api_key_var": "ANTHROPIC_API_KEY",
             "litellm_input_model_name": "anthropic/claude-sonnet-4-20250514",
         },
+        "claude-sonnet-4.5": {
+            "provider": "anthropic",
+            "api_key_var": "ANTHROPIC_API_KEY",
+            "litellm_input_model_name": "anthropic/claude-sonnet-4-5-20250929",
+        },
         "claude-opus-4": {
             "provider": "anthropic",
             "api_key_var": "ANTHROPIC_API_KEY",
@@ -117,6 +122,11 @@ class ModelConfig:
             "provider": "google",
             "api_key_var": "GEMINI_API_KEY",
             "litellm_input_model_name": "gemini/gemini-2.5-flash",
+        },
+        "gemini-3-pro-preview": {
+            "provider": "google",
+            "api_key_var": "GEMINI_API_KEY",
+            "litellm_input_model_name": "gemini/gemini-3-pro-preview",
         },
         # Moonshot models
         "kimi-k2-0711": {
