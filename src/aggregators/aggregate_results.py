@@ -84,14 +84,27 @@ def collect_results(exp_dir: Path, k: int) -> Dict[str, Dict[str, Any]]:
     results = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
     
     # Current layout: results/<exp>/<model>__<service>/run-N/<category>__<task>/
+    # Some pipelines include task-set suffix in service dir (e.g., "filesystem-easy").
+    # Normalize such names back to canonical service keys used by tasks/ (filesystem, github, notion, playwright, postgres).
+
+    def normalize_service_name(name: str) -> str:
+        # Strip known task-set suffixes like "-easy" or "-standard"
+        if name.endswith("-easy") or name.endswith("-standard"):
+            base = name.rsplit("-", 1)[0]
+        else:
+            base = name
+
+        # Map variant names to canonical service
+        if base == "playwright_webarena":
+            return "playwright"
+        return base
     for model_service_dir in exp_dir.iterdir():
         if not model_service_dir.is_dir() or "__" not in model_service_dir.name:
             continue
         
         model, service = model_service_dir.name.split("__", 1)
-        # Normalize service name: treat playwright_webarena as playwright
-        if service == "playwright_webarena":
-            service = "playwright"
+        # Normalize service name (handles playwright_webarena and *-easy/*-standard suffixes)
+        service = normalize_service_name(service)
         
         for run_idx in range(1, k + 1):
             run_dir = model_service_dir / f"run-{run_idx}"
@@ -906,6 +919,7 @@ def main():
         help="Which task subset to aggregate (default: standard)"
     )
     parser.add_argument("--push", action="store_true", help="Push to GitHub (default to main)")
+    # Note: we intentionally do not expose flags that include invalid models by default
     
     args = parser.parse_args()
     
@@ -942,13 +956,15 @@ def main():
     # Print validation report with summary table
     print_validation_report(complete_models, incomplete_models, invalid_models, 
                            all_tasks, args.k, single_run_models, results)
-    
-    if not complete_models:
+
+    # Determine which models to include in output (strict: only complete models)
+    models_for_output = dict(complete_models)
+    if not models_for_output:
         return 1
     
     # Calculate metrics
     print("\n📊 Calculating metrics...")
-    summary = calculate_metrics(complete_models, all_tasks, args.k, single_run_models)
+    summary = calculate_metrics(models_for_output, all_tasks, args.k, single_run_models)
     summary["experiment_name"] = args.exp_name
     summary["task_set"] = args.task_set
     
@@ -960,12 +976,12 @@ def main():
     
     # Generate model_results
     print("📁 Generating model_results...")
-    generate_model_results(exp_dir, complete_models, all_tasks)
-    print(f"  Created {len(complete_models)} model directories")
+    generate_model_results(exp_dir, models_for_output, all_tasks)
+    print(f"  Created {len(models_for_output)} model directories")
     
     # Generate task_results
     print("📁 Generating task_results...")
-    generate_task_results(exp_dir, complete_models, all_tasks)
+    generate_task_results(exp_dir, models_for_output, all_tasks)
     print(f"  Created {total_tasks} task files")
     
     # Generate README

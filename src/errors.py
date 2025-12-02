@@ -46,14 +46,10 @@ def standardize_error_message(error: str, mcp_service: Optional[str] = None) -> 
         "connection refused" in error_str.lower() or "econnrefused" in error_str.lower()
     ):
         base_msg = "Connection refused"
-    elif "authentication" in error_str.lower() or "unauthorized" in error_str.lower():
-        base_msg = "Authentication failed"
     elif "not found" in error_str.lower():
         base_msg = "Resource not found"
     elif "already exists" in error_str.lower():
         base_msg = "Resource already exists"
-    elif "mcp" in error_str.lower() and "error" in error_str.lower():
-        base_msg = "MCP service error"
     else:
         # Return original message if no standardization applies
         return error_str
