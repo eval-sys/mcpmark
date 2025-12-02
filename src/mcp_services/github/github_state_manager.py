@@ -253,6 +253,21 @@ class GitHubStateManager(BaseStateManager):
         html_url = resp.json()["html_url"]
         logger.info("| [import] Target repository created: %s", html_url)
 
+        # Safety check: Prevent importing to public repositories
+        # Public repos would send @ mention notifications to real users, causing spam
+        if not private:
+            error_msg = (
+                "ERROR: Cannot import template to a public repository.\n\n"
+                "Reason: The template contains @ mentions of real GitHub users from the original\n"
+                "repository. Importing to a public repository would send notifications to these\n"
+                "users, which is disruptive and inappropriate.\n\n"
+                "Solution: Set private=True when calling _import_template_repo()."
+            )
+            logger.error(error_msg)
+            # Clean up the created repo before raising
+            self._delete_repository(owner, repo_name)
+            raise RuntimeError(error_msg)
+
         # Immediately disable GitHub Actions for ALL repositories to prevent any accidental triggers
         # We'll re-enable it later only for mcpmark-cicd
         logger.info(
@@ -317,7 +332,7 @@ class GitHubStateManager(BaseStateManager):
         def _create_issue(item: dict) -> Optional[int]:
             data = {
                 "title": item["title"],
-                "body": item.get("body", ""),
+                "body": self._obfuscate_mentions(item.get("body", "")),
                 "labels": item.get("labels", []),
             }
             r = self._request_with_retry(
@@ -337,7 +352,7 @@ class GitHubStateManager(BaseStateManager):
             return new_no
 
         def _create_pull(pr_itm: dict) -> Optional[int]:
-            body = pr_itm.get("body", "")
+            body = self._obfuscate_mentions(pr_itm.get("body", ""))
             if pr_itm.get("is_from_fork", False):
                 fork_note = f"\n\n---\n_This PR was originally from a fork: **{pr_itm.get('fork_owner')}/{pr_itm.get('fork_repo')}** (branch: `{pr_itm['head']}`)_"
                 body = body + fork_note if body else fork_note[2:]
@@ -366,7 +381,10 @@ class GitHubStateManager(BaseStateManager):
                 created_issues += 1
                 for c in itm.get("comments", []):
                     _create_comment(
-                        new_no, f"*Original author: @{c['user']}*\n\n{c['body']}"
+                        new_no,
+                        self._obfuscate_mentions(
+                            f"*Original author: @{c['user']}*\n\n{c['body']}"
+                        ),
                     )
         logger.info(
             "| [phase] Created %d out of %d issues", created_issues, len(issues_data)
@@ -382,12 +400,17 @@ class GitHubStateManager(BaseStateManager):
                 created_prs += 1
                 for c in pr.get("comments", []):
                     _create_comment(
-                        new_pr_no, f"*Original author: @{c['user']}*\n\n{c['body']}"
+                        new_pr_no,
+                        self._obfuscate_mentions(
+                            f"*Original author: @{c['user']}*\n\n{c['body']}"
+                        ),
                     )
                 for rc in pr.get("review_comments", []):
                     _create_comment(
                         new_pr_no,
-                        f"*Original author: @{rc['user']}* (review)\n\n{rc['body']}",
+                        self._obfuscate_mentions(
+                            f"*Original author: @{rc['user']}* (review)\n\n{rc['body']}"
+                        ),
                     )
             else:
                 skipped_prs += 1
@@ -522,6 +545,42 @@ class GitHubStateManager(BaseStateManager):
             )
         else:
             logger.info(f"| Successfully deleted repository {owner}/{repo_name}")
+
+    def _obfuscate_mentions(self, text: str) -> str:
+        """
+        Obfuscate @ mentions to prevent notifications to real users.
+
+        Replaces @username with @username_XXXX (random suffix) to ensure the mentioned
+        user does not exist on GitHub. This prevents notification spam when importing
+        templates that contain @ mentions from original repositories.
+
+        Args:
+            text: The text content that may contain @ mentions
+
+        Returns:
+            Text with obfuscated @ mentions
+        """
+        import re
+        import random
+        import string
+
+        if not text:
+            return text
+
+        # Pattern matches @username (GitHub usernames: alphanumeric, hyphens, max 39 chars)
+        # Negative lookbehind (?<![a-zA-Z0-9]) ensures @ is not preceded by alphanumeric,
+        # which excludes emails like user@example.com
+        pattern = r"(?<![a-zA-Z0-9])@([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)"
+
+        def replace_mention(match):
+            username = match.group(1)
+            # Generate random 4-char suffix
+            suffix = "".join(
+                random.choices(string.ascii_lowercase + string.digits, k=4)
+            )
+            return f"@{username}_{suffix}"
+
+        return re.sub(pattern, replace_mention, text)
 
     # ---------------------------------------------------------------------
     # Helper utilities (organisation vs user)

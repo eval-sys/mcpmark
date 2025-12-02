@@ -152,6 +152,22 @@ Tip: MCPMark supports **auto-resume**. When re-running, only unfinished tasks wi
 
 You can also follow [Quickstart](docs/quickstart.md) for the shortest end-to-end path.
 
+### Important Notice: GitHub Repository Privacy
+
+> **Please ensure your evaluation repositories are set to PRIVATE.**
+
+GitHub state templates are now automatically downloaded from our CDN during evaluation — no manual download is required. However, because these templates contain issues and pull requests from real open-source repositories, the recreation process includes `@username` mentions of the original authors.
+
+**We have received feedback from original GitHub authors who were inadvertently notified** when evaluation repositories were created as public. To be a responsible member of the open-source community, we urge all users to:
+
+1. **Always keep evaluation repositories private** during the evaluation process.
+2. **In the latest version**, we have added random suffixes to all `@username` mentions (e.g., `@user` becomes `@user_x7k2`) and implemented a safety check that prevents importing templates to public repositories.
+3. **If you are using an older version of MCPMark**, please either:
+   - Pull the latest code immediately, or
+   - Manually ensure all GitHub evaluation repositories are set to private.
+
+Thank you for helping us maintain a respectful relationship with the open-source community.
+
 ---
 
 ## Results and metrics
