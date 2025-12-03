@@ -66,6 +66,14 @@ class BaseMCPAgent(ABC):
             self.litellm_input_model_name,
         )
 
+        # Warn if Gemini 3 model uses unsupported reasoning_effort value
+        if self._is_gemini_3_model() and self.reasoning_effort not in ["default", "low", "high"]:
+            logger.warning(
+                "Gemini 3 models only support reasoning_effort 'low' or 'high', "
+                "got '%s'. LiteLLM may map this to the nearest supported value.",
+                self.reasoning_effort,
+            )
+
     def __repr__(self) -> str:  # pragma: no cover - debug helper
         return (
             f"{self.__class__.__name__}(service='{self.mcp_service}', "
@@ -417,6 +425,11 @@ class BaseMCPAgent(ABC):
     def _is_gemini_model(self) -> bool:
         model_lower = self.litellm_input_model_name.lower()
         return "gemini" in model_lower or "bison" in model_lower
+
+    def _is_gemini_3_model(self) -> bool:
+        """Check if this is a Gemini 3 series model."""
+        model_lower = self.litellm_input_model_name.lower()
+        return "gemini-3" in model_lower or "gemini/gemini-3" in model_lower
 
     def _simplify_schema_for_gemini(self, schema: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         if not isinstance(schema, dict):
