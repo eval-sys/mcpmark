@@ -16,6 +16,18 @@ MCPMark provides a reproducible, extensible benchmark for researchers and engine
 
 [![MCPMark](https://github.com/user-attachments/assets/dfc06a41-e387-45e3-bc98-db7097ffa3dc)](https://mcpmark.ai)
 
+## News
+
+- **02/Dec/2025** - Evaluated `gemini-3-pro-preview` (thinking: low): Pass@1 50.6% ± 2.3%, Pass@4 67.7%, Pass^4 31.5% - so close to `gpt-5-high` (51.6%)! Also `deepseek-v3.2-thinking` Pass@1 36.8% ± 1.8%, Pass@4 51.2%, Pass^4 21.3% and `deepseek-v3.2-chat` Pass@1 29.7% ± 1.5%, Pass@4 46.5%, Pass^4 13.4%
+- **02/Dec/2025** - Obfuscate GitHub @mentions to prevent notification spam during evaluation ([#229](https://github.com/eval-sys/mcpmark/pull/229))
+- **01/Dec/2025** - DeepSeek v3.2 release uses MCPMark! Kudos to the DeepSeek team on securing the best open-source model with a significant performance gain. [X Post](https://x.com/deepseek_ai/status/1995452650557763728) | [Technical Report](https://cas-bridge.xethub.hf.co/xet-bridge-us/692cfec93b25b81d09307b94/2d0aa38511b9df084d12a00fe04a96595496af772cb766c516c4e6aee1e21246?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cas%2F20251203%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251203T145756Z&X-Amz-Expires=3600&X-Amz-Signature=31d39c39a42319dba189c1164f8a8bff69e4211b7520b75b7f3d4013a23b3022&X-Amz-SignedHeaders=host&X-Xet-Cas-Uid=634c72e6fe1bfa967d6c2b5c&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27paper.pdf%3B+filename%3D%22paper.pdf%22%3B&response-content-type=application%2Fpdf&x-id=GetObject&Expires=1764777476&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc2NDc3NzQ3Nn19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2FzLWJyaWRnZS54ZXRodWIuaGYuY28veGV0LWJyaWRnZS11cy82OTJjZmVjOTNiMjViODFkMDkzMDdiOTQvMmQwYWEzODUxMWI5ZGYwODRkMTJhMDBmZTA0YTk2NTk1NDk2YWY3NzJjYjc2NmM1MTZjNGU2YWVlMWUyMTI0NioifV19&Signature=HxFnQM7j%7EnuD9Qr81qqbXkunCc4nLLmTHv-5EosJu8EqlQ3VRyBibLNz0ur1d9h2SFp1Lvji3tNOQSWZsW%7EMS6wbmN5E4jjgbcXR40oxG4nhcq8Hy5jnHlEcQ9GyV9B0HTeXmQJ32AjkEDymEl9iVISRzEzwiu9J8wQL659QHSU5v81eexEk7LTfETikOdKCUQJy0uNqdDb3N%7Elfegq6XrxuZU5UawtlJYV57g1afkLln0ZYxqkYSEqxRdGwIAbfd1Te2Yi60I%7ELEB3qok4LM2%7E4gBWDBaB%7ESN902sbutiQYuvk6V5tFlSVq3MHaRJfJBCMTZiNtb5JAHKZSyVlGuw__&Key-Pair-Id=K2L8F4GPSG1IFC)
+- **17/Nov/2025** - Added 50 easy tasks (10 per MCP server) for smaller (<100B) open-source models ([#225](https://github.com/eval-sys/mcpmark/pull/225))
+- **31/Oct/2025** - Community PR from insforge: better MCP servers achieve better results with fewer tokens! ([#214](https://github.com/eval-sys/mcpmark/pull/214))
+- **13/Oct/2025** - Added ReAct agent support. PRs for new agent scaffolds welcome! ([#209](https://github.com/eval-sys/mcpmark/pull/209))
+- **10/Sep/2025** - `qwen-3-coder-plus` is the best open-source model! Kudos to Qwen team. [X Post](https://x.com/Alibaba_Qwen/status/1965457023438651532)
+
+---
+
 ## What you can do with MCPMark
 
 - **Evaluate real tool usage** across multiple MCP services: `Notion`, `GitHub`, `Filesystem`, `Postgres`, `Playwright`.
