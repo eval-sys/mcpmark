@@ -414,6 +414,48 @@ SERVICES = {
                 "description": "Skip Docker container cleanup for debugging",
                 "transform": "bool",
             },
+            "custom_endpoints_file": {
+                "env_var": "PLAYWRIGHT_WEBARENA_ENDPOINTS_FILE",
+                "default": None,
+                "required": False,
+                "description": "Path to file that lists externally managed WebArena endpoints",
+                "transform": "path",
+            },
+            "custom_reddit_url": {
+                "env_var": "PLAYWRIGHT_WEBARENA_REDDIT_URL",
+                "required": False,
+                "description": "Override Reddit forum base URL (e.g., http://10.x.x.x:9999)",
+            },
+            "custom_shopping_url": {
+                "env_var": "PLAYWRIGHT_WEBARENA_SHOPPING_URL",
+                "required": False,
+                "description": "Override shopping storefront base URL (e.g., http://10.x.x.x:7770)",
+            },
+            "custom_shopping_admin_url": {
+                "env_var": "PLAYWRIGHT_WEBARENA_SHOPPING_ADMIN_URL",
+                "required": False,
+                "description": "Override shopping admin base URL (e.g., http://10.x.x.x:7780/admin)",
+            },
+            "custom_homepage_url": {
+                "env_var": "PLAYWRIGHT_WEBARENA_HOMEPAGE_URL",
+                "required": False,
+                "description": "Optional homepage/base landing URL",
+            },
+            "custom_gitlab_url": {
+                "env_var": "PLAYWRIGHT_WEBARENA_GITLAB_URL",
+                "required": False,
+                "description": "Optional GitLab endpoint",
+            },
+            "custom_wiki_url": {
+                "env_var": "PLAYWRIGHT_WEBARENA_WIKI_URL",
+                "required": False,
+                "description": "Optional Wiki endpoint",
+            },
+            "custom_map_url": {
+                "env_var": "PLAYWRIGHT_WEBARENA_MAP_URL",
+                "required": False,
+                "description": "Optional Map endpoint",
+            },
         },
         "components": {
             "task_manager": "src.mcp_services.playwright_webarena.playwright_task_manager.PlaywrightTaskManager",
@@ -429,6 +471,14 @@ SERVICES = {
                 "viewport_width": "viewport_width",
                 "viewport_height": "viewport_height",
                 "skip_cleanup": "skip_cleanup",
+                "custom_endpoints_file": "custom_endpoints_file",
+                "custom_reddit_url": "custom_reddit_url",
+                "custom_shopping_url": "custom_shopping_url",
+                "custom_shopping_admin_url": "custom_shopping_admin_url",
+                "custom_homepage_url": "custom_homepage_url",
+                "custom_gitlab_url": "custom_gitlab_url",
+                "custom_wiki_url": "custom_wiki_url",
+                "custom_map_url": "custom_map_url",
             },
             "login_helper": {
                 "browser": "browser",

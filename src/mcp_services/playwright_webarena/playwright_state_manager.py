@@ -74,6 +74,12 @@ class PlaywrightStateManager(BaseStateManager):
         }
     }
 
+    CATEGORY_ENDPOINT_KEYS = {
+        "reddit": "reddit",
+        "shopping": "shopping",
+        "shopping_admin": "shopping_admin",
+    }
+
     def __init__(
         self,
         *,
@@ -94,6 +100,15 @@ class PlaywrightStateManager(BaseStateManager):
         viewport_height: Optional[int] = None,
         # Debug mode - skip container cleanup
         skip_cleanup: bool = False,
+        # External sandbox overrides
+        custom_endpoints_file: Optional[str | Path] = None,
+        custom_reddit_url: Optional[str] = None,
+        custom_shopping_url: Optional[str] = None,
+        custom_shopping_admin_url: Optional[str] = None,
+        custom_homepage_url: Optional[str] = None,
+        custom_gitlab_url: Optional[str] = None,
+        custom_wiki_url: Optional[str] = None,
+        custom_map_url: Optional[str] = None,
     ) -> None:
         super().__init__(service_name="playwright_webarena")
 
@@ -111,14 +126,32 @@ class PlaywrightStateManager(BaseStateManager):
         )
 
         self.skip_cleanup = skip_cleanup
-
-        logger.info(
-            "Initialized WebArenaStateManager (image=%s, container=%s, port=%s, skip_cleanup=%s)",
-            self.config.image_name,
-            self.config.container_name,
-            self.config.host_port,
-            self.skip_cleanup,
+        self.external_endpoints = self._prepare_external_endpoints(
+            custom_endpoints_file,
+            {
+                "reddit": custom_reddit_url,
+                "shopping": custom_shopping_url,
+                "shopping_admin": custom_shopping_admin_url,
+                "homepage": custom_homepage_url,
+                "gitlab": custom_gitlab_url,
+                "wiki": custom_wiki_url,
+                "map": custom_map_url,
+            },
         )
+        self.use_external_endpoints = bool(self.external_endpoints)
+
+        if self.use_external_endpoints:
+            logger.info("| Using external WebArena endpoints; Docker lifecycle disabled")
+            for key, value in self.external_endpoints.items():
+                logger.info("|   %s -> %s", key, value)
+        else:
+            logger.info(
+                "Initialized WebArenaStateManager (image=%s, container=%s, port=%s, skip_cleanup=%s)",
+                self.config.image_name,
+                self.config.container_name,
+                self.config.host_port,
+                self.skip_cleanup,
+            )
 
     # ---- Helpers ---------------------------------------------------------
 
@@ -401,6 +434,9 @@ class PlaywrightStateManager(BaseStateManager):
     # ---- BaseStateManager hooks -----------------------------------------
 
     def _create_initial_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
+        if self.use_external_endpoints:
+            return self._create_external_state(task)
+
         try:
             # Dynamically update config based on task category
             if hasattr(task, 'category_id') and task.category_id in self.CATEGORY_CONFIGS:
@@ -492,6 +528,10 @@ class PlaywrightStateManager(BaseStateManager):
             task.docker_metadata = state_info.metadata
 
     def _cleanup_task_initial_state(self, task: BaseTask) -> bool:
+        if self.use_external_endpoints:
+            logger.info("| External sandbox mode: no cleanup required")
+            return True
+
         if self.skip_cleanup:
             logger.info("| Skipping container cleanup (skip_cleanup=True)")
             logger.info("| Container is still running at: %s", self._get_entry_url())
@@ -510,6 +550,13 @@ class PlaywrightStateManager(BaseStateManager):
             return False
 
     def _cleanup_single_resource(self, resource: Dict[str, Any]) -> bool:
+        if self.use_external_endpoints:
+            logger.info(
+                "| External sandbox mode: resource cleanup skipped for %s",
+                resource.get("id"),
+            )
+            return True
+
         if self.skip_cleanup:
             logger.info(
                 "| Skipping resource cleanup for %s (skip_cleanup=True)",
@@ -534,6 +581,12 @@ class PlaywrightStateManager(BaseStateManager):
         Provide configuration to the agent. The key piece is the base URL that
         agents should navigate to when starting tasks.
         """
+        if self.use_external_endpoints:
+            return {
+                "environment": "webarena-external",
+                "endpoints": self.external_endpoints,
+            }
+
         return {
             "environment": "webarena-docker",
             "base_url": self._get_entry_url(),
@@ -546,6 +599,10 @@ class PlaywrightStateManager(BaseStateManager):
         }
 
     def close_all(self) -> None:
+        if self.use_external_endpoints:
+            logger.info("| External sandbox mode: close_all no-op")
+            return
+
         if self.skip_cleanup:
             logger.info("| Skipping container cleanup in close_all (skip_cleanup=True)")
             return
@@ -557,5 +614,91 @@ class PlaywrightStateManager(BaseStateManager):
             pass
 
     def __del__(self) -> None:
+        if self.use_external_endpoints:
+            return
         if not self.skip_cleanup:
             self.close_all()
+
+    # ---- External endpoint helpers --------------------------------------
+
+    def _prepare_external_endpoints(
+        self,
+        endpoints_file: Optional[str | Path],
+        overrides: Dict[str, Optional[str]],
+    ) -> Dict[str, str]:
+        endpoints: Dict[str, str] = {}
+
+        if endpoints_file:
+            path = Path(endpoints_file).expanduser()
+            endpoints.update(self._load_endpoints_from_file(path))
+
+        for key, value in overrides.items():
+            if value:
+                endpoints[key] = value.rstrip("/")
+
+        return {k: v for k, v in endpoints.items() if v}
+
+    def _load_endpoints_from_file(self, path: Path) -> Dict[str, str]:
+        endpoints: Dict[str, str] = {}
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("sandbox_id"):
+                        continue
+                    if ":" not in line:
+                        continue
+                    key, value = line.split(":", 1)
+                    key = key.strip()
+                    value = value.strip()
+                    endpoints[key] = value.rstrip("/")
+            logger.info("| Loaded external endpoints from %s", path)
+        except FileNotFoundError:
+            logger.error("| External endpoints file not found: %s", path)
+        except Exception as exc:
+            logger.error("| Failed to load endpoints from %s: %s", path, exc)
+
+        return endpoints
+
+    def _create_external_state(self, task: BaseTask) -> Optional[InitialStateInfo]:
+        category = getattr(task, "category_id", None)
+        base_url = self._get_external_url_for_category(category)
+
+        if not base_url:
+            logger.error(
+                "| External sandbox mode: no endpoint available for category '%s'",
+                category,
+            )
+            return None
+
+        logger.info(
+            "| External sandbox mode: using %s for category '%s'",
+            base_url,
+            category,
+        )
+
+        return InitialStateInfo(
+            state_id=f"external_{category or 'webarena'}",
+            state_url=base_url,
+            metadata={
+                "category": category,
+                "base_url": base_url,
+                "source": "external_sandbox",
+            },
+        )
+
+    def _get_external_url_for_category(self, category: Optional[str]) -> Optional[str]:
+        if not category:
+            return self.external_endpoints.get("homepage")
+
+        endpoint_key = self.CATEGORY_ENDPOINT_KEYS.get(category)
+        if endpoint_key and endpoint_key in self.external_endpoints:
+            return self.external_endpoints[endpoint_key]
+
+        fallback_keys = ["homepage", "gitlab", "wiki", "map"]
+        for key in fallback_keys:
+            if key in self.external_endpoints:
+                return self.external_endpoints[key]
+
+        return None

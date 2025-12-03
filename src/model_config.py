@@ -139,6 +139,12 @@ class ModelConfig:
             "api_key_var": "MOONSHOT_API_KEY",
             "litellm_input_model_name": "moonshot/kimi-k2-0905-preview",
         },
+        "kimi-k2-thinking": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "base_url_var": "OPENAI_BASE_URL",
+            "litellm_input_model_name": "openai/infinigence/kimi-k2-thinking",
+        },
         # Grok models
         "grok-4": {
             "provider": "xai",
