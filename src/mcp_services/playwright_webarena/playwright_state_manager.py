@@ -112,6 +112,15 @@ class PlaywrightStateManager(BaseStateManager):
     ) -> None:
         super().__init__(service_name="playwright_webarena")
 
+        # Fallback to environment variable if custom_endpoints_file is not provided
+        if custom_endpoints_file is None:
+            import os
+            custom_endpoints_file = os.environ.get("MCPMARK_ENDPOINTS_FILE")
+            if custom_endpoints_file:
+                logger.info(f"| Loaded endpoints file from env var MCPMARK_ENDPOINTS_FILE: {custom_endpoints_file}")
+            else:
+                logger.warning("| MCPMARK_ENDPOINTS_FILE env var not set")
+
         self.config = DockerConfig(
             image_name=docker_image_name,
             image_tar_path=Path(image_tar_path).expanduser().resolve()

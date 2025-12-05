@@ -804,9 +804,28 @@ class MCPMarkAgent(BaseMCPAgent):
 
     async def _create_mcp_server(self) -> Any:
         """Create and return an MCP server instance."""
+        # Check for remote MCP server URL in endpoints config (for Playwright/WebArena)
+        endpoints = self.service_config.get("endpoints", {})
+        mcp_server_url = endpoints.get("mcp_server_url")
+        source = "endpoints"
+        
+        # Also check top-level config for mcp_server_url
+        if not mcp_server_url:
+            mcp_server_url = self.service_config.get("mcp_server_url")
+            source = "service_config"
+
+        if mcp_server_url:
+            logger.info("| MCP: using remote HTTP server (source=%s) url=%s", source, mcp_server_url)
+            return MCPHttpServer(
+                url=mcp_server_url,
+                headers={"User-Agent": "MCPMark/1.0"}
+            )
+
         if self.mcp_service in self.STDIO_SERVICES:
+            logger.info("| MCP: using stdio server for %s", self.mcp_service)
             return self._create_stdio_server()
         elif self.mcp_service in self.HTTP_SERVICES:
+            logger.info("| MCP: using built-in HTTP server for %s", self.mcp_service)
             return self._create_http_server()
         else:
             raise ValueError(f"Unsupported MCP service: {self.mcp_service}")
