@@ -50,6 +50,16 @@ class MCPMarkAgent(BaseMCPAgent):
         "You are a helpful agent that uses tools iteratively to complete the user's task, "
         "and when finished, provides the final answer or simply states \"Task completed\" without further tool calls."
     )
+    COMPACTION_PROMPT = (
+        "You are performing a CONTEXT CHECKPOINT COMPACTION.\n"
+        "Summarize the conversation so far for another model to continue.\n\n"
+        "Include:\n"
+        "- Current progress and key decisions made\n"
+        "- Important context, constraints, or user preferences\n"
+        "- What remains to be done (clear next steps)\n"
+        "- Any critical data, examples, or references needed to continue\n\n"
+        "Be concise and structured. Do NOT call tools."
+    )
     DEFAULT_TIMEOUT = BaseMCPAgent.DEFAULT_TIMEOUT
 
     def __init__(
@@ -62,6 +72,7 @@ class MCPMarkAgent(BaseMCPAgent):
         service_config: Optional[Dict[str, Any]] = None,
         service_config_provider: Optional[Callable[[], Dict[str, Any]]] = None,
         reasoning_effort: Optional[str] = "default",
+        compaction_token: int = BaseMCPAgent.COMPACTION_DISABLED_TOKEN,
     ):
         super().__init__(
             litellm_input_model_name=litellm_input_model_name,
@@ -72,6 +83,7 @@ class MCPMarkAgent(BaseMCPAgent):
             service_config=service_config,
             service_config_provider=service_config_provider,
             reasoning_effort=reasoning_effort,
+            compaction_token=compaction_token,
         )
         logger.debug(
             "Initialized MCPMarkAgent for '%s' with model '%s' (Claude: %s, Thinking: %s, Reasoning: %s)",
@@ -303,6 +315,177 @@ class MCPMarkAgent(BaseMCPAgent):
                 return None, e.response.text
             except Exception as e:
                 return None, e
+
+    async def _count_claude_input_tokens(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+    ) -> int:
+        import os
+
+        api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        payload: Dict[str, Any] = {
+            "model": self.litellm_input_model_name.replace("anthropic/", ""),
+            "messages": messages,
+        }
+        if tools:
+            payload["tools"] = tools
+        if system:
+            payload["system"] = system
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{api_base}/v1/messages/count_tokens",
+                headers=headers,
+                json=payload,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            data = response.json() or {}
+            return int(data.get("input_tokens", 0) or 0)
+
+    def _extract_litellm_text(self, response: Any) -> str:
+        try:
+            choices = getattr(response, "choices", None) or []
+            if not choices:
+                return ""
+            msg = getattr(choices[0], "message", None)
+            if msg is not None:
+                return str(getattr(msg, "content", "") or "")
+            return str(getattr(choices[0], "text", "") or "")
+        except Exception:  # pragma: no cover - best effort
+            return ""
+
+    def _extract_anthropic_text(self, response_json: Dict[str, Any]) -> str:
+        pieces: List[str] = []
+        for block in response_json.get("content", []) or []:
+            if isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text")
+                if text:
+                    pieces.append(str(text))
+        return "\n".join(pieces).strip()
+
+    def _merge_usage(self, total_tokens: Dict[str, int], usage: Dict[str, Any]) -> None:
+        try:
+            input_tokens = int(usage.get("input_tokens", 0) or 0)
+            output_tokens = int(usage.get("output_tokens", 0) or 0)
+            total_tokens_count = int(usage.get("total_tokens", 0) or (input_tokens + output_tokens))
+            total_tokens["input_tokens"] += input_tokens
+            total_tokens["output_tokens"] += output_tokens
+            total_tokens["total_tokens"] += total_tokens_count
+        except Exception:  # pragma: no cover - best effort
+            return
+
+    async def _maybe_compact_litellm_messages(
+        self,
+        messages: List[Dict[str, Any]],
+        total_tokens: Dict[str, int],
+        tool_call_log_file: Optional[str],
+        current_prompt_tokens: int,
+    ) -> List[Dict[str, Any]]:
+        if not self._compaction_enabled():
+            return messages
+        if current_prompt_tokens < self.compaction_token:
+            return messages
+
+        logger.info(f"| [compaction] Triggered at prompt tokens: {current_prompt_tokens:,}")
+        if tool_call_log_file:
+            try:
+                with open(tool_call_log_file, "a", encoding="utf-8") as f:
+                    f.write(f"| [compaction] Triggered at prompt tokens: {current_prompt_tokens:,}\n")
+            except Exception:
+                pass
+
+        compact_messages = [
+            {"role": "system", "content": self.COMPACTION_PROMPT},
+            {"role": "user", "content": json.dumps(messages, ensure_ascii=False)},
+        ]
+        completion_kwargs = {
+            "model": self.litellm_input_model_name,
+            "messages": compact_messages,
+            "api_key": self.api_key,
+        }
+        if self.base_url:
+            completion_kwargs["base_url"] = self.base_url
+        response = await litellm.acompletion(**completion_kwargs)
+
+        usage = getattr(response, "usage", None)
+        if usage:
+            input_tokens = getattr(usage, "prompt_tokens", None) or getattr(usage, "input_tokens", None) or 0
+            output_tokens = getattr(usage, "completion_tokens", None) or getattr(usage, "output_tokens", None) or 0
+            total_tokens_count = getattr(usage, "total_tokens", None)
+            if total_tokens_count is None:
+                total_tokens_count = input_tokens + output_tokens
+            total_tokens["input_tokens"] += int(input_tokens or 0)
+            total_tokens["output_tokens"] += int(output_tokens or 0)
+            total_tokens["total_tokens"] += int(total_tokens_count or 0)
+
+        summary = self._extract_litellm_text(response).strip() or "(no summary)"
+        system_msg = messages[0] if messages else {"role": "system", "content": self.SYSTEM_PROMPT}
+        first_user = messages[1] if len(messages) > 1 else {"role": "user", "content": ""}
+        return [
+            system_msg,
+            first_user,
+            {
+                "role": "user",
+                "content": f"Context summary (auto-compacted due to token limit):\n{summary}",
+            },
+        ]
+
+    async def _maybe_compact_anthropic_messages(
+        self,
+        messages: List[Dict[str, Any]],
+        total_tokens: Dict[str, int],
+        thinking_budget: int,
+        tool_call_log_file: Optional[str],
+        current_input_tokens: int,
+    ) -> List[Dict[str, Any]]:
+        if not self._compaction_enabled():
+            return messages
+        if current_input_tokens < self.compaction_token:
+            return messages
+
+        logger.info(f"| [compaction] Triggered at input tokens: {current_input_tokens:,}")
+        if tool_call_log_file:
+            try:
+                with open(tool_call_log_file, "a", encoding="utf-8") as f:
+                    f.write(f"| [compaction] Triggered at input tokens: {current_input_tokens:,}\n")
+            except Exception:
+                pass
+
+        compact_messages = [
+            {"role": "user", "content": self.COMPACTION_PROMPT},
+            {"role": "user", "content": json.dumps(messages, ensure_ascii=False)},
+        ]
+        response, error_msg = await self._call_claude_native_api(
+            messages=compact_messages,
+            thinking_budget=thinking_budget,
+            tools=None,
+            system=None,
+        )
+        if error_msg or not response:
+            logger.warning(f"| [compaction] Failed: {error_msg}")
+            return messages
+
+        usage = response.get("usage", {}) or {}
+        input_tokens = usage.get("input_tokens", 0) or 0
+        output_tokens = usage.get("output_tokens", 0) or 0
+        total_tokens["input_tokens"] += int(input_tokens)
+        total_tokens["output_tokens"] += int(output_tokens)
+        total_tokens["total_tokens"] += int(input_tokens + output_tokens)
+
+        summary = self._extract_anthropic_text(response) or "(no summary)"
+        first_user = messages[0] if messages else {"role": "user", "content": ""}
+        return [
+            first_user,
+            {"role": "user", "content": f"Context summary (auto-compacted due to token limit):\n{summary}"},
+        ]
     
 
     async def _execute_anthropic_native_tool_loop(
@@ -327,9 +510,29 @@ class MCPMarkAgent(BaseMCPAgent):
         system_text = self.SYSTEM_PROMPT
         # Record initial state
         self._update_progress(messages, total_tokens, turn_count)
-        
+
         for _ in range(max_turns):
             turn_count += 1
+
+            current_input_tokens = 0
+            if self._compaction_enabled():
+                try:
+                    current_input_tokens = await self._count_claude_input_tokens(
+                        messages=messages,
+                        tools=tools,
+                        system=system_text,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Claude token counting failed: %s", exc)
+
+            messages = await self._maybe_compact_anthropic_messages(
+                messages=messages,
+                total_tokens=total_tokens,
+                thinking_budget=thinking_budget,
+                tool_call_log_file=tool_call_log_file,
+                current_input_tokens=current_input_tokens,
+            )
+            self._update_progress(messages, total_tokens, turn_count)
             
             # Call Claude native API
             response, error_msg = await self._call_claude_native_api(
@@ -584,9 +787,20 @@ class MCPMarkAgent(BaseMCPAgent):
 
         # Record initial state
         self._update_progress(messages, total_tokens, turn_count)
-        
+
         try:
             while turn_count < max_turns:
+                current_prompt_tokens = 0
+                if self._compaction_enabled():
+                    current_prompt_tokens = self._count_prompt_tokens_litellm(messages)
+
+                messages = await self._maybe_compact_litellm_messages(
+                    messages=messages,
+                    total_tokens=total_tokens,
+                    tool_call_log_file=tool_call_log_file,
+                    current_prompt_tokens=current_prompt_tokens,
+                )
+                self._update_progress(messages, total_tokens, turn_count)
                 
                 # Build completion kwargs
                 completion_kwargs = {
@@ -626,7 +840,15 @@ class MCPMarkAgent(BaseMCPAgent):
                     if consecutive_failures >= max_consecutive_failures:
                         raise
                     if "ContextWindowExceededError" in str(e):
-                        raise
+                        # Best-effort fallback: compact and retry once.
+                        messages = await self._maybe_compact_litellm_messages(
+                            messages=messages,
+                            total_tokens=total_tokens,
+                            tool_call_log_file=tool_call_log_file,
+                            current_prompt_tokens=self.compaction_token,
+                        )
+                        self._update_progress(messages, total_tokens, turn_count)
+                        continue
                     elif "RateLimitError" in str(e):
                         await asyncio.sleep(12 ** consecutive_failures)
                     else:
@@ -793,12 +1015,6 @@ class MCPMarkAgent(BaseMCPAgent):
             "litellm_run_model_name": self.litellm_run_model_name
         }
     
-
-
-    # ==================== Format Conversion Methods ====================
-
-    
-
 
     # ==================== MCP Server Management ====================
 

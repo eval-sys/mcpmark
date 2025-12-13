@@ -18,6 +18,7 @@ MCPMark provides a reproducible, extensible benchmark for researchers and engine
 
 ## News
 
+- 🔥 **13 Dec** — Added auto-compaction support (`--compaction-token`) to summarize long conversations and avoid context overflow during evaluation ([#236](https://github.com/eval-sys/mcpmark/pull/236])).
 - 🏅 **02 Dec** — Evaluated `gemini-3-pro-preview` (thinking: low): **Pass@1 50.6%** ± 2.3% — so close to `gpt-5-high` (51.6%)! Also `deepseek-v3.2-thinking` 36.8% and `deepseek-v3.2-chat` 29.7%
 - 🔥 **02 Dec** — Obfuscate GitHub @mentions to prevent notification spam during evaluation ([#229](https://github.com/eval-sys/mcpmark/pull/229))
 - 🏅 **01 Dec** — DeepSeek v3.2 uses MCPMark! Kudos on securing the best open-source model. [X Post](https://x.com/deepseek_ai/status/1995452650557763728) | [Technical Report](https://huggingface.co/deepseek-ai/DeepSeek-V3.2/resolve/main/assets/paper.pdf)
@@ -149,6 +150,8 @@ python -m src.aggregators.aggregate_results --exp-name exp
 Please visit `docs/introduction.md` for choices of *MODEL*.
 
 Tip: MCPMark supports **auto-resume**. When re-running, only unfinished tasks will execute. Failures matching our retryable patterns (see [RETRYABLE_PATTERNS](src/errors.py)) are retried automatically. Models may emit different error strings—if you encounter a new resumable error, please open a PR or issue.
+
+Tip: MCPMark supports **auto-compaction**; pass `--compaction-token N` to enable automatic context summarization when prompt tokens reach `N` (use `999999999` to disable).
 
 ---
 

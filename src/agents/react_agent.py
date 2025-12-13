@@ -25,6 +25,16 @@ class ReActAgent(BaseMCPAgent):
         "or the phrase \"Task completed.\" if no further detail is required. "
         "Every reply must be valid JSON without code fences."
     )
+    COMPACTION_PROMPT = (
+        "You are performing a CONTEXT CHECKPOINT COMPACTION.\n"
+        "Summarize the conversation so far for another model to continue.\n\n"
+        "Include:\n"
+        "- Current progress and key decisions made\n"
+        "- Important context, constraints, or user preferences\n"
+        "- What remains to be done (clear next steps)\n"
+        "- Any critical data, examples, or references needed to continue\n\n"
+        "Be concise and structured. Do NOT call tools."
+    )
 
     def __init__(
         self,
@@ -38,6 +48,7 @@ class ReActAgent(BaseMCPAgent):
         reasoning_effort: Optional[str] = "default",
         max_iterations: int = 100,
         system_prompt: Optional[str] = None,
+        compaction_token: int = BaseMCPAgent.COMPACTION_DISABLED_TOKEN,
     ):
         super().__init__(
             litellm_input_model_name=litellm_input_model_name,
@@ -48,6 +59,7 @@ class ReActAgent(BaseMCPAgent):
             service_config=service_config,
             service_config_provider=service_config_provider,
             reasoning_effort=reasoning_effort,
+            compaction_token=compaction_token,
         )
         self.max_iterations = max_iterations
         self.react_system_prompt = system_prompt or self.DEFAULT_SYSTEM_PROMPT
@@ -141,6 +153,76 @@ class ReActAgent(BaseMCPAgent):
             self._update_progress(messages, total_tokens, turn_count)
 
             for step in range(1, self.max_iterations + 1):
+                current_prompt_tokens = 0
+                if self._compaction_enabled():
+                    current_prompt_tokens = self._count_prompt_tokens_litellm(messages)
+
+                if self._compaction_enabled() and current_prompt_tokens >= self.compaction_token:
+                    logger.info(
+                        f"| [compaction] Triggered at prompt tokens: {current_prompt_tokens:,}"
+                    )
+                    if tool_call_log_file:
+                        try:
+                            with open(tool_call_log_file, "a", encoding="utf-8") as log_file:
+                                log_file.write(
+                                    f"| [compaction] Triggered at prompt tokens: {current_prompt_tokens:,}\n"
+                                )
+                        except Exception:  # noqa: BLE001
+                            pass
+
+                    compact_messages = [
+                        {"role": "system", "content": self.COMPACTION_PROMPT},
+                        {"role": "user", "content": json.dumps(messages, ensure_ascii=False)},
+                    ]
+                    compact_kwargs = {
+                        "model": self.litellm_input_model_name,
+                        "messages": compact_messages,
+                        "api_key": self.api_key,
+                    }
+                    if self.base_url:
+                        compact_kwargs["base_url"] = self.base_url
+
+                    compact_response = await litellm.acompletion(**compact_kwargs)
+                    usage = getattr(compact_response, "usage", None)
+                    if usage:
+                        prompt_tokens = (
+                            getattr(usage, "prompt_tokens", None)
+                            or getattr(usage, "input_tokens", None)
+                            or 0
+                        )
+                        completion_tokens = (
+                            getattr(usage, "completion_tokens", None)
+                            or getattr(usage, "output_tokens", None)
+                            or 0
+                        )
+                        total_tokens_count = getattr(usage, "total_tokens", None)
+                        if total_tokens_count is None:
+                            total_tokens_count = prompt_tokens + completion_tokens
+
+                        total_tokens["input_tokens"] += int(prompt_tokens or 0)
+                        total_tokens["output_tokens"] += int(completion_tokens or 0)
+                        total_tokens["total_tokens"] += int(total_tokens_count or 0)
+
+                    summary = ""
+                    try:
+                        summary = compact_response.choices[0].message.content or ""
+                    except Exception:  # noqa: BLE001
+                        summary = ""
+                    summary = summary.strip() or "(no summary)"
+
+                    messages = [
+                        system_message,
+                        task_message,
+                        {
+                            "role": "user",
+                            "content": (
+                                "Context summary (auto-compacted due to token limit):\n"
+                                f"{summary}"
+                            ),
+                        },
+                    ]
+                    self._update_progress(messages, total_tokens, turn_count)
+
                 completion_kwargs = {
                     "model": self.litellm_input_model_name,
                     "messages": messages,
@@ -163,6 +245,8 @@ class ReActAgent(BaseMCPAgent):
                 except Exception as exc:  # noqa: BLE001
                     final_error = f"LLM call failed on step {step}: {exc}"
                     logger.error(final_error)
+                    if "ContextWindowExceededError" in str(exc):
+                        continue
                     break
 
                 if turn_count == 0 and getattr(response, "model", None):

@@ -22,6 +22,7 @@ class BaseMCPAgent(ABC):
     STDIO_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena", "postgres", "insforge"]
     HTTP_SERVICES = ["github", "supabase"]
     DEFAULT_TIMEOUT = 600
+    COMPACTION_DISABLED_TOKEN = 999_999_999
 
     CLAUDE_THINKING_BUDGETS = {
         "low": 1024,
@@ -39,6 +40,7 @@ class BaseMCPAgent(ABC):
         service_config: Optional[Dict[str, Any]] = None,
         service_config_provider: Optional[Callable[[], Dict[str, Any]]] = None,
         reasoning_effort: Optional[str] = "default",
+        compaction_token: int = COMPACTION_DISABLED_TOKEN,
     ):
         self.litellm_input_model_name = litellm_input_model_name
         self.api_key = api_key
@@ -48,6 +50,7 @@ class BaseMCPAgent(ABC):
         self.service_config = service_config or {}
         self._service_config_provider = service_config_provider
         self.reasoning_effort = reasoning_effort or "default"
+        self.compaction_token = int(compaction_token)
 
         self.is_claude = self._is_anthropic_model(litellm_input_model_name)
         self.use_claude_thinking = self.is_claude and self.reasoning_effort != "default"
@@ -248,6 +251,17 @@ class BaseMCPAgent(ABC):
     # ------------------------------------------------------------------
     # Message/Tool formatting helpers
     # ------------------------------------------------------------------
+
+    def _compaction_enabled(self) -> bool:
+        return 0 < self.compaction_token < self.COMPACTION_DISABLED_TOKEN
+
+    def _count_prompt_tokens_litellm(self, messages: List[Dict[str, Any]]) -> int:
+        try:
+            from litellm import token_counter
+
+            return int(token_counter(model=self.litellm_input_model_name, messages=messages) or 0)
+        except Exception:  # pragma: no cover - best effort
+            return 0
 
     def _convert_to_sdk_format(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         sdk_format: List[Dict[str, Any]] = []
@@ -489,4 +503,3 @@ class BaseMCPAgent(ABC):
             logger.info("Converted %d tools for Gemini compatibility", len(functions))
 
         return functions
-
