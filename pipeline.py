@@ -77,6 +77,15 @@ def main():
         "--timeout", type=int, default=3600, help="Timeout in seconds for agent execution"
     )
     parser.add_argument(
+        "--compaction-token",
+        type=int,
+        default=999_999_999,
+        help=(
+            "Auto-compact conversation when prompt tokens (from API usage) reach this limit. "
+            "Use 999999999 to disable compaction."
+        ),
+    )
+    parser.add_argument(
         "--reasoning-effort",
         default="default",
         choices=["default", "minimal", "low", "medium", "high"],
@@ -155,6 +164,7 @@ def main():
                 reasoning_effort=args.reasoning_effort,
                 agent_name=args.agent,
                 task_suite=args.task_suite,
+                compaction_token=args.compaction_token,
             )
 
             pipeline.run_evaluation(args.tasks)
