@@ -7,7 +7,7 @@ Analyze the creation time (ctime) of all files in the test directory and organiz
 ### Task Objectives
 
 1. **Read metadata** of all files in the test directory
-2. **Analyze creation times** (ctime) of all files (excluding .DS_Store)
+2. **Analyze creation times** (ctime) of all files (excluding .DS_Store), assuming China Standard Time (UTC+8)
 3. **Create directory structure** organized by month/day based on creation time
 4. **Move files** to appropriate directories
 5. **Create metadata analysis files** in each directory
