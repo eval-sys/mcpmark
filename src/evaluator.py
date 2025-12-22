@@ -28,6 +28,7 @@ class MCPEvaluator:
         reasoning_effort: str = "default",
         agent_name: str = "mcpmark",
         task_suite: str = "standard",
+        compaction_token: int = 0,
     ):
         # Main configuration
         self.mcp_service = mcp_service
@@ -72,6 +73,7 @@ class MCPEvaluator:
             service_config=self.service_config,
             service_config_provider=self.state_manager.get_service_config_for_agent,
             reasoning_effort=self.reasoning_effort,
+            compaction_token=compaction_token,
         )
 
         # Initialize results reporter
