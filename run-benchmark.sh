@@ -11,7 +11,7 @@ EXP_NAME=""
 USE_DOCKER=false
 SERVICES="filesystem,notion,github,postgres,playwright"
 PARALLEL=false
-TIMEOUT=1000
+TIMEOUT=3600
 K=4
 
 # Color codes for output
