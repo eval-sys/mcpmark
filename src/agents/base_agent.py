@@ -19,7 +19,14 @@ logger = get_logger(__name__)
 class BaseMCPAgent(ABC):
     """Base class with shared functionality for MCPMark agents."""
 
-    STDIO_SERVICES = ["notion", "filesystem", "playwright", "playwright_webarena", "postgres", "insforge"]
+    STDIO_SERVICES = [
+        "notion",
+        "filesystem",
+        "playwright",
+        "playwright_webarena",
+        "postgres",
+        "insforge",
+    ]
     HTTP_SERVICES = ["github", "supabase"]
     DEFAULT_TIMEOUT = 600
     COMPACTION_DISABLED_TOKEN = 999_999_999
@@ -70,7 +77,11 @@ class BaseMCPAgent(ABC):
         )
 
         # Warn if Gemini 3 model uses unsupported reasoning_effort value
-        if self._is_gemini_3_model() and self.reasoning_effort not in ["default", "low", "high"]:
+        if self._is_gemini_3_model() and self.reasoning_effort not in [
+            "default",
+            "low",
+            "high",
+        ]:
             logger.warning(
                 "Gemini 3 models only support reasoning_effort 'low' or 'high', "
                 "got '%s'. LiteLLM may map this to the nearest supported value.",
@@ -179,7 +190,11 @@ class BaseMCPAgent(ABC):
                 raise ValueError("Test directory required for filesystem service")
             return MCPStdioServer(
                 command="npx",
-                args=["-y", "@modelcontextprotocol/server-filesystem", str(test_directory)],
+                args=[
+                    "-y",
+                    "@modelcontextprotocol/server-filesystem",
+                    str(test_directory),
+                ],
             )
 
         if self.mcp_service in ("playwright", "playwright_webarena"):
@@ -208,10 +223,14 @@ class BaseMCPAgent(ABC):
             port = self.service_config.get("port", 5432)
             username = self.service_config.get("username")
             password = self.service_config.get("password")
-            database = self.service_config.get("current_database") or self.service_config.get("database")
+            database = self.service_config.get(
+                "current_database"
+            ) or self.service_config.get("database")
             if not all([username, password, database]):
                 raise ValueError("PostgreSQL requires username, password, and database")
-            database_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+            database_url = (
+                f"postgresql://{username}:{password}@{host}:{port}/{database}"
+            )
             return MCPStdioServer(
                 command="pipx",
                 args=["run", "postgres-mcp", "--access-mode=unrestricted"],
@@ -259,11 +278,16 @@ class BaseMCPAgent(ABC):
         try:
             from litellm import token_counter
 
-            return int(token_counter(model=self.litellm_input_model_name, messages=messages) or 0)
+            return int(
+                token_counter(model=self.litellm_input_model_name, messages=messages)
+                or 0
+            )
         except Exception:  # pragma: no cover - best effort
             return 0
 
-    def _convert_to_sdk_format(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _convert_to_sdk_format(
+        self, messages: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         sdk_format: List[Dict[str, Any]] = []
         function_call_map: Dict[str, str] = {}
 
@@ -305,7 +329,9 @@ class BaseMCPAgent(ABC):
                         for item in user_content:
                             if isinstance(item, dict) and item.get("type") == "text":
                                 text_parts.append(item.get("text", ""))
-                        sdk_format.append({"content": "\n".join(text_parts), "role": "user"})
+                        sdk_format.append(
+                            {"content": "\n".join(text_parts), "role": "user"}
+                        )
                 else:
                     sdk_format.append({"content": user_content, "role": "user"})
 
@@ -324,7 +350,9 @@ class BaseMCPAgent(ABC):
                             elif block.get("type") == "thinking":
                                 thinking_text = block.get("thinking", "")
                                 if thinking_text:
-                                    text_parts.append(f"<think>\n{thinking_text}\n</think>")
+                                    text_parts.append(
+                                        f"<think>\n{thinking_text}\n</think>"
+                                    )
                             elif block.get("type") == "tool_use":
                                 claude_tool_uses.append(block)
                     content = "\n".join(text_parts)
@@ -364,7 +392,9 @@ class BaseMCPAgent(ABC):
                         func_name = tool_call.get("function", {}).get("name", "")
                         sdk_format.append(
                             {
-                                "arguments": tool_call.get("function", {}).get("arguments", "{}"),
+                                "arguments": tool_call.get("function", {}).get(
+                                    "arguments", "{}"
+                                ),
                                 "call_id": call_id,
                                 "name": func_name,
                                 "type": "function_call",
@@ -422,7 +452,9 @@ class BaseMCPAgent(ABC):
 
         return sdk_format
 
-    def _convert_to_anthropic_format(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _convert_to_anthropic_format(
+        self, tools: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         anthropic_tools = []
         for tool in tools:
             anthropic_tool = {
@@ -445,7 +477,9 @@ class BaseMCPAgent(ABC):
         model_lower = self.litellm_input_model_name.lower()
         return "gemini-3" in model_lower or "gemini/gemini-3" in model_lower
 
-    def _simplify_schema_for_gemini(self, schema: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _simplify_schema_for_gemini(
+        self, schema: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         if not isinstance(schema, dict):
             return schema or {}
 
@@ -464,14 +498,18 @@ class BaseMCPAgent(ABC):
                 simplified[key] = self._simplify_schema_for_gemini(value)
             elif isinstance(value, list) and key not in ("required", "enum"):
                 simplified[key] = [
-                    self._simplify_schema_for_gemini(item) if isinstance(item, dict) else item
+                    self._simplify_schema_for_gemini(item)
+                    if isinstance(item, dict)
+                    else item
                     for item in value
                 ]
             else:
                 simplified[key] = value
         return simplified
 
-    def _convert_to_openai_format(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _convert_to_openai_format(
+        self, tools: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         functions = []
         is_gemini = self._is_gemini_model()
 
