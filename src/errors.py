@@ -26,6 +26,8 @@ RETRYABLE_PATTERNS = {
     "account balance",
     "mcp network error",
     "state duplication error",
+    "thought_signature",
+    "overloaded."
 }
 
 
