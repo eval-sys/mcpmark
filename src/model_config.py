@@ -45,6 +45,11 @@ class ModelConfig:
             "api_key_var": "OPENAI_API_KEY",
             "litellm_input_model_name": "openai/gpt-4.1-nano",
         },
+        "gpt-5.2": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "litellm_input_model_name": "openai/gpt-5.2",
+        },
         "gpt-5": {
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
@@ -76,12 +81,12 @@ class ModelConfig:
             "litellm_input_model_name": "openrouter/openai/gpt-oss-120b",
         },
         # DeepSeek models
-        "deepseek-chat": {
+        "deepseek-v3.2-instruct": {
             "provider": "deepseek",
             "api_key_var": "DEEPSEEK_API_KEY",
             "litellm_input_model_name": "deepseek/deepseek-chat",
         },
-        "deepseek-reasoner": {
+        "deepseek-v3.2-thinking": {
             "provider": "deepseek",
             "api_key_var": "DEEPSEEK_API_KEY",
             "litellm_input_model_name": "deepseek/deepseek-reasoner",
@@ -112,6 +117,11 @@ class ModelConfig:
             "api_key_var": "ANTHROPIC_API_KEY",
             "litellm_input_model_name": "anthropic/claude-opus-4-1-20250805",
         },
+        "claude-opus-4.5": {
+            "provider": "anthropic",
+            "api_key_var": "ANTHROPIC_API_KEY",
+            "litellm_input_model_name": "anthropic/claude-opus-4-5-20251101",
+        },
         # Google models
         "gemini-2.5-pro": {
             "provider": "google",
@@ -123,7 +133,7 @@ class ModelConfig:
             "api_key_var": "GEMINI_API_KEY",
             "litellm_input_model_name": "gemini/gemini-2.5-flash",
         },
-        "gemini-3-pro-preview": {
+        "gemini-3-pro": {
             "provider": "google",
             "api_key_var": "GEMINI_API_KEY",
             "litellm_input_model_name": "gemini/gemini-3-pro-preview",
@@ -138,6 +148,11 @@ class ModelConfig:
             "provider": "moonshot",
             "api_key_var": "MOONSHOT_API_KEY",
             "litellm_input_model_name": "moonshot/kimi-k2-0905-preview",
+        },
+        "kimi-k2-thinking": {
+            "provider": "moonshot",
+            "api_key_var": "OPENROUTER_API_KEY",
+            "litellm_input_model_name": "openrouter/moonshotai/kimi-k2-thinking",
         },
         # Grok models
         "grok-4": {

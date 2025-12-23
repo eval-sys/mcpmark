@@ -8,6 +8,7 @@ on various Multi-Step Cognitive Processes (MCP) services like Notion, GitHub, an
 """
 
 import argparse
+import sys
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -18,6 +19,27 @@ from src.agents import AGENT_REGISTRY
 from src.factory import MCPServiceFactory
 from src.model_config import ModelConfig
 
+
+# Suppress httpcore/anyio cleanup exceptions that don't affect functionality.
+# These "Exception ignored" messages are caused by MCP library's streamablehttp_client
+# timing issues during cleanup, but don't impact actual task execution.
+def _suppress_cleanup_exceptions(unraisable):
+    """Suppress known cleanup exceptions from httpcore/anyio."""
+    msg = str(unraisable.exc_value)
+    if any(
+        pattern in msg
+        for pattern in [
+            "async generator ignored GeneratorExit",
+            "cancel scope in a different task",
+            "no running event loop",
+        ]
+    ):
+        return  # Silently ignore
+    # Use default handler for other exceptions
+    sys.__unraisablehook__(unraisable)
+
+
+sys.unraisablehook = _suppress_cleanup_exceptions
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -74,7 +96,10 @@ def main():
 
     # Execution configuration
     parser.add_argument(
-        "--timeout", type=int, default=3600, help="Timeout in seconds for agent execution"
+        "--timeout",
+        type=int,
+        default=3600,
+        help="Timeout in seconds for agent execution",
     )
     parser.add_argument(
         "--compaction-token",
@@ -125,7 +150,9 @@ def main():
         )
 
     logger.info("MCPMark Evaluation")
-    logger.info(f"Experiment: {args.exp_name} | {len(model_list)} Model(s): {', '.join(model_list)}")
+    logger.info(
+        f"Experiment: {args.exp_name} | {len(model_list)} Model(s): {', '.join(model_list)}"
+    )
     logger.info(f"Task suite: {args.task_suite}")
     if args.k > 1:
         logger.info(f"Running {args.k} evaluation runs for pass@k metrics")
@@ -136,7 +163,7 @@ def main():
             logger.info(f"\n{'=' * 80}")
             logger.info(f"Starting Run {run_idx}/{args.k}")
             logger.info(f"{'=' * 80}\n")
-            
+
             # For k-runs, results/{exp}/{mcp}__{model}/run-N
             run_exp_name = f"run-{run_idx}"
             run_output_dir = args.output_dir / args.exp_name
@@ -149,7 +176,9 @@ def main():
         for i, model in enumerate(model_list, 1):
             logger.info(f"\n{'=' * 60}")
             if args.k > 1:
-                logger.info(f"Run {run_idx}/{args.k} | Model {i}/{len(model_list)}: {model}")
+                logger.info(
+                    f"Run {run_idx}/{args.k} | Model {i}/{len(model_list)}: {model}"
+                )
             else:
                 logger.info(f"Starting evaluation {i}/{len(model_list)}: {model}")
             logger.info(f"{'=' * 60}\n")
@@ -168,14 +197,14 @@ def main():
             )
 
             pipeline.run_evaluation(args.tasks)
-            logger.info(
-                f"📁 Results: {pipeline.base_experiment_dir}"
-            )
+            logger.info(f"📁 Results: {pipeline.base_experiment_dir}")
 
     logger.info(f"\n{'=' * 60}")
     if args.k > 1:
         logger.info(f"✓ All {args.k} runs completed for {len(model_list)} model(s)")
-        logger.info(f"Run `python -m src.aggregators.aggregate_results --exp-name {args.exp_name}` to compute all metrics")
+        logger.info(
+            f"Run `python -m src.aggregators.aggregate_results --exp-name {args.exp_name}` to compute all metrics"
+        )
     else:
         logger.info(f"✓ All evaluations completed for {len(model_list)} model(s)")
     logger.info(f"{'=' * 60}")

@@ -37,7 +37,7 @@ def discover_tasks(task_set: str = "standard") -> Dict[str, List[str]]:
         "github": ["github"],
         "notion": ["notion"],
         "playwright": ["playwright", "playwright_webarena"],  # Both count as playwright
-        "postgres": ["postgres", "supabase", "insforge"]  # All map to postgres
+        "postgres": ["postgres"],  # supabase and insforge are variants with same tasks, don't merge
     }
 
     for mcp_service, task_dirs in service_mappings.items():
