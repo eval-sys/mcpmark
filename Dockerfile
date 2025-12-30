@@ -10,9 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Copy and install Python dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Copy project files needed for pip install
+COPY pyproject.toml ./
+COPY src/ ./src/
+COPY tasks/ ./tasks/
+
+# Install dependencies
+RUN pip install --no-cache-dir --user .
 
 # Stage 2: Final image with all runtime dependencies
 FROM python:3.12-slim
