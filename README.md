@@ -18,6 +18,7 @@ MCPMark provides a reproducible, extensible benchmark for researchers and engine
 
 ## News
 
+- 📌 **21 Jan** — Pinned MCP server versions for reproducible benchmarks: GitHub MCP Server `v0.15.0` (switched to Docker for version control), Notion MCP Server `@1.9.1` (Notion released 2.0 but it has many bugs, not recommended). See [#246](https://github.com/eval-sys/mcpmark/pull/246).
 - 🔥 **13 Dec** — Added auto-compaction support (`--compaction-token`) to summarize long conversations and avoid context overflow during evaluation ([#236](https://github.com/eval-sys/mcpmark/pull/236])).
 - 🏅 **02 Dec** — Evaluated `gemini-3-pro-preview` (thinking: low): **Pass@1 50.6%** ± 2.3% — so close to `gpt-5-high` (51.6%)! Also `deepseek-v3.2-thinking` 36.8% and `deepseek-v3.2-chat` 29.7%
 - 🔥 **02 Dec** — Obfuscate GitHub @mentions to prevent notification spam during evaluation ([#229](https://github.com/eval-sys/mcpmark/pull/229))
