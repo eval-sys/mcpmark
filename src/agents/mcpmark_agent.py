@@ -1113,7 +1113,7 @@ class MCPMarkAgent(BaseMCPAgent):
 
             return MCPStdioServer(
                 command="npx",
-                args=["-y", "@notionhq/notion-mcp-server"],
+                args=["-y", "@notionhq/notion-mcp-server@1.9.1"],
                 env={
                     "OPENAPI_MCP_HEADERS": (
                         '{"Authorization": "Bearer ' + notion_key + '", '
@@ -1194,25 +1194,27 @@ class MCPMarkAgent(BaseMCPAgent):
                 },
             )
 
+        elif self.mcp_service == "github":
+            github_token = self.service_config.get("github_token")
+            if not github_token:
+                raise ValueError("GitHub token required")
+
+            return MCPStdioServer(
+                command="docker",
+                args=[
+                    "run", "-i", "--rm",
+                    "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.15.0",
+                ],
+                env={"GITHUB_PERSONAL_ACCESS_TOKEN": github_token},
+            )
+
         else:
             raise ValueError(f"Unsupported stdio service: {self.mcp_service}")
 
     def _create_http_server(self) -> MCPHttpServer:
         """Create HTTP-based MCP server."""
-        if self.mcp_service == "github":
-            github_token = self.service_config.get("github_token")
-            if not github_token:
-                raise ValueError("GitHub token required")
-
-            return MCPHttpServer(
-                url="https://api.githubcopilot.com/mcp/",
-                headers={
-                    "Authorization": f"Bearer {github_token}",
-                    "User-Agent": "MCPMark/1.0",
-                },
-            )
-
-        elif self.mcp_service == "supabase":
+        if self.mcp_service == "supabase":
             # Use built-in MCP server from Supabase CLI
             api_url = self.service_config.get("api_url", "http://localhost:54321")
             api_key = self.service_config.get("api_key", "")

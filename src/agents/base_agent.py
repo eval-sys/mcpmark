@@ -26,8 +26,9 @@ class BaseMCPAgent(ABC):
         "playwright_webarena",
         "postgres",
         "insforge",
+        "github",
     ]
-    HTTP_SERVICES = ["github", "supabase"]
+    HTTP_SERVICES = ["supabase"]
     DEFAULT_TIMEOUT = 600
     COMPACTION_DISABLED_TOKEN = 999_999_999
 

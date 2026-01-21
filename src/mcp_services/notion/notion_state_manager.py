@@ -8,12 +8,14 @@ Pages for consistent task evaluation using Playwright automation.
 
 import time
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, Set
 
 from notion_client import Client
 from playwright.sync_api import (
     Browser,
+    BrowserContext,
     Page,
+    Playwright,
     TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
@@ -26,6 +28,9 @@ import re
 
 # Initialize logger
 logger = get_logger(__name__)
+
+# Pattern to match orphan pages with "(n)" suffix, e.g., "Title (1)", "Title (2)"
+ORPHAN_PAGE_PATTERN = re.compile(r".+\s+\(\d+\)$")
 
 # Selectors for Notion UI elements
 PAGE_MENU_BUTTON_SELECTOR = '[data-testid="more-button"], div.notion-topbar-more-button, [aria-label="More"], button[aria-label="More"]'
@@ -90,6 +95,11 @@ class NotionStateManager(BaseStateManager):
         self._eval_parent_page_id: Optional[str] = None
         self._source_hub_page_id: Optional[str] = None
 
+        # Browser instance management for reuse within session
+        self._playwright: Optional[Playwright] = None
+        self._browser: Optional[Browser] = None
+        self._context: Optional[BrowserContext] = None
+
         # Validate initialization
         if not self.source_notion_client or not self.eval_notion_client:
             raise ValueError(
@@ -145,6 +155,64 @@ class NotionStateManager(BaseStateManager):
         except Exception as e:
             logger.warning("Orphan cleanup failed (non-critical, continuing): %s", e)
             # Don't raise exception - allow execution to continue
+
+    def _cleanup_source_hub_orphans(self, exclude_page_ids: Optional[Set[str]] = None) -> int:
+        """Clean up all orphan pages in source hub matching 'xxx (n)' pattern.
+
+        Args:
+            exclude_page_ids: Page IDs to exclude from cleanup (e.g., pages currently being operated on)
+
+        Returns:
+            Number of pages archived
+        """
+        exclude_page_ids = exclude_page_ids or set()
+        source_hub_id = self._ensure_source_hub_page_id()
+        if not source_hub_id:
+            return 0
+
+        orphan_count = 0
+        next_cursor = None
+
+        try:
+            while True:
+                kwargs: Dict[str, Any] = {"block_id": source_hub_id}
+                if next_cursor:
+                    kwargs["start_cursor"] = next_cursor
+
+                children = self.source_notion_client.blocks.children.list(**kwargs)
+
+                for child in children.get("results", []):
+                    if child.get("type") != "child_page":
+                        continue
+
+                    child_id = child.get("id")
+                    if child_id in exclude_page_ids:
+                        continue
+
+                    child_title = (child.get("child_page", {}) or {}).get("title", "").strip()
+
+                    # Match "xxx (n)" pattern where n is any digit(s)
+                    if ORPHAN_PAGE_PATTERN.match(child_title):
+                        try:
+                            self.source_notion_client.pages.update(
+                                page_id=child_id, archived=True
+                            )
+                            orphan_count += 1
+                            logger.info("| ✓ Archived source hub orphan: %s (%s)", child_title, child_id)
+                        except Exception as e:
+                            logger.warning("| ✗ Failed to archive orphan %s: %s", child_id, e)
+
+                if not children.get("has_more"):
+                    break
+                next_cursor = children.get("next_cursor")
+
+            if orphan_count > 0:
+                logger.info("| ✓ Cleaned up %d orphan page(s) from source hub", orphan_count)
+
+        except Exception as e:
+            logger.warning("Source hub orphan cleanup failed (non-critical, continuing): %s", e)
+
+        return orphan_count
 
     def _ensure_eval_parent_page_id(self) -> Optional[str]:
         """Resolve and cache the evaluation hub parent page ID."""
@@ -283,6 +351,9 @@ class NotionStateManager(BaseStateManager):
         # Clean up any orphan pages in eval hub before creating new state
         self._cleanup_eval_hub_orphans()
 
+        # Clean up orphan pages in source hub before duplication
+        self._cleanup_source_hub_orphans()
+
         try:
             initial_state_title = self._category_to_initial_state_title(task.category_id)
             initial_state_info = self._find_initial_state_by_title(initial_state_title)
@@ -416,6 +487,141 @@ class NotionStateManager(BaseStateManager):
     # ------------------------------------------------------------------
     # Playwright helpers
     # ------------------------------------------------------------------
+
+    def _ensure_browser(self) -> Tuple[Browser, BrowserContext]:
+        """Ensure browser instance is available, reusing existing or creating new.
+
+        Returns:
+            Tuple of (Browser, BrowserContext)
+        """
+        if self._playwright is None:
+            self._playwright = sync_playwright().start()
+
+        if self._browser is None:
+            browser_type = getattr(self._playwright, self.browser_name)
+            self._browser = browser_type.launch(headless=self.headless)
+
+        if self._context is None:
+            self._context = self._browser.new_context(
+                storage_state=str(self.state_file),
+                locale="en-US",
+            )
+
+        return self._browser, self._context
+
+    def close(self) -> None:
+        """Clean up browser resources. Should be called when session ends."""
+        if self._context:
+            try:
+                # Save storage state before closing
+                self._context.storage_state(path=str(self.state_file))
+                self._context.close()
+            except Exception:
+                pass
+            self._context = None
+
+        if self._browser:
+            try:
+                self._browser.close()
+            except Exception:
+                pass
+            self._browser = None
+
+        if self._playwright:
+            try:
+                self._playwright.stop()
+            except Exception:
+                pass
+            self._playwright = None
+
+    def _recover_duplicate_via_ui(
+        self,
+        page: Page,
+        original_title: str,
+        *,
+        timeout: int = 30_000,
+    ) -> Optional[str]:
+        """Recover duplicate page URL by navigating via UI when API-based recovery fails.
+
+        This method navigates to the source hub and locates the duplicate page
+        (e.g., "Title (1)") in the Notion sidebar, then clicks on it to obtain
+        the URL directly from the browser.
+
+        Args:
+            page: The Playwright page instance
+            original_title: The original page title (without suffix)
+            timeout: Timeout for UI operations in milliseconds
+
+        Returns:
+            The URL of the duplicate page if found, None otherwise
+        """
+        try:
+            source_hub_id = self._ensure_source_hub_page_id()
+            if not source_hub_id:
+                logger.warning("| ✗ Cannot resolve source hub for UI-based recovery")
+                return None
+
+            # Build URL to navigate to source hub
+            # Format: https://www.notion.so/<hub-id>
+            clean_hub_id = source_hub_id.replace("-", "")
+            source_hub_url = f"https://www.notion.so/{clean_hub_id}"
+
+            logger.info("| ○ Navigating to source hub for UI-based recovery...")
+            page.goto(source_hub_url, wait_until="domcontentloaded", timeout=60_000)
+            time.sleep(3)  # Allow page to settle
+
+            # Look for page title with "(n)" suffix pattern in sidebar or page content
+            # The duplicate will be named "Original Title (1)" or similar
+            duplicate_pattern = re.compile(rf"^{re.escape(original_title)}\s*\(\d+\)$")
+
+            # Try to find the duplicate page in the page list/sidebar
+            # Notion uses different selectors for page links, try common patterns
+            page_link_selectors = [
+                f'a:has-text("{original_title} (1)")',
+                f'div[data-block-id]:has-text("{original_title} (1)")',
+                f'[role="treeitem"]:has-text("{original_title} (1)")',
+            ]
+
+            for selector in page_link_selectors:
+                try:
+                    locator = page.locator(selector).first
+                    if locator.is_visible(timeout=5000):
+                        logger.info("| ○ Found duplicate page in UI, clicking...")
+                        locator.click()
+                        page.wait_for_load_state("domcontentloaded", timeout=timeout)
+                        time.sleep(3)
+                        recovered_url = page.url
+                        logger.info("| ✓ Recovered duplicate URL via UI: %s", recovered_url)
+                        return recovered_url
+                except Exception:
+                    continue
+
+            # If specific selectors didn't work, try a broader search
+            try:
+                # Look for any visible text matching the pattern and click it
+                all_text_elements = page.locator(f'text="{original_title} ("')
+                count = all_text_elements.count()
+                if count > 0:
+                    for i in range(count):
+                        element = all_text_elements.nth(i)
+                        text_content = element.text_content() or ""
+                        if duplicate_pattern.match(text_content.strip()):
+                            logger.info("| ○ Found duplicate via text search, clicking...")
+                            element.click()
+                            page.wait_for_load_state("domcontentloaded", timeout=timeout)
+                            time.sleep(3)
+                            recovered_url = page.url
+                            logger.info("| ✓ Recovered duplicate URL via UI text search: %s", recovered_url)
+                            return recovered_url
+            except Exception as e:
+                logger.debug("| ✗ Broad text search failed: %s", e)
+
+            logger.warning("| ✗ Could not locate duplicate '%s (n)' in UI", original_title)
+            return None
+
+        except Exception as e:
+            logger.warning("| ✗ UI-based recovery failed: %s", e)
+            return None
 
     # =========================================================================
     # Playwright Automation Methods
@@ -700,7 +906,7 @@ class NotionStateManager(BaseStateManager):
                                         "| ○ Navigating directly to latest '%s' duplicate via children list...",
                                         target_title,
                                     )
-                                    page.goto(fallback_url, wait_until="load", timeout=60_000)
+                                    page.goto(fallback_url, wait_until="domcontentloaded", timeout=120_000)
                                     time.sleep(5)
                                     duplicated_url = page.url
                                     break
@@ -716,19 +922,32 @@ class NotionStateManager(BaseStateManager):
 
                     # Re-validate after attempted recovery
                     if not self._is_valid_duplicate_url(original_url, duplicated_url):
-                        logger.error(
-                            "| ✗ Could not locate a valid '%s' duplicate after recovery attempt.\n|  Original: %s\n|  Observed: %s",
-                            target_title,
-                            original_url,
-                            duplicated_url,
+                        # API-based recovery failed, try UI-based recovery as last resort
+                        logger.warning(
+                            "| ✗ API-based recovery failed. Trying UI-based recovery..."
                         )
-                        # Attempt to clean up stray duplicate before propagating error.
-                        self._cleanup_orphan_duplicate(
-                            original_initial_state_id, original_initial_state_title
+                        ui_recovered_url = self._recover_duplicate_via_ui(
+                            page,
+                            original_initial_state_title,
+                            timeout=wait_timeout,
                         )
-                        raise RuntimeError(
-                            "Duplicate URL pattern mismatch – duplication likely failed"
-                        )
+                        if ui_recovered_url and self._is_valid_duplicate_url(original_url, ui_recovered_url):
+                            duplicated_url = ui_recovered_url
+                            logger.info("| ✓ UI-based recovery successful")
+                        else:
+                            logger.error(
+                                "| ✗ Could not locate a valid '%s' duplicate after all recovery attempts.\n|  Original: %s\n|  Observed: %s",
+                                target_title,
+                                original_url,
+                                duplicated_url,
+                            )
+                            # Attempt to clean up stray duplicate before propagating error.
+                            self._cleanup_orphan_duplicate(
+                                original_initial_state_id, original_initial_state_title
+                            )
+                            raise RuntimeError(
+                                "Duplicate URL pattern mismatch – duplication likely failed"
+                            )
                 except Exception as search_exc:
                     logger.error(
                         "| ✗ Failed during recovery search for '%s': %s",
@@ -804,8 +1023,8 @@ class NotionStateManager(BaseStateManager):
                 )
                 return False
 
-            # Only consider exactly one copy "Title (1)".
-            title_regex = re.compile(rf"^{re.escape(initial_state_title)}\s*\(1\)$")
+            # Match any numbered duplicate "Title (n)" where n is any digit(s)
+            title_regex = re.compile(rf"^{re.escape(initial_state_title)}\s*\(\d+\)$")
 
             archived_any = False
             next_cursor = None
@@ -869,44 +1088,43 @@ class NotionStateManager(BaseStateManager):
         last_exc = None
         for attempt in range(max_retries + 1):
             wait_timeout = initial_wait_ms * (attempt + 1)
+            page = None
             try:
-                with sync_playwright() as p:
-                    browser_type = getattr(p, self.browser_name)
-                    browser: Browser = browser_type.launch(headless=self.headless)
-                    context = browser.new_context(storage_state=str(self.state_file))
-                    page = context.new_page()
+                # Reuse browser instance within session
+                _, context = self._ensure_browser()
+                page = context.new_page()
 
-                    logger.info("| ○ Navigating to initial state for %s...", category)
-                    # Start timing from the moment we begin navigating to the initial state page.
-                    start_time = time.time()
-                    page.goto(initial_state_url, wait_until="load", timeout=60_000)
-                    context.storage_state(path=str(self.state_file))
+                logger.info("| ○ Navigating to initial state for %s...", category)
+                # Start timing from the moment we begin navigating to the initial state page.
+                start_time = time.time()
+                page.goto(initial_state_url, wait_until="domcontentloaded", timeout=120_000)
+                context.storage_state(path=str(self.state_file))
 
-                    initial_state_id = self._extract_initial_state_id_from_url(
-                        initial_state_url
-                    )
-                    initial_state_title = self._category_to_initial_state_title(
-                        category
-                    )
+                initial_state_id = self._extract_initial_state_id_from_url(
+                    initial_state_url
+                )
+                initial_state_title = self._category_to_initial_state_title(
+                    category
+                )
 
-                    duplicated_id = self._duplicate_current_initial_state(
-                        page,
-                        new_title=initial_state_title,  # Use original initial state name without (1) suffix
-                        original_initial_state_id=initial_state_id,
-                        original_initial_state_title=initial_state_title,
-                        wait_timeout=wait_timeout,
-                    )
-                    duplicated_url = page.url
-                    # Validate URL pattern again at this higher level (should already be validated inside).
-                    context.storage_state(path=str(self.state_file))
-                    # Log how long the whole duplication (navigate → duplicate) took.
-                    elapsed = time.time() - start_time
-                    logger.info(
-                        "| ✓ Initial state duplicated successfully in %.2f seconds (task: %s).",
-                        elapsed,
-                        task_name,
-                    )
-                    return duplicated_url, duplicated_id
+                duplicated_id = self._duplicate_current_initial_state(
+                    page,
+                    new_title=initial_state_title,  # Use original initial state name without (1) suffix
+                    original_initial_state_id=initial_state_id,
+                    original_initial_state_title=initial_state_title,
+                    wait_timeout=wait_timeout,
+                )
+                duplicated_url = page.url
+                # Validate URL pattern again at this higher level (should already be validated inside).
+                context.storage_state(path=str(self.state_file))
+                # Log how long the whole duplication (navigate → duplicate) took.
+                elapsed = time.time() - start_time
+                logger.info(
+                    "| ✓ Initial state duplicated successfully in %.2f seconds (task: %s).",
+                    elapsed,
+                    task_name,
+                )
+                return duplicated_url, duplicated_id
             except Exception as e:
                 # No additional cleanup here—handled inside _duplicate_current_template.
                 last_exc = e
@@ -917,6 +1135,13 @@ class NotionStateManager(BaseStateManager):
                         e,
                     )
                 time.sleep(120 * attempt + 120)
+            finally:
+                # Close the page to prevent accumulation within reused context
+                if page:
+                    try:
+                        page.close()
+                    except Exception:
+                        pass
 
         raise RuntimeError(
             f"Initial state duplication failed for task '{task_name}' after {max_retries + 1} attempts: {last_exc}"
@@ -939,3 +1164,4 @@ class NotionStateManager(BaseStateManager):
             service_config["notion_key"] = config["eval_api_key"]
 
         return service_config
+
