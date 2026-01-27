@@ -10,7 +10,6 @@ The VoteNet project is a 3D object detection framework for point clouds. Your ta
 2. **Include all essential dependencies** needed to run the VoteNet codebase
 3. **Ensure the file format is correct** (one dependency per line)
 4. **Save the file as `requirements.txt`** in the current working directory
-5. **Not just** pip install or conda install, your answer should contain **every necessary dependencies in the hole process of VoteNet**.
 
 ### Requirements
 

@@ -27,20 +27,20 @@ You are given a directory containing multiple paper files. You have a collection
 [given_task_folder]/
 ├── [original HTML files remain untouched]
 ├── frequent_authors/              # Authors with ≥4 papers total
-│   ├── smith_john/
+│   ├── john_smith/
 │   │   └── [copied papers]
-│   ├── johnson_sarah/
+│   ├── sarah_johnson/
 │   │   └── [copied papers]
 │   └── ...
 └── 2025_authors/                  # Authors with ≥3 papers in 2025
-    ├── williams_david/
+    ├── david_williams/
     │   └── [copied 2025 papers]
-    ├── brown_emily/
+    ├── emily_brown/
     │   └── [copied 2025 papers]
     └── ...
 ```
 
 #### Requirements:
-- Author folder names should be **lowercase** with underscores replacing spaces/commas (e.g., `smith_john`, `williams_david`)
+- Author folder names should be **lowercase** with underscores, using `firstname_lastname` format (e.g., `john_smith`, `david_williams`). Only the first name is used (middle names are ignored).
 - Papers should be **copied** (not moved) to preserve originals
 - Author extraction should handle various name formats correctly

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification script for File Organization by Creation Time Task
+Verification script for File Organization by Last Modification Time Task
 """
 
 import sys
