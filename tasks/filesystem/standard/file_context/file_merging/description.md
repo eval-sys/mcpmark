@@ -9,4 +9,4 @@ You are given a directory containing multiple text files of varying sizes. Your 
 1. **Identify the 10 smallest .txt files** in the test directory
 2. **Sort the selected files alphabetically** by filename
 3. **Merge the content** of these files into a single file
-4. **Add file headers** (file name) before each file's content
+4. **Format of merged_content.txt** : For each file, write its full filename (e.g., "example.txt") on the first line. On the immediately following line(s), copy the entire content of the file. After the file content, insert exactly one empty line (unless it is the last file). Repeat this pattern for all 10 files in alphabetical order.

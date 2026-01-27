@@ -2,13 +2,13 @@ Please use FileSystem tools to finish the following task:
 
 ### Task Description
 
-Analyze the creation time (ctime) of all files in the test directory and organize them into a hierarchical directory structure based on their creation dates.
+Analyze the last modified time (mtime) of all files in the test directory and organize them into a hierarchical directory structure based on their modification dates.
 
 ### Task Objectives
 
 1. **Read metadata** of all files in the test directory
-2. **Analyze creation times** (ctime) of all files (excluding .DS_Store)
-3. **Create directory structure** organized by month/day based on creation time
+2. **Analyze last modified times** (mtime) of all files (excluding .DS_Store) , assuming China Standard Time (UTC+8)
+3. **Create directory structure** organized by month/day based on last modified time
 4. **Move files** to appropriate directories
 5. **Create metadata analysis files** in each directory
 
@@ -25,5 +25,5 @@ Create directories in the format: `MM/DD/` where:
 
 Create a file named `metadata_analyse.txt` in each directory containing exactly only two lines:
 
-- **Line 1**: Oldest filename and its creation time (excluding .DS_Store)
-- **Line 2**: Latest filename and its creation time (excluding .DS_Store)
+- **Line 1**: Oldest filename and its last modified time (excluding .DS_Store)
+- **Line 2**: Latest filename and its last modified time (excluding .DS_Store)
