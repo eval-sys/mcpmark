@@ -1,6 +1,6 @@
 Please use FileSystem tools to finish the following task:
 
-1. **Create the main directory structure** in `desktop_2`:
+1. **Create the main directory structure** in `desktop`:
 
    - Create a new directory in main directory called `organized_projects`
    - Inside `organized_projects`, create 3 main subdirectories: `experiments`, `learning`, and `personal`
