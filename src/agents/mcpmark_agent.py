@@ -1131,7 +1131,7 @@ class MCPMarkAgent(BaseMCPAgent):
                 command="npx",
                 args=[
                     "-y",
-                    "@modelcontextprotocol/server-filesystem",
+                    "@modelcontextprotocol/server-filesystem@2025.12.18",
                     str(test_directory),
                 ],
             )
@@ -1142,7 +1142,7 @@ class MCPMarkAgent(BaseMCPAgent):
             viewport_width = self.service_config.get("viewport_width", 1280)
             viewport_height = self.service_config.get("viewport_height", 720)
 
-            args = ["-y", "@playwright/mcp@latest"]
+            args = ["-y", "@playwright/mcp@0.0.68"]
             if headless:
                 args.append("--headless")
             args.extend(
@@ -1176,7 +1176,7 @@ class MCPMarkAgent(BaseMCPAgent):
 
             return MCPStdioServer(
                 command="pipx",
-                args=["run", "postgres-mcp", "--access-mode=unrestricted"],
+                args=["run", "postgres-mcp==0.3.0", "--access-mode=unrestricted"],
                 env={"DATABASE_URI": database_url},
             )
 
