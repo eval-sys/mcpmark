@@ -849,6 +849,10 @@ class MCPMarkAgent(BaseMCPAgent):
                     "model": self.litellm_input_model_name,
                     "messages": messages,
                     "api_key": self.api_key,
+                    "max_tokens": 32768,
+                    "temperature": 1.0,
+                    "enforcer_mode": "on",
+                    "think_mode": "on",
                 }
 
                 # Always use tools format if available - LiteLLM will handle conversion
