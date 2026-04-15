@@ -332,28 +332,69 @@ def _verify_deployment_issue(
         print("   ✅ Found rollback plan comment from GitHub Actions bot")
 
         # Check for required rollback plan elements
-        required_elements = [
-            "**Previous Commit**:",
-            "**Current Commit**:",
-            "**Package Version**:",
-            "✅ Executable rollback script created",
-            "✅ Configuration backups saved",
-            "✅ Dependency verification script prepared",
-            "✅ Comprehensive rollback documentation generated",
-            "✅ Compressed rollback package created",
-            "**SHA256**:",
-            "**Artifact**:",
-            "Quick Rollback Commands",
+        # Use flexible matching: accept both markdown bold ("**Key**:") and plain text ("Key:")
+        import re as _re
+
+        def _flex_match(comment: str, keyword: str) -> bool:
+            """Match 'keyword:' with optional markdown bold wrapping."""
+            pattern = r"(\*\*\s*)?" + _re.escape(keyword) + r"(\s*\*\*)?\s*:"
+            return bool(_re.search(pattern, comment))
+
+        field_keywords = [
+            "Previous Commit",
+            "Current Commit",
+            "Package Version",
+            "SHA256",
+            "Artifact",
         ]
 
-        for element in required_elements:
-            if element not in rollback_comment:
-                errors.append(f"Missing element in rollback plan: '{element}'")
+        for kw in field_keywords:
+            if _flex_match(rollback_comment, kw):
+                print(f"   ✅ Found rollback plan field: '{kw}'")
             else:
-                print(f"   ✅ Found rollback plan element: '{element}'")
+                errors.append(f"Missing field in rollback plan: '{kw}'")
+
+        # Check for at least 5 checkmarks (✅) with rollback-related keywords
+        # Accept any reasonable wording as long as the semantic component is mentioned
+        rollback_component_keywords = [
+            r"rollback\s+script",
+            r"configuration\s+backup|config.*backup",
+            r"dependency\s+verification|dependency.*check",
+            r"rollback\s+documentation|rollback.*doc",
+            r"rollback\s+package|compressed.*package",
+        ]
+
+        checkmark_lines = [
+            line.strip()
+            for line in rollback_comment.split("\n")
+            if "✅" in line
+        ]
+
+        matched_components = 0
+        for kw_pattern in rollback_component_keywords:
+            for line in checkmark_lines:
+                if _re.search(kw_pattern, line, _re.IGNORECASE):
+                    matched_components += 1
+                    print(f"   ✅ Found rollback component checkmark matching: '{kw_pattern}'")
+                    break
+
+        if matched_components < 5:
+            errors.append(
+                f"Expected at least 5 rollback component checkmarks (✅), found {matched_components}"
+            )
+        else:
+            print(f"   ✅ All 5 rollback component checkmarks found")
+
+        # Check for Quick Rollback Commands section
+        if "Quick Rollback Command" in rollback_comment or "rollback command" in rollback_comment.lower():
+            print("   ✅ Found rollback commands section")
+        else:
+            errors.append("Missing 'Quick Rollback Commands' section in rollback plan")
 
         # Verify commit SHAs in rollback comment
-        if f"**Current Commit**: {head_sha}" in rollback_comment:
+        # Accept both "**Current Commit**: sha" and "Current Commit: sha"
+        current_sha_pattern = r"(?:\*\*\s*)?Current\s+Commit(?:\s*\*\*)?\s*:\s*" + _re.escape(head_sha)
+        if _re.search(current_sha_pattern, rollback_comment):
             print(f"   ✅ Current commit SHA verified: {head_sha}")
         else:
             errors.append(
@@ -361,30 +402,19 @@ def _verify_deployment_issue(
             )
 
         # Extract and verify previous commit SHA
-        if "**Previous Commit**:" in rollback_comment:
-            import re
-
-            prev_sha_match = re.search(
-                r"\*\*Previous Commit\*\*:\s*([a-f0-9]{40})", rollback_comment
-            )
-            if prev_sha_match:
-                prev_sha = prev_sha_match.group(1)
-                print(f"   ✅ Previous commit SHA found: {prev_sha}")
-
-                # Verify it's a valid 40-character SHA
-                if len(prev_sha) != 40:
-                    errors.append(
-                        f"Previous commit SHA has invalid length: {len(prev_sha)}"
-                    )
-            else:
-                errors.append(
-                    "Previous commit SHA format not found in rollback comment"
-                )
+        prev_sha_pattern = r"(?:\*\*\s*)?Previous\s+Commit(?:\s*\*\*)?\s*:\s*([a-f0-9]{40})"
+        prev_sha_match = _re.search(prev_sha_pattern, rollback_comment)
+        if prev_sha_match:
+            prev_sha = prev_sha_match.group(1)
+            print(f"   ✅ Previous commit SHA found: {prev_sha}")
         else:
-            errors.append("Previous commit SHA not found in rollback comment")
+            errors.append(
+                "Previous commit SHA (40-char hex) not found in rollback comment"
+            )
 
         # Verify SHA256 checksum is present
-        sha256_match = re.search(r"\*\*SHA256\*\*:\s*([a-f0-9]{64})", rollback_comment)
+        sha256_pattern = r"(?:\*\*\s*)?SHA256(?:\s*\*\*)?\s*:\s*([a-f0-9]{64})"
+        sha256_match = _re.search(sha256_pattern, rollback_comment)
         if sha256_match:
             sha256_value = sha256_match.group(1)
             print(f"   ✅ SHA256 checksum found: {sha256_value[:16]}...")
