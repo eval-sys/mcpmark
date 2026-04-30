@@ -1,13 +1,14 @@
 # Web Search Task
 
-Use Playwright MCP tools to search for the DeepSeek R1 research paper and extract all the paragraphs of the Conclusion section.
+Use Playwright MCP tools to search for the **v1 (initial) version** of the DeepSeek R1 research paper on arXiv and extract all the paragraphs of the Conclusion section.
 
 ## Requirements:
 
-1. Search for the DeepSeek R1 research paper
-2. Navigate to the paper and find the Conclusion section
-3. Extract **ALL the paragraphs** of the Conclusion section
-4. **Provide the content in Markdown format - no explanations, no additional text**
+1. Search for the DeepSeek R1 research paper on arXiv
+2. Navigate to the **v1 (initial) version** of the paper
+3. Find the Conclusion section
+4. Extract **ALL the paragraphs** of the Conclusion section
+5. **Provide the content in Markdown format - no explanations, no additional text**
 
 ## Important Notes:
 
