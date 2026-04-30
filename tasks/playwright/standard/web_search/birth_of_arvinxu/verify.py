@@ -63,22 +63,29 @@ def parse_ai_results(work_dir: Path) -> Dict[str, Any]:
     found_answer = False
     ai_responses = []
 
-    for message in messages:
-        if message.get("role") == "assistant":
-            content = str(message.get("content", ""))
+    # Find the last completed assistant message
+    for message in reversed(messages):
+        if (message.get("role") == "assistant" and
+            message.get("status") == "completed" and
+            message.get("type") == "message"):
+            content = ""
 
             # Handle both string and list content formats
-            if isinstance(message.get("content"), list):
-                content = " ".join(
-                    item.get("text", "") if isinstance(item, dict) else str(item)
-                    for item in message.get("content", [])
-                )
+            raw = message.get("content", "")
+            if isinstance(raw, list):
+                for item in raw:
+                    if isinstance(item, dict) and item.get("type") in ["text", "output_text"]:
+                        content = item.get("text", "")
+                        break
+            elif isinstance(raw, str):
+                content = raw
 
             ai_responses.append(content)
 
             # Exact match (character-for-character, case-sensitive, no trimming)
             if content == EXPECTED_GROUND_TRUTH:
                 found_answer = True
+            break
 
     return {
         "success": True,
