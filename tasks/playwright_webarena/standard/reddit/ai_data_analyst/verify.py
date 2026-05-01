@@ -51,14 +51,10 @@ def parse_key_value_format(text):
 
 def normalize_text(text):
     """
-    Normalize text for comparison by handling different quote styles and whitespace.
+    Normalize text for comparison by collapsing whitespace.
     """
     if not isinstance(text, str):
         return str(text)
-
-    # Replace various quote styles with standard quotes
-    text = text.replace(""", "'").replace(""", "'")
-    text = text.replace('"', '"').replace('"', '"')
 
     # Normalize whitespace
     text = " ".join(text.split())
@@ -181,13 +177,18 @@ async def verify() -> bool:
             extracted_data = parse_key_value_format(post_content)
             print(f"Extracted data: {extracted_data}", file=sys.stderr)
 
-            # Load expected values from label.txt
+            # Load expected values from label.txt — hard fail if missing
             label_path = Path(__file__).parent / "label.txt"
-            if label_path.exists():
-                with open(label_path, "r") as f:
-                    expected_text = f.read().strip()
-                expected_data = parse_key_value_format(expected_text)
-                print("Loaded expected values from label.txt", file=sys.stderr)
+            if not label_path.exists():
+                print(
+                    f"FAILED: Ground-truth file not found at {label_path}",
+                    file=sys.stderr,
+                )
+                return False
+            with open(label_path, "r") as f:
+                expected_text = f.read().strip()
+            expected_data = parse_key_value_format(expected_text)
+            print("Loaded expected values from label.txt", file=sys.stderr)
 
             # Verify all required keys are present
             required_keys = [
@@ -207,7 +208,7 @@ async def verify() -> bool:
 
             if missing_keys:
                 print(
-                    "FAILED: Missing required keys in submission: {', '.join(missing_keys)}",
+                    f"FAILED: Missing required keys in submission: {', '.join(missing_keys)}",
                     file=sys.stderr,
                 )
                 print(
@@ -219,64 +220,35 @@ async def verify() -> bool:
             # Validate data format and content
             errors = []
 
-            # Check numeric fields
-            try:
-                post_count = int(extracted_data["Deeplearning_Post_Count"])
-                if (
-                    "expected_data" in locals()
-                    and "Deeplearning_Post_Count" in expected_data
-                ):
-                    expected_count = int(expected_data["Deeplearning_Post_Count"])
-                    if post_count != expected_count:
-                        errors.append(
-                            f"Deeplearning_Post_Count mismatch: got {post_count}, expected {expected_count}"
-                        )
-            except ValueError:
-                errors.append(
-                    f"Deeplearning_Post_Count must be a number, got: {extracted_data['Deeplearning_Post_Count']}"
-                )
+            # Compare each field against expected_data
+            for key in required_keys:
+                if key in expected_data and key in extracted_data:
+                    expected_val = normalize_text(expected_data[key])
+                    actual_val = normalize_text(extracted_data[key])
 
-            # If we have expected data, compare against it
-            if "expected_data" in locals():
-                # Compare each field
-                for key in required_keys:
-                    if key in expected_data and key in extracted_data:
-                        expected_val = normalize_text(expected_data[key])
-                        actual_val = normalize_text(extracted_data[key])
-
-                        # For numeric fields, compare as integers
-                        if key in [
-                            "Deeplearning_Post_Count",
-                            "ChatGPT_Tool_Vote_Count",
-                            "Page2_Top_Post_Votes",
-                        ]:
-                            try:
-                                expected_int = int(expected_val)
-                                actual_int = int(actual_val)
-                                if expected_int != actual_int:
-                                    errors.append(
-                                        f"{key} mismatch: got {actual_int}, expected {expected_int}"
-                                    )
-                            except ValueError:
+                    # For numeric fields, compare as integers
+                    if key in [
+                        "Deeplearning_Post_Count",
+                        "ChatGPT_Tool_Vote_Count",
+                        "Page2_Top_Post_Votes",
+                    ]:
+                        try:
+                            expected_int = int(expected_val)
+                            actual_int = int(actual_val)
+                            if expected_int != actual_int:
                                 errors.append(
-                                    f"{key} should be numeric: got '{actual_val}'"
+                                    f"{key} mismatch: got {actual_int}, expected {expected_int}"
                                 )
-                        else:
-                            # For text fields, compare normalized text
-                            if expected_val != actual_val:
-                                errors.append(
-                                    f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
-                                )
-
-            else:
-                # If no expected data, just do basic validation
-                for key in required_keys:
-                    if key not in extracted_data:
-                        errors.append(f"Missing required key: {key}")
-                    elif (
-                        not extracted_data[key] or extracted_data[key] == "[FILL_VALUE]"
-                    ):
-                        errors.append(f"{key} was not filled in")
+                        except ValueError:
+                            errors.append(
+                                f"{key} should be numeric: got '{actual_val}'"
+                            )
+                    else:
+                        # For text fields, compare normalized text
+                        if expected_val != actual_val:
+                            errors.append(
+                                f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
+                            )
 
             if errors:
                 print(
@@ -286,10 +258,9 @@ async def verify() -> bool:
                 for error in errors:
                     print(f"  - {error}", file=sys.stderr)
                 print("\nExpected values from label.txt:", file=sys.stderr)
-                if "expected_data" in locals():
-                    for key in required_keys:
-                        if key in expected_data:
-                            print(f"  {key}: {expected_data[key]}", file=sys.stderr)
+                for key in required_keys:
+                    if key in expected_data:
+                        print(f"  {key}: {expected_data[key]}", file=sys.stderr)
                 return False
 
             # All checks passed
