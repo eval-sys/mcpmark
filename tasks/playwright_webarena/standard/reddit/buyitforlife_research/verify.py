@@ -36,14 +36,10 @@ def parse_markdown_list_format(text):
 
 def normalize_text(text):
     """
-    Normalize text for comparison by handling different quote styles and whitespace.
+    Normalize text for comparison by collapsing whitespace.
     """
     if not isinstance(text, str):
         return str(text)
-
-    # Replace various quote styles with standard quotes
-    text = text.replace(""", "'").replace(""", "'")
-    text = text.replace('"', '"').replace('"', '"')
 
     # Normalize whitespace
     text = " ".join(text.split())
@@ -264,17 +260,6 @@ async def verify() -> bool:
                             if expected_val != actual_val:
                                 errors.append(f"{key} mismatch: got '{actual_val}', expected '{expected_val}'")
             
-            # Verify upvotes are in descending order
-            try:
-                post1_votes = int(extracted_data["Post1_Upvotes"])
-                post2_votes = int(extracted_data["Post2_Upvotes"])
-                post3_votes = int(extracted_data["Post3_Upvotes"])
-                
-                if not (post1_votes >= post2_votes >= post3_votes):
-                    errors.append(f"Posts should be ordered by upvotes: {post1_votes} >= {post2_votes} >= {post3_votes}")
-            except (ValueError, KeyError):
-                pass  # Already reported above
-            
             if errors:
                 print("Error: Validation failed with the following issues:", file=sys.stderr)
                 for error in errors:
@@ -287,7 +272,6 @@ async def verify() -> bool:
             print("✓ Submission 'Research Report for BuyItForLife' found in correct forum", file=sys.stderr)
             print("✓ All 14 required fields present and correct", file=sys.stderr)
             print("✓ Data matches expected values from label.txt", file=sys.stderr)
-            print("✓ Posts ordered by upvotes (descending)", file=sys.stderr)
             return True
             
         except PlaywrightTimeoutError as e:
