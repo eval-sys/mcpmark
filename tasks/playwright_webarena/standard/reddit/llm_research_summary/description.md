@@ -21,13 +21,13 @@ I need you to perform a comprehensive analysis of Large Language Model discussio
 - Total_LLM_Posts|FILL_VALUE
 - Top1_Title|FILL_VALUE
 - Top1_Upvotes|FILL_VALUE
-- Top1_Date|FILL_VALUE
+- Top1_Author|FILL_VALUE
 - Top2_Title|FILL_VALUE
 - Top2_Upvotes|FILL_VALUE
-- Top2_Date|FILL_VALUE
+- Top2_Author|FILL_VALUE
 - Top3_Title|FILL_VALUE
 - Top3_Upvotes|FILL_VALUE
-- Top3_Date|FILL_VALUE
+- Top3_Author|FILL_VALUE
 - Deeplearning_MostDiscussed|FILL_VALUE
 - Deeplearning_Comments|FILL_VALUE
 ```
