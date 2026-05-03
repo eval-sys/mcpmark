@@ -107,17 +107,16 @@ def compare_answers(model_answer, expected_answer):
 
         # Special handling for different types of values
         if key in ["PrinterPrice", "KeyboardPrice"]:
-            # For price fields, only support $XX.XX format
-            # Check if model value has correct format
-            if not model_value.startswith("$"):
-                mismatches.append(
-                    f"{key}: incorrect format - expected '$XX.XX' format, got '{model_value}'"
-                )
-            else:
-                # Normalize and compare values
-                expected_clean = expected_value.replace("$", "").replace(",", "")
-                model_clean = model_value.replace("$", "").replace(",", "")
-                if expected_clean != model_clean:
+            # Strip $ and , then compare as floats (exact equality — no tolerance)
+            expected_clean = expected_value.replace("$", "").replace(",", "")
+            model_clean = model_value.replace("$", "").replace(",", "")
+            try:
+                if float(expected_clean) != float(model_clean):
+                    mismatches.append(
+                        f"{key}: expected '{expected_value}', got '{model_value}'"
+                    )
+            except ValueError:
+                if expected_value != model_value:
                     mismatches.append(
                         f"{key}: expected '{expected_value}', got '{model_value}'"
                     )
@@ -130,17 +129,26 @@ def compare_answers(model_answer, expected_answer):
                 )
 
         elif key == "KeyboardReviews":
-            # Number of reviews should match exactly
-            if model_value != expected_value:
+            try:
+                if int(model_value) != int(expected_value):
+                    mismatches.append(
+                        f"{key}: expected '{expected_value}', got '{model_value}'"
+                    )
+            except ValueError:
                 mismatches.append(
-                    f"{key}: expected '{expected_value}', got '{model_value}'"
+                    f"{key} should be numeric: got '{model_value}'"
                 )
 
         elif key == "KeyboardRating":
-            # Rating should match exactly (including % sign)
-            if model_value != expected_value:
+            # Strip % and compare as int
+            try:
+                if int(model_value.replace("%", "")) != int(expected_value.replace("%", "")):
+                    mismatches.append(
+                        f"{key}: expected '{expected_value}', got '{model_value}'"
+                    )
+            except ValueError:
                 mismatches.append(
-                    f"{key}: expected '{expected_value}', got '{model_value}'"
+                    f"{key} should be numeric: got '{model_value}'"
                 )
 
         else:

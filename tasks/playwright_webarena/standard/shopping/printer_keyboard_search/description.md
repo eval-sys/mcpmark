@@ -1,12 +1,13 @@
 
 
 1. Search for a `printer capable of reducing blue light` that:
-   - Is pink or purple (must be stated in product details, not from image)
+   - Price between $240.00-$260.00
+   - Is pink or purple
    - Manufactured in Asia
    Record SKU ID and price
 
 2. Find a keyboard with:
-   - Bluetooth mode (must be stated either stated in details or title)
+   - Bluetooth mode
    - Price between $50.00-$100.00
    - Highest review rating among matching products
    Record SKU ID, price, number of reviews, and review rating
