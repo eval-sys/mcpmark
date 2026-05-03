@@ -11,7 +11,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"MCP_MESSAGES: {messages_path}")
+    print(f"MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -22,7 +22,11 @@ def get_model_response():
         
         # Find the last assistant message
         for message in reversed(messages):
-            if message.get('role') == 'assistant' and message.get('status') == 'completed':
+            if (
+                message.get('role') == 'assistant'
+                and message.get('status') == 'completed'
+                and message.get('type') == 'message'
+            ):
                 content = message.get('content', [])
                 for item in content:
                     if item.get('type') == 'output_text':
@@ -85,6 +89,31 @@ def load_expected_answer(label_path):
         print(f"Error reading label file: {str(e)}", file=sys.stderr)
         return None
 
+def _normalize_bestseller(value):
+    """
+    Parse a Bestseller line "name:price:quantity:sku:salable_quantity:status"
+    into a normalized tuple so the three lines can be compared as a set
+    (order-independent). Returns None if the value is malformed.
+    """
+    if ':' not in value:
+        return None
+    parts = value.split(':')
+    if len(parts) != 6:
+        return None
+    name, price, qty, sku, salable, status = parts
+    try:
+        return (
+            name.strip().lower(),
+            float(price.replace('$', '').replace(',', '').strip()),
+            int(qty.strip()),
+            sku.strip().lower(),
+            float(salable.replace(',', '').strip()),
+            status.strip().lower(),
+        )
+    except ValueError:
+        return None
+
+
 def compare_answers(model_answer, expected_answer):
     """
     Compare the model's answer with the expected answer.
@@ -92,63 +121,38 @@ def compare_answers(model_answer, expected_answer):
     """
     if not model_answer or not expected_answer:
         return False
-    
-    # Check each expected key
+
+    bestseller_keys = ['Bestseller1', 'Bestseller2', 'Bestseller3']
     mismatches = []
+
+    # Bestseller1/2/3 are compared as a set — model may list the three lines
+    # in any order
+    expected_bs_raw = [expected_answer.get(k, '') for k in bestseller_keys if k in expected_answer]
+    if expected_bs_raw:
+        model_bs_raw = [model_answer.get(k, '') for k in bestseller_keys if k in model_answer]
+        expected_bs = [_normalize_bestseller(v) for v in expected_bs_raw]
+        model_bs = [_normalize_bestseller(v) for v in model_bs_raw]
+        if None in expected_bs:
+            mismatches.append(f"Bestseller (label): malformed line in label.txt: {expected_bs_raw}")
+        elif None in model_bs:
+            bad = [r for r, n in zip(model_bs_raw, model_bs) if n is None]
+            mismatches.append(f"Bestseller: malformed or non-numeric line(s): {bad}")
+        else:
+            expected_set = set(expected_bs)
+            model_set = set(model_bs)
+            missing = expected_set - model_set
+            extra = model_set - expected_set
+            if missing or extra:
+                mismatches.append(
+                    f"Bestseller set mismatch — missing: {sorted(missing)}; extra: {sorted(extra)}"
+                )
+
     for key, expected_value in expected_answer.items():
+        if key in bestseller_keys:
+            continue  # already handled above
         model_value = model_answer.get(key, '')
-        
-        # Special handling for different types of values
-        if key in ['Bestseller1', 'Bestseller2', 'Bestseller3']:
-            # Check if all parts match (name:price:quantity:sku:inventory:status)
-            if ':' in expected_value and ':' in model_value:
-                expected_parts = expected_value.split(':')
-                model_parts = model_value.split(':')
-                if len(expected_parts) == 6 and len(model_parts) == 6:
-                    # Compare each part
-                    for i, (exp, mod) in enumerate(zip(expected_parts, model_parts)):
-                        if i == 1:  # Price field
-                            exp_clean = exp.replace('$', '').replace(',', '')
-                            mod_clean = mod.replace('$', '').replace(',', '')
-                            if exp_clean != mod_clean:
-                                mismatches.append(f"{key} price: expected '{exp}', got '{mod}'")
-                        elif i == 4:  # Inventory field (may have decimal places)
-                            exp_float = float(exp.replace(',', ''))
-                            mod_float = float(mod.replace(',', ''))
-                            if abs(exp_float - mod_float) > 0.0001:
-                                mismatches.append(f"{key} inventory: expected '{exp}', got '{mod}'")
-                        else:
-                            if exp.lower() != mod.lower():
-                                mismatches.append(f"{key} part {i}: expected '{exp}', got '{mod}'")
-                else:
-                    mismatches.append(f"{key}: format mismatch - expected '{expected_value}', got '{model_value}'")
-            else:
-                if expected_value != model_value:
-                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
-        elif key == 'LowestInventoryProduct':
-            # Check product name and inventory
-            if ':' in expected_value and ':' in model_value:
-                expected_name, expected_inv = expected_value.rsplit(':', 1)
-                model_name, model_inv = model_value.rsplit(':', 1)
-                if expected_name.lower() != model_name.lower():
-                    mismatches.append(f"{key} name: expected '{expected_name}', got '{model_name}'")
-                exp_float = float(expected_inv.replace(',', ''))
-                mod_float = float(model_inv.replace(',', ''))
-                if abs(exp_float - mod_float) > 0.0001:
-                    mismatches.append(f"{key} inventory: expected '{expected_inv}', got '{model_inv}'")
-            else:
-                if expected_value != model_value:
-                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
-        elif key in ['TotalRevenue', 'MinimumPurchaseRule']:
-            # For price/amount fields, normalize format
-            expected_clean = expected_value.replace('$', '').replace(',', '')
-            model_clean = model_value.replace('$', '').replace(',', '')
-            if expected_clean != model_clean:
-                mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
-        elif key == 'BestsellerInSearch':
+
+        if key == 'BestsellerInSearch':
             # Check search term and count
             if expected_value.lower() != model_value.lower():
                 mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
@@ -158,13 +162,16 @@ def compare_answers(model_answer, expected_answer):
             if ':' in expected_value and ':' in model_value:
                 expected_name, expected_pct = expected_value.rsplit(':', 1)
                 model_name, model_pct = model_value.rsplit(':', 1)
-                if expected_name != model_name:
+                if expected_name.lower() != model_name.lower():
                     mismatches.append(f"{key} name: expected '{expected_name}', got '{model_name}'")
-                # Normalize percentage (20% vs 20 vs 0.20)
+                # Normalize percentage (20 vs 20% vs 20.0)
                 exp_pct_clean = expected_pct.replace('%', '').strip()
                 mod_pct_clean = model_pct.replace('%', '').strip()
-                if exp_pct_clean != mod_pct_clean:
-                    mismatches.append(f"{key} percentage: expected '{expected_pct}', got '{model_pct}'")
+                try:
+                    if float(exp_pct_clean) != float(mod_pct_clean):
+                        mismatches.append(f"{key} percentage: expected '{expected_pct}', got '{model_pct}'")
+                except ValueError:
+                    mismatches.append(f"{key} percentage should be numeric: got '{model_pct}'")
             else:
                 if expected_value != model_value:
                     mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
@@ -177,7 +184,7 @@ def compare_answers(model_answer, expected_answer):
                 if len(expected_parts) == 3 and len(model_parts) == 3:
                     exp_name, exp_email, exp_group = expected_parts
                     mod_name, mod_email, mod_group = model_parts
-                    if exp_name != mod_name:
+                    if exp_name.lower() != mod_name.lower():
                         mismatches.append(f"{key} name: expected '{exp_name}', got '{mod_name}'")
                     if exp_email.lower() != mod_email.lower():
                         mismatches.append(f"{key} email: expected '{exp_email}', got '{mod_email}'")
@@ -189,16 +196,17 @@ def compare_answers(model_answer, expected_answer):
                 if expected_value != model_value:
                     mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
         
-        elif key == 'MostRecentOrderDate':
-            # Date format may vary, do flexible comparison
-            if expected_value.lower() == 'none' and model_value.lower() == 'none':
-                continue
-            elif expected_value != model_value:
-                # Could add more flexible date parsing here if needed
-                mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
+        elif key in ['ActiveRulesCount', 'TotalOrders', 'SameGroupCustomers']:
+            # Numeric counts: compare as int so "04" vs "4" doesn't fail
+            try:
+                if int(model_value) != int(expected_value):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
+
         else:
-            # Exact match for other fields (counts, etc.)
+            # Exact string match for IDs and other text fields (e.g. MostRecentOrderID
+            # has leading zeros like "000000299" that must be preserved)
             if str(model_value) != str(expected_value):
                 mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
     
