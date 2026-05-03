@@ -26,6 +26,7 @@ def get_model_response():
             if (
                 message.get("role") == "assistant"
                 and message.get("status") == "completed"
+                and message.get("type") == "message"
             ):
                 content = message.get("content", [])
                 for item in content:

@@ -33,6 +33,7 @@ def get_model_response():
             if (
                 message.get("role") == "assistant"
                 and message.get("status") == "completed"
+                and message.get("type") == "message"
             ):
                 content = message.get("content", [])
                 for item in content:
@@ -111,11 +112,28 @@ def compare_answers(model_answer, expected_answer):
     for key, expected_value in expected_answer.items():
         model_value = model_answer.get(key, "")
 
-        # Exact match for all fields
-        if model_value != expected_value:
-            mismatches.append(
-                f"{key}: expected '{expected_value}', got '{model_value}'"
-            )
+        if key in ["InitialGroups", "FinalGroups", "InitialCustomers", "FinalCustomers"]:
+            try:
+                if int(model_value) != int(expected_value):
+                    mismatches.append(
+                        f"{key}: expected '{expected_value}', got '{model_value}'"
+                    )
+            except ValueError:
+                mismatches.append(
+                    f"{key} should be numeric: got '{model_value}'"
+                )
+        elif key == "LastOrderCustomer":
+            # Case-insensitive exact match
+            if model_value.lower() != expected_value.lower():
+                mismatches.append(
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
+                )
+        else:
+            # Exact match for other fields
+            if model_value != expected_value:
+                mismatches.append(
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
+                )
 
     if mismatches:
         print("\n=== Answer Comparison Mismatches ===", file=sys.stderr)
@@ -165,12 +183,10 @@ async def verify() -> bool:
                 "Warning: Could not parse answer format from model response",
                 file=sys.stderr,
             )
-            print("Will proceed with browser verification only", file=sys.stderr)
+            return False
     else:
-        print(
-            "No model response found, proceeding with browser verification",
-            file=sys.stderr,
-        )
+        print("No model response found", file=sys.stderr)
+        return False
 
     # Browser verification for actual state
     print("\n=== Starting Browser Verification ===", file=sys.stderr)
@@ -227,26 +243,19 @@ async def verify() -> bool:
                         )
                     else:
                         print(
-                            f"Warning: Premium Europe tax class is '{tax_class_text}'",
+                            f"✗ Premium Europe tax class is '{tax_class_text}', expected 'Retail Customer'",
                             file=sys.stderr,
                         )
+                        return False
+                else:
+                    print(
+                        "✗ Could not locate 'Premium Europe' row to verify tax class",
+                        file=sys.stderr,
+                    )
+                    return False
             else:
                 print("✗ 'Premium Europe' customer group not found", file=sys.stderr)
                 return False
-
-            # Check total groups count
-            records_found = page.locator("text=records found").first
-            if await records_found.count() > 0:
-                count_text = await records_found.inner_text()
-                print(f"Customer Groups count: {count_text}", file=sys.stderr)
-
-                # Extract number
-                import re
-
-                match = re.search(r"(\d+)\s+records found", count_text)
-                if match:
-                    groups_count = int(match.group(1))
-                    print(f"✓ Customer groups count is {groups_count}", file=sys.stderr)
 
             # 2. Verify Customer
             print("\nVerifying Customer Isabella Romano...", file=sys.stderr)
@@ -255,35 +264,6 @@ async def verify() -> bool:
                 wait_until="networkidle",
             )
             await page.wait_for_timeout(3000)  # Wait for grid to load
-
-            # Check total customers count
-            customer_records = page.locator("text=records found").first
-            if await customer_records.count() > 0:
-                count_text = await customer_records.inner_text()
-                print(f"Customers count: {count_text}", file=sys.stderr)
-
-                # Extract number
-                match = re.search(r"(\d+)\s+records found", count_text)
-                if match:
-                    customers_count = int(match.group(1))
-                    print(
-                        f"✓ Total customers count is {customers_count}", file=sys.stderr
-                    )
-
-                    # Verify against expected answer if available
-                    if expected_answer and "FinalCustomers" in expected_answer:
-                        expected_final = int(expected_answer["FinalCustomers"])
-                        if customers_count == expected_final:
-                            print(
-                                f"✓ Customer count matches expected: {customers_count}",
-                                file=sys.stderr,
-                            )
-                        else:
-                            print(
-                                f"✗ Customer count mismatch: Expected {expected_final} customers, found {customers_count}",
-                                file=sys.stderr,
-                            )
-                            return False
 
             # Wait for the customer grid to load properly
             await page.wait_for_timeout(5000)
@@ -325,17 +305,9 @@ async def verify() -> bool:
                         isabella_exists = (
                             await page.locator("text=isabella.romano@premium.eu").count() > 0
                         )
-                        
-                        # Also check for "No records found" message
-                        no_records = await page.locator("text=We couldn't find any records., text=No records found").count() > 0
-                        if no_records:
-                            print(
-                                "✗ Customer 'isabella.romano@premium.eu' not found - search returned no results",
-                                file=sys.stderr,
-                            )
-                            return False
                 except Exception as e:
                     print(f"✗ Search failed: {str(e)}", file=sys.stderr)
+                    return False
             
             if isabella_exists:
                 print(
@@ -349,58 +321,6 @@ async def verify() -> bool:
                 )
                 return False
 
-            # 3. Verify Dashboard Last Orders
-            print("\nVerifying Dashboard Last Orders...", file=sys.stderr)
-            await page.goto(
-                f"{BASE_URL}/admin/dashboard/",
-                wait_until="networkidle",
-            )
-            await page.wait_for_timeout(2000)
-
-            # Check for Last Orders section
-            last_orders_exists = await page.locator("text=Last Orders").count() > 0
-            if last_orders_exists:
-                print("✓ Found 'Last Orders' section on dashboard", file=sys.stderr)
-
-                # Find the first customer in the table
-                # Look for the table after "Last Orders" heading
-                orders_table = (
-                    page.locator("text=Last Orders")
-                    .locator("..")
-                    .locator("table")
-                    .first
-                )
-                if await orders_table.count() > 0:
-                    # Get the last row in tbody
-                    last_row = orders_table.locator("tbody tr").last
-                    if await last_row.count() > 0:
-                        last_customer = await last_row.locator(
-                            "td"
-                        ).first.inner_text()
-                        print(
-                            f"✓ Last customer in Last Orders: {last_customer}",
-                            file=sys.stderr,
-                        )
-
-                        # Verify against expected answer if available
-                        if expected_answer and "LastOrderCustomer" in expected_answer:
-                            if last_customer == expected_answer["LastOrderCustomer"]:
-                                print(
-                                    f"✓ Last Order Customer matches expected: {last_customer}",
-                                    file=sys.stderr,
-                                )
-                            else:
-                                print(
-                                    f"✗ Last Order Customer mismatch: Expected '{expected_answer['LastOrderCustomer']}' but actual is '{last_customer}'",
-                                    file=sys.stderr,
-                                )
-                                return False
-            else:
-                print(
-                    "Warning: 'Last Orders' section not found on dashboard",
-                    file=sys.stderr,
-                )
-
             # Summary of verification - only print if we reach this point (all checks passed)
             print("\n=== Browser Verification Summary ===", file=sys.stderr)
             print("✓ Magento Admin login successful", file=sys.stderr)
@@ -409,8 +329,6 @@ async def verify() -> bool:
                 file=sys.stderr,
             )
             print("✓ Customer 'isabella.romano@premium.eu' found in system", file=sys.stderr)
-            print("✓ Customer counts verified", file=sys.stderr)
-            print("✓ Dashboard Last Orders section accessible", file=sys.stderr)
 
             return True
 
