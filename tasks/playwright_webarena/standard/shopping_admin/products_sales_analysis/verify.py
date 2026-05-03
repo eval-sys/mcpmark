@@ -12,7 +12,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"MCP_MESSAGES: {messages_path}")
+    print(f"MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -26,6 +26,7 @@ def get_model_response():
             if (
                 message.get("role") == "assistant"
                 and message.get("status") == "completed"
+                and message.get("type") == "message"
             ):
                 content = message.get("content", [])
                 for item in content:
@@ -71,7 +72,7 @@ def parse_answer_format(text):
     # Expected keys for validation
     expected_keys = [
         "YogaProducts", "WH11Price", "ZeroQuantityProducts", "LowestProduct",
-        "QuestLumaflexQuantity", "DashboardRevenue", "SarahMillerEmail",
+        "SecondCheapestQuantity", "DashboardRevenue", "SarahMillerEmail",
         "TotalCustomers", "PendingOrders", "GraceNguyenOrderID"
     ]
 
@@ -136,16 +137,18 @@ def compare_answers(model_answer, expected_answer):
     for key, expected_value in expected_answer.items():
         model_value = model_answer.get(key, "")
 
-        # Special handling for different types of values
         if key == "LowestProduct":
-            # Check if product name and quantity match (format: "Product Name:quantity")
+            # "name:quantity" — name case-insensitive, qty as int
             if ":" in expected_value and ":" in model_value:
-                expected_name, expected_qty = expected_value.rsplit(":", 1)
-                model_name, model_qty = model_value.rsplit(":", 1)
-                if expected_name != model_name or expected_qty != model_qty:
-                    mismatches.append(
-                        f"{key}: expected '{expected_value}', got '{model_value}'"
-                    )
+                exp_name, exp_qty = expected_value.rsplit(":", 1)
+                mod_name, mod_qty = model_value.rsplit(":", 1)
+                if exp_name.strip().lower() != mod_name.strip().lower():
+                    mismatches.append(f"{key} name: expected '{exp_name}', got '{mod_name}'")
+                try:
+                    if int(exp_qty.strip()) != int(mod_qty.strip()):
+                        mismatches.append(f"{key} quantity: expected '{exp_qty}', got '{mod_qty}'")
+                except ValueError:
+                    mismatches.append(f"{key} quantity should be numeric: got '{mod_qty}'")
             else:
                 if expected_value != model_value:
                     mismatches.append(
@@ -153,23 +156,41 @@ def compare_answers(model_answer, expected_answer):
                     )
 
         elif key in ["WH11Price", "DashboardRevenue"]:
-            # For price/amount fields, normalize format
-            expected_clean = expected_value.replace("$", "").replace(",", "")
-            model_clean = model_value.replace("$", "").replace(",", "")
-            if expected_clean != model_clean:
-                mismatches.append(
-                    f"{key}: expected '{expected_value}', got '{model_value}'"
-                )
+            # Price/amount fields: strip $ and , then compare as float so
+            # "$54.00" matches "54" / "54.0"
+            expected_clean = expected_value.replace("$", "").replace(",", "").strip()
+            model_clean = model_value.replace("$", "").replace(",", "").strip()
+            try:
+                if float(expected_clean) != float(model_clean):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
+
+        elif key in [
+            "YogaProducts",
+            "ZeroQuantityProducts",
+            "SecondCheapestQuantity",
+            "TotalCustomers",
+            "PendingOrders",
+        ]:
+            # Numeric counts: compare as int so "04" / "4" / "4.0" don't fail
+            try:
+                if int(float(model_value)) != int(float(expected_value)):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
 
         elif key == "SarahMillerEmail":
-            # Email should match exactly
+            # Email — case-insensitive
             if model_value.lower() != expected_value.lower():
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
 
         else:
-            # Exact match for other fields
+            # Exact string match for IDs and other text fields (e.g.
+            # GraceNguyenOrderID has leading zeros like "000000189" that must
+            # be preserved)
             if model_value != expected_value:
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
