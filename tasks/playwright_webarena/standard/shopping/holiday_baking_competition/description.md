@@ -20,7 +20,7 @@
 
 4. In cart:
    - Update cookie quantity from 2 to 5
-   - Record cart subtotal and total items count
+   - Record cart subtotal and total items count (sum of all product quantities, not the number of distinct products)
 
 5. Search 'gingerbread', go to page 2:
    - Find third product on page 2
