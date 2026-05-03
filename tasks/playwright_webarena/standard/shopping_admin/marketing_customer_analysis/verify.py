@@ -19,7 +19,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"MCP_MESSAGES: {messages_path}")
+    print(f"MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -33,6 +33,7 @@ def get_model_response():
             if (
                 message.get("role") == "assistant"
                 and message.get("status") == "completed"
+                and message.get("type") == "message"
             ):
                 content = message.get("content", [])
                 for item in content:
@@ -111,45 +112,124 @@ def compare_answers(model_answer, expected_answer):
     for key, expected_value in expected_answer.items():
         model_value = model_answer.get(key, "")
 
-        # Special handling for different types of values
         if key == "Top2SearchTerms":
-            # Check if both search terms are present with correct counts
-            expected_terms = expected_value.split(",")
-            model_terms = model_value.split(",")
-            if set(expected_terms) != set(model_terms):
+            # Two "term:count" entries separated by ',' — order-independent;
+            # term case-insensitive, count compared as int
+            expected_terms = set()
+            for item in expected_value.split(','):
+                item = item.strip()
+                term, count = item.rsplit(':', 1)
+                expected_terms.add((term.strip().lower(), int(count.strip())))
+            model_terms = set()
+            for item in model_value.split(','):
+                item = item.strip()
+                if ':' not in item:
+                    mismatches.append(f"{key}: malformed entry '{item}'")
+                    continue
+                term, count = item.rsplit(':', 1)
+                try:
+                    model_terms.add((term.strip().lower(), int(count.strip())))
+                except ValueError:
+                    mismatches.append(f"{key}: non-numeric count in '{item}'")
+            if expected_terms != model_terms:
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
 
+        elif key == "ZeroResultTerm":
+            # Single "term:count" — term case-insensitive, count as int
+            exp_term, exp_count = expected_value.rsplit(':', 1)
+            expected_pair = (exp_term.strip().lower(), int(exp_count.strip()))
+            if ':' not in model_value:
+                mismatches.append(f"{key}: malformed value '{model_value}'")
+            else:
+                mod_term, mod_count = model_value.rsplit(':', 1)
+                try:
+                    model_pair = (mod_term.strip().lower(), int(mod_count.strip()))
+                    if expected_pair != model_pair:
+                        mismatches.append(
+                            f"{key}: expected '{expected_value}', got '{model_value}'"
+                        )
+                except ValueError:
+                    mismatches.append(f"{key}: non-numeric count in '{model_value}'")
+
         elif key == "EmailVerification":
-            # Check email verification status
-            expected_emails = dict(
-                item.split(":") for item in expected_value.split(",")
-            )
-            model_emails = dict(
-                item.split(":") for item in model_value.split(",") if ":" in item
-            )
+            # "email:yes/no" entries separated by ',' — email & status case-insensitive
+            expected_emails = {}
+            for item in expected_value.split(','):
+                email, status = item.rsplit(':', 1)
+                expected_emails[email.strip().lower()] = status.strip().lower()
+            model_emails = {}
+            for item in model_value.split(','):
+                item = item.strip()
+                if ':' not in item:
+                    mismatches.append(f"{key}: malformed entry '{item}'")
+                    continue
+                email, status = item.rsplit(':', 1)
+                model_emails[email.strip().lower()] = status.strip().lower()
             if expected_emails != model_emails:
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
 
         elif key == "CouponCodes":
-            # Check if coupon code and rule name are present
-            if "H20" not in model_value or "Luma water bottle" not in model_value:
+            # "code:rule_name" entries separated by ',' — code case-sensitive
+            # (coupon codes are typically uppercase tokens), rule name case-insensitive
+            expected_coupons = set()
+            for item in expected_value.split(','):
+                code, rule = item.split(':', 1)
+                expected_coupons.add((code.strip(), rule.strip().lower()))
+            model_coupons = set()
+            for item in model_value.split(','):
+                item = item.strip()
+                if ':' not in item:
+                    mismatches.append(f"{key}: malformed entry '{item}'")
+                    continue
+                code, rule = item.split(':', 1)
+                model_coupons.add((code.strip(), rule.strip().lower()))
+            if expected_coupons != model_coupons:
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
 
         elif key == "TopProduct":
-            # Check if product name and quantity match
-            if expected_value != model_value:
-                mismatches.append(
-                    f"{key}: expected '{expected_value}', got '{model_value}'"
-                )
+            # "name:quantity" — name case-insensitive, qty as int
+            if ':' in expected_value and ':' in model_value:
+                exp_name, exp_qty = expected_value.rsplit(':', 1)
+                mod_name, mod_qty = model_value.rsplit(':', 1)
+                if exp_name.strip().lower() != mod_name.strip().lower():
+                    mismatches.append(f"{key} name: expected '{exp_name}', got '{mod_name}'")
+                try:
+                    if int(exp_qty.strip()) != int(mod_qty.strip()):
+                        mismatches.append(f"{key} quantity: expected '{exp_qty}', got '{mod_qty}'")
+                except ValueError:
+                    mismatches.append(f"{key} quantity should be numeric: got '{mod_qty}'")
+            else:
+                if expected_value != model_value:
+                    mismatches.append(
+                        f"{key}: expected '{expected_value}', got '{model_value}'"
+                    )
+
+        elif key in ("TotalSearchTerms", "ActiveRulesCount", "SubscribedCount"):
+            # Numeric counts: compare as int so "04" vs "4" doesn't fail
+            try:
+                if int(model_value) != int(expected_value):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
+
+        elif key == "TotalRevenue":
+            # Strip $ and , then compare as float so "$0.00" matches "0" / "0.00"
+            exp_clean = expected_value.replace('$', '').replace(',', '').strip()
+            mod_clean = model_value.replace('$', '').replace(',', '').strip()
+            try:
+                if float(exp_clean) != float(mod_clean):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
 
         else:
-            # Exact match for other fields
+            # Fallback exact match for any unrecognized key
             if model_value != expected_value:
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
@@ -183,32 +263,29 @@ async def verify() -> bool:
 
     # Get model's response from MCP_MESSAGES
     model_response = get_model_response()
-    if model_response:
-        print("Found model response, parsing answer format...", file=sys.stderr)
-        model_answer = parse_answer_format(model_response)
+    if not model_response:
+        print("No model response found", file=sys.stderr)
+        return False
 
-        if model_answer:
-            print("\n=== Model Answer Parsed ===", file=sys.stderr)
-            for key, value in model_answer.items():
-                print(f"{key}: {value}", file=sys.stderr)
-
-            # Compare answers
-            answer_match = compare_answers(model_answer, expected_answer)
-            if not answer_match:
-                print("\nModel answer does not match expected answer", file=sys.stderr)
-                return False
-            print("\n✓ Model answer matches expected answer", file=sys.stderr)
-        else:
-            print(
-                "Warning: Could not parse answer format from model response",
-                file=sys.stderr,
-            )
-            print("Will proceed with browser verification only", file=sys.stderr)
-    else:
+    print("Found model response, parsing answer format...", file=sys.stderr)
+    model_answer = parse_answer_format(model_response)
+    if not model_answer:
         print(
-            "No model response found, proceeding with browser verification",
+            "Could not parse answer format from model response",
             file=sys.stderr,
         )
+        return False
+
+    print("\n=== Model Answer Parsed ===", file=sys.stderr)
+    for key, value in model_answer.items():
+        print(f"{key}: {value}", file=sys.stderr)
+
+    # Compare answers
+    answer_match = compare_answers(model_answer, expected_answer)
+    if not answer_match:
+        print("\nModel answer does not match expected answer", file=sys.stderr)
+        return False
+    print("\n✓ Model answer matches expected answer", file=sys.stderr)
 
     # Browser verification - only check customer creation (the critical task requirement)
     print("\n=== Starting Browser Verification ===", file=sys.stderr)
