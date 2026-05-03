@@ -103,7 +103,7 @@ def _normalize_bestseller(value):
     name, price, qty, sku, salable, status = parts
     try:
         return (
-            name.strip().lower(),
+            name.replace('&trade;', '™').strip().lower(),
             float(price.replace('$', '').replace(',', '').strip()),
             int(qty.strip()),
             sku.strip().lower(),
