@@ -12,7 +12,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"MCP_MESSAGES: {messages_path}")
+    print(f"MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -139,71 +139,58 @@ def compare_answers(model_answer, expected_answer):
     for key, expected_value in expected_answer.items():
         model_value = model_answer.get(key, "")
 
-        # Special handling for different types of values
         if key == "WS12Info":
-            # Check if product name and price match (format: name:price)
+            # "name:price" — name case-insensitive, price as float
             if ":" in expected_value and ":" in model_value:
-                expected_name, expected_price = expected_value.rsplit(":", 1)
-                model_name, model_price = model_value.rsplit(":", 1)
-                # Normalize price format
-                expected_price_clean = expected_price.replace("$", "").replace(",", "")
-                model_price_clean = model_price.replace("$", "").replace(",", "")
-                if (
-                    expected_name != model_name
-                    or expected_price_clean != model_price_clean
-                ):
-                    mismatches.append(
-                        f"{key}: expected '{expected_value}', got '{model_value}'"
-                    )
+                exp_name, exp_price = expected_value.rsplit(":", 1)
+                mod_name, mod_price = model_value.rsplit(":", 1)
+                if exp_name.strip().lower() != mod_name.strip().lower():
+                    mismatches.append(f"{key} name: expected '{exp_name}', got '{mod_name}'")
+                exp_price_clean = exp_price.replace("$", "").replace(",", "").strip()
+                mod_price_clean = mod_price.replace("$", "").replace(",", "").strip()
+                try:
+                    if float(exp_price_clean) != float(mod_price_clean):
+                        mismatches.append(f"{key} price: expected '{exp_price}', got '{mod_price}'")
+                except ValueError:
+                    mismatches.append(f"{key} price should be numeric: got '{mod_price}'")
             else:
                 if expected_value != model_value:
                     mismatches.append(
                         f"{key}: expected '{expected_value}', got '{model_value}'"
                     )
-
-        elif key == "GraceOrderID":
-            # Order ID should start with "000" and match exactly
-            if not model_value.startswith("000"):
-                mismatches.append(
-                    f"{key}: expected to start with '000', got '{model_value}'"
-                )
-            elif model_value != expected_value:
-                mismatches.append(
-                    f"{key}: expected '{expected_value}', got '{model_value}'"
-                )
 
         elif key == "HighestOrderInfo":
-            # Check format customer:amount
+            # "customer:amount" — customer case-insensitive, amount as float
             if ":" in expected_value and ":" in model_value:
-                expected_customer, expected_amount = expected_value.rsplit(":", 1)
-                model_customer, model_amount = model_value.rsplit(":", 1)
-                # Normalize amount format
-                expected_amount_clean = expected_amount.replace("$", "").replace(
-                    ",", ""
-                )
-                model_amount_clean = model_amount.replace("$", "").replace(",", "")
-                if (
-                    expected_customer != model_customer
-                    or expected_amount_clean != model_amount_clean
-                ):
-                    mismatches.append(
-                        f"{key}: expected '{expected_value}', got '{model_value}'"
-                    )
+                exp_customer, exp_amount = expected_value.rsplit(":", 1)
+                mod_customer, mod_amount = model_value.rsplit(":", 1)
+                if exp_customer.strip().lower() != mod_customer.strip().lower():
+                    mismatches.append(f"{key} customer: expected '{exp_customer}', got '{mod_customer}'")
+                exp_amount_clean = exp_amount.replace("$", "").replace(",", "").strip()
+                mod_amount_clean = mod_amount.replace("$", "").replace(",", "").strip()
+                try:
+                    if float(exp_amount_clean) != float(mod_amount_clean):
+                        mismatches.append(f"{key} amount: expected '{exp_amount}', got '{mod_amount}'")
+                except ValueError:
+                    mismatches.append(f"{key} amount should be numeric: got '{mod_amount}'")
             else:
                 if expected_value != model_value:
                     mismatches.append(
                         f"{key}: expected '{expected_value}', got '{model_value}'"
                     )
 
-        elif key == "Position2Product":
-            # Check if product name and quantity match
+        elif key == "CheapProduct":
+            # "name:quantity" — name case-insensitive, qty as int
             if ":" in expected_value and ":" in model_value:
-                expected_name, expected_qty = expected_value.rsplit(":", 1)
-                model_name, model_qty = model_value.rsplit(":", 1)
-                if expected_name != model_name or expected_qty != model_qty:
-                    mismatches.append(
-                        f"{key}: expected '{expected_value}', got '{model_value}'"
-                    )
+                exp_name, exp_qty = expected_value.rsplit(":", 1)
+                mod_name, mod_qty = model_value.rsplit(":", 1)
+                if exp_name.strip().lower() != mod_name.strip().lower():
+                    mismatches.append(f"{key} name: expected '{exp_name}', got '{mod_name}'")
+                try:
+                    if int(exp_qty.strip()) != int(mod_qty.strip()):
+                        mismatches.append(f"{key} quantity: expected '{exp_qty}', got '{mod_qty}'")
+                except ValueError:
+                    mismatches.append(f"{key} quantity should be numeric: got '{mod_qty}'")
             else:
                 if expected_value != model_value:
                     mismatches.append(
@@ -211,36 +198,32 @@ def compare_answers(model_answer, expected_answer):
                     )
 
         elif key == "OvernightDufflePrice":
-            # Normalize price format
-            expected_clean = expected_value.replace("$", "").replace(",", "")
-            model_clean = model_value.replace("$", "").replace(",", "")
-            if expected_clean != model_clean:
-                mismatches.append(
-                    f"{key}: expected '{expected_value}', got '{model_value}'"
-                )
+            # Strip $ and , then compare as float
+            expected_clean = expected_value.replace("$", "").replace(",", "").strip()
+            model_clean = model_value.replace("$", "").replace(",", "").strip()
+            try:
+                if float(expected_clean) != float(model_clean):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
 
         elif key == "HollisterPosition":
-            # Position format (1st, 2nd, 3rd, etc.)
-            if model_value.lower() != expected_value.lower():
+            # Position format (1st, 2nd, 3rd, etc.) — case-insensitive
+            if model_value.strip().lower() != expected_value.strip().lower():
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
 
         elif key == "SarahMillerInfo":
-            # Format: group:date
+            # "group:date" — both case-insensitive exact match
+            # (split on first ':' only; the date itself contains ':' for the time)
             if ":" in expected_value and ":" in model_value:
-                expected_group, expected_date = expected_value.split(":", 1)
-                model_group, model_date = model_value.split(":", 1)
-                # Allow some flexibility in date format
-                if expected_group != model_group:
-                    mismatches.append(
-                        f"{key}: expected group '{expected_group}', got '{model_group}'"
-                    )
-                # For date, check if key parts match
-                if not (expected_date in model_date or model_date in expected_date):
-                    mismatches.append(
-                        f"{key}: expected date '{expected_date}', got '{model_date}'"
-                    )
+                exp_group, exp_date = expected_value.split(":", 1)
+                mod_group, mod_date = model_value.split(":", 1)
+                if exp_group.strip().lower() != mod_group.strip().lower():
+                    mismatches.append(f"{key} group: expected '{exp_group}', got '{mod_group}'")
+                if exp_date.strip().lower() != mod_date.strip().lower():
+                    mismatches.append(f"{key} date: expected '{exp_date}', got '{mod_date}'")
             else:
                 if expected_value != model_value:
                     mismatches.append(
@@ -248,14 +231,30 @@ def compare_answers(model_answer, expected_answer):
                     )
 
         elif key == "Invoice002BillTo":
-            # Name should match exactly
-            if model_value != expected_value:
+            # Customer name — case-insensitive
+            if model_value.strip().lower() != expected_value.strip().lower():
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
 
+        elif key in [
+            "SpriteProducts",
+            "Quantity100Products",
+            "PendingOrders",
+            "CostelloCustomers",
+            "PaidInvoices",
+        ]:
+            # Numeric counts: compare as int so "04" / "4" / "4.0" don't fail
+            try:
+                if int(float(model_value)) != int(float(expected_value)):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
+
         else:
-            # Exact match for count fields and other numeric values
+            # Exact string match for IDs and other text fields (e.g.
+            # GraceOrderID has leading zeros like "000000114" that must be
+            # preserved)
             if model_value != expected_value:
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"

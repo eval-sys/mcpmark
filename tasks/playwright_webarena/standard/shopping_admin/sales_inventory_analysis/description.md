@@ -6,21 +6,21 @@ Perform a comprehensive sales and inventory analysis by extracting specific metr
 
 2. To analyze product inventory and identify key items, check all products:
    - Search for all products containing 'Sprite' in their name - count the exact number of results
-   - Clear the search and filter products by Quantity = 100.0000 - count how many products match
+   - Clear all filters and filter products by Quantity = 100.0000 - count how many products match
    - Find the product with SKU 'WS12' - record its exact name and price
 
 3. To understand sales performance and order status, we need check all orders:
    - Search for all orders with 'Pending' status - count the total number
-   - Find Grace Nguyen's Complete and the most cheap order - record the order ID (starts with "000")
+   - Find Grace Nguyen's order with Complete status and the lowest price - record its order ID (starts with "000")
    - Find the order with the highest Grand Total - record the customer name and amount
 
 4. To examine bestselling products and search trends, from the main page:
-   - In the Bestsellers table, identify the product with most quantity but and lowest price - record its name and quantity sold
+   - Among the products tied for the highest sales quantity in the Bestsellers table, identify the one with the lowest price - record its name and sales quantity
    - Find 'Overnight Duffle' and record its exact price
    - In the Top Search Terms table, find 'hollister' and record its position number (1st, 2nd, etc.)
 
 5. To analyze customer demographics and account information, go to All Customers:
-   - Search for customers with its email address containing 'costello' - count the results
+   - Search for customers whose email address contains 'costello' - count the results
    - Find Sarah Miller's customer record - record her Group and extract Customer Since date
 
 6. To review payment status and billing information, navigate to Invoices:
