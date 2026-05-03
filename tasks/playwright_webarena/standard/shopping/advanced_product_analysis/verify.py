@@ -120,20 +120,13 @@ def compare_answers(model_answer, expected_answer):
                 )
 
         elif key == "CartTotal":
-            # For price fields, only support $XX.XX format
-            # Check if model value has correct format
-            if not model_value.startswith("$"):
+            # Compare amount only — strip $ and , so format variations don't fail a correct value
+            expected_clean = expected_value.replace("$", "").replace(",", "")
+            model_clean = model_value.replace("$", "").replace(",", "")
+            if expected_clean != model_clean:
                 mismatches.append(
-                    f"{key}: incorrect format - expected '$XX.XX' format, got '{model_value}'"
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
-            else:
-                # Normalize and compare values
-                expected_clean = expected_value.replace("$", "").replace(",", "")
-                model_clean = model_value.replace("$", "").replace(",", "")
-                if expected_clean != model_clean:
-                    mismatches.append(
-                        f"{key}: expected '{expected_value}', got '{model_value}'"
-                    )
 
         elif key == "ReviewCount":
             # Check review count matches
@@ -143,8 +136,8 @@ def compare_answers(model_answer, expected_answer):
                 )
 
         elif key == "LatestReviewer":
-            # Check reviewer name (allow partial match for names)
-            if expected_value.lower() not in model_value.lower() and model_value.lower() not in expected_value.lower():
+            # Case-insensitive exact match
+            if expected_value.lower() != model_value.lower():
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
