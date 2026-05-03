@@ -107,42 +107,30 @@ def compare_answers(model_answer, expected_answer):
 
         # Special handling for different types of values
         if key in ["CheapestReviewedPrice", "N64Subtotal"]:
-            # For price fields, only support $XX.XX format
-            # Check if model value has correct format
-            if not model_value.startswith("$"):
+            # Compare amount only — strip $ and , so format variations don't fail a correct value
+            expected_clean = expected_value.replace("$", "").replace(",", "")
+            model_clean = model_value.replace("$", "").replace(",", "")
+            if expected_clean != model_clean:
                 mismatches.append(
-                    f"{key}: incorrect format - expected '$XX.XX' format, got '{model_value}'"
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
-            else:
-                # Normalize and compare values
-                expected_clean = expected_value.replace("$", "").replace(",", "")
-                model_clean = model_value.replace("$", "").replace(",", "")
-                if expected_clean != model_clean:
-                    mismatches.append(
-                        f"{key}: expected '{expected_value}', got '{model_value}'"
-                    )
 
-        elif key == "CheckoutEmail":
-            # Email should match exactly (case-insensitive)
+        elif key in ["CheckoutEmail", "ShippingState"]:
+            # Case-insensitive exact match
             if model_value.lower() != expected_value.lower():
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
 
-        elif key == "Products70Plus":
-            # For count fields, allow some flexibility (products might change)
-            # But still check if it's a reasonable number
+        elif key in ["Products70Plus", "ComparisonCount", "ShippingMethods"]:
             try:
-                model_count = int(model_value)
-                expected_count = int(expected_value)
-                # Allow up to 2 products difference (in case of dynamic content)
-                if abs(model_count - expected_count) > 2:
+                if int(model_value) != int(expected_value):
                     mismatches.append(
-                        f"{key}: expected around '{expected_value}', got '{model_value}'"
+                        f"{key}: expected '{expected_value}', got '{model_value}'"
                     )
             except ValueError:
                 mismatches.append(
-                    f"{key}: expected '{expected_value}', got '{model_value}'"
+                    f"{key} should be numeric: got '{model_value}'"
                 )
 
         else:
