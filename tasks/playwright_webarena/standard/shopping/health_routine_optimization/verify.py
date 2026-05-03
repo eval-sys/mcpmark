@@ -115,20 +115,26 @@ def compare_answers(model_answer, expected_answer):
 
         # Special handling for different types of values
         if key in ["Battery1Price", "Battery2Price", "InitialSubtotal", "FinalSubtotal"]:
-            # For price fields, only support $XX.XX format
-            # Check if model value has correct format
-            if not model_value.startswith("$"):
+            # Compare amount only — strip $ and , so format variations don't fail a correct value
+            expected_clean = expected_value.replace("$", "").replace(",", "")
+            model_clean = model_value.replace("$", "").replace(",", "")
+            if expected_clean != model_clean:
                 mismatches.append(
-                    f"{key}: incorrect format - expected '$XX.XX' format, got '{model_value}'"
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
-            else:
-                # Normalize and compare values
-                expected_clean = expected_value.replace("$", "").replace(",", "")
-                model_clean = model_value.replace("$", "").replace(",", "")
-                if expected_clean != model_clean:
+
+        elif key in ["AdvancedSearchResults", "ComparisonCount", "TeaReviews",
+                     "CartUniqueProducts", "CartTotalQuantity", "TeaRating"]:
+            # Strip % so "95" and "95%" both compare as 95
+            try:
+                if int(model_value.replace("%", "")) != int(expected_value.replace("%", "")):
                     mismatches.append(
                         f"{key}: expected '{expected_value}', got '{model_value}'"
                     )
+            except ValueError:
+                mismatches.append(
+                    f"{key} should be numeric: got '{model_value}'"
+                )
 
         else:
             # Exact match for other fields
