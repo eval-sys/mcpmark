@@ -187,26 +187,52 @@ def verify(notion: Client, main_id: str = None) -> bool:
         print(f"Error getting toggle children: {e}", file=sys.stderr)
         return False
     
-    # Check for child_page blocks (Notion and Figma)
+    # Accept either nested child_page blocks (UI-built path) or
+    # link_to_page references (API-built path). Notion's public API does not
+    # expose a way to move/create a child_page block inside a toggle, so an
+    # API agent can only reference the original pages via link_to_page.
+    def _resolve_page_title(target_id: str) -> str:
+        try:
+            page = notion.pages.retrieve(page_id=target_id)
+        except Exception:
+            return ""
+        title_prop = page.get("properties", {}).get("title", {})
+        rich_text = title_prop.get("title", [])
+        return "".join(rt.get("plain_text", "") for rt in rich_text)
+
     notion_page_found = False
     figma_page_found = False
-    
+
     for block in toggle_children:
-        if block.get("type") == "child_page":
+        btype = block.get("type")
+        if btype == "child_page":
             title = block.get("child_page", {}).get("title", "")
-            if title == "Notion":
-                notion_page_found = True
-                print("✓ Found 'Notion' child page in toggle")
-            elif title == "Figma":
-                figma_page_found = True
-                print("✓ Found 'Figma' child page in toggle")
-    
+        elif btype == "link_to_page":
+            target_id = block.get("link_to_page", {}).get("page_id")
+            title = _resolve_page_title(target_id) if target_id else ""
+        else:
+            continue
+        if title == "Notion":
+            notion_page_found = True
+            print(f"✓ Found 'Notion' page reference in toggle (via {btype})")
+        elif title == "Figma":
+            figma_page_found = True
+            print(f"✓ Found 'Figma' page reference in toggle (via {btype})")
+
     if not notion_page_found:
-        print("Error: 'Notion' child page not found in toggle block.", file=sys.stderr)
+        print(
+            "Error: No 'Notion' page reference found in toggle block "
+            "(expected child_page or link_to_page targeting the original 'Notion' page).",
+            file=sys.stderr,
+        )
         return False
-    
+
     if not figma_page_found:
-        print("Error: 'Figma' child page not found in toggle block.", file=sys.stderr)
+        print(
+            "Error: No 'Figma' page reference found in toggle block "
+            "(expected child_page or link_to_page targeting the original 'Figma' page).",
+            file=sys.stderr,
+        )
         return False
     
     # Step 6: Verify that original sections no longer exist at top level
