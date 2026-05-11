@@ -21,7 +21,7 @@ Perform a comprehensive sales and inventory analysis by extracting specific metr
 
 5. To analyze customer demographics and account information, go to All Customers:
    - Search for customers whose email address contains 'costello' - count the results
-   - Find Sarah Miller's customer record - record her Group and extract Customer Since date
+   - Find Sarah Miller's customer record - record her Group and the full Customer Since timestamp exactly as shown in Magento (e.g. `Jan 7, 2022 10:15:42 AM`)
 
 6. To review payment status and billing information, navigate to Invoices:
    - Find all invoices with 'Paid' status - count them
@@ -60,7 +60,7 @@ CheapProduct|Product Name:XX
 OvernightDufflePrice|$XX.XX
 HollisterPosition|Xth
 CostelloCustomers|X
-SarahMillerInfo|Group Name:MMM DD, YYYY
+SarahMillerInfo|Group Name:MMM DD, YYYY H:MM:SS AM/PM
 PaidInvoices|X
 Invoice002BillTo|Customer Name
 </answer>
