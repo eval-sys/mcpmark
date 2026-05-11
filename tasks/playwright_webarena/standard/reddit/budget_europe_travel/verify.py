@@ -257,8 +257,10 @@ async def verify() -> bool:
             else:
                 print("✓ On search results page for 'travel insurance Europe'", file=sys.stderr)
                 
-                # Check for "Retract upvote" button (only present when current user has upvoted)
-                retract_buttons = page.locator('button:has-text("Retract upvote")')
+                # Postmill renders vote buttons as icon-only (no text node), so
+                # match the title attribute. The title flips from "Upvote" to
+                # "Retract upvote" when the current user has upvoted.
+                retract_buttons = page.locator('button[title="Retract upvote"]')
                 if await retract_buttons.count() > 0:
                     print("✓ Found upvoted post (Retract upvote button present)", file=sys.stderr)
                 else:
