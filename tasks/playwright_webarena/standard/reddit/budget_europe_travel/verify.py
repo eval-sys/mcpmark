@@ -7,6 +7,23 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 
 BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
+
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
+
+
 async def verify() -> bool:
     """
     Verifies that the budget Europe travel resource task has been completed correctly.
@@ -176,7 +193,7 @@ async def verify() -> bool:
                     wiki_title_elem = page.locator(selector)
                     if await wiki_title_elem.count():
                         title_text = await wiki_title_elem.first.text_content()
-                        if title_text and title_text.strip() == expected_wiki_title:
+                        if title_text and normalize_text(title_text) == normalize_text(expected_wiki_title):
                             wiki_title_found = True
                             break
                 

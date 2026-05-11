@@ -43,6 +43,22 @@ def get_model_response():
         return None
 
 
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
+
+
 def parse_answer_format(text):
     """
     Parse the <answer>...</answer> format from the agent's output.
@@ -85,7 +101,7 @@ def parse_answer_format(text):
         if len(parts) != 2:
             print(f"Error: Invalid line format: {line}", file=sys.stderr)
             return None
-        key, value = parts[0].strip(), parts[1].strip()
+        key, value = parts[0].strip(), normalize_text(parts[1].strip())
         if not key or not value:
             print(f"Error: Empty key or value in line: {line}", file=sys.stderr)
             return None
@@ -115,7 +131,7 @@ def load_expected_answer(label_path):
         for line in lines:
             if "|" in line:
                 key, value = line.split("|", 1)
-                expected[key.strip()] = value.strip()
+                expected[key.strip()] = normalize_text(value.strip())
 
         return expected
     except Exception as e:

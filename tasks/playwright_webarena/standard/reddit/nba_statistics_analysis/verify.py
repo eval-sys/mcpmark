@@ -53,9 +53,8 @@ def normalize_text(text):
     if not isinstance(text, str):
         return str(text)
 
-    # Normalize curly apostrophes to ASCII (use unicode escapes so source-edit tools don't mangle them)
-    text = text.replace("\u2019", "'")  # RIGHT SINGLE QUOTATION MARK (')
-    text = text.replace("\u2018", "'")  # LEFT SINGLE QUOTATION MARK (')
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
 
     # Normalize whitespace
     text = " ".join(text.split())

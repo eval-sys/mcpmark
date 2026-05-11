@@ -40,6 +40,22 @@ def get_model_response():
         return None
 
 
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
+
+
 def parse_answer_format(text):
     """
     Parse the <answer>xxx</answer> format from the agent's output.
@@ -66,7 +82,7 @@ def parse_answer_format(text):
     for line in lines:
         if "|" in line:
             key, value = line.split("|", 1)
-            result[key.strip()] = value.strip()
+            result[key.strip()] = normalize_text(value.strip())
 
     return result
 
@@ -84,7 +100,7 @@ def load_expected_answer(label_path):
         for line in lines:
             if "|" in line:
                 key, value = line.split("|", 1)
-                expected[key.strip()] = value.strip()
+                expected[key.strip()] = normalize_text(value.strip())
 
         return expected
     except Exception as e:

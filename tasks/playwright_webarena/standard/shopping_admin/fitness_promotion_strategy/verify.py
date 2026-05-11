@@ -38,6 +38,22 @@ def get_model_response():
         print(f"Error reading messages file: {str(e)}", file=sys.stderr)
         return None
 
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
+
+
 def parse_answer_format(text):
     """
     Parse the <answer>...</answer> format from the agent's output.
@@ -45,28 +61,28 @@ def parse_answer_format(text):
     """
     if not text:
         return None
-    
+
     # Look for <answer>...</answer> pattern
     match = re.search(r'<answer>(.*?)</answer>', text, re.IGNORECASE | re.DOTALL)
     if not match:
         return None
-    
+
     answer_content = match.group(1).strip()
-    
+
     # Parse each line
     result = {}
     lines = answer_content.split('\n')
-    
+
     # Skip the check for exact number of lines - just parse what we have
     # if len(lines) != 13:
     #     print(f"Error: Expected 13 lines in answer, got {len(lines)}", file=sys.stderr)
     #     return None
-    
+
     for line in lines:
         if '|' in line:
             key, value = line.split('|', 1)
-            result[key.strip()] = value.strip()
-    
+            result[key.strip()] = normalize_text(value.strip())
+
     return result
 
 def load_expected_answer(label_path):
@@ -77,13 +93,13 @@ def load_expected_answer(label_path):
     try:
         with open(label_path, 'r') as f:
             lines = f.read().strip().split('\n')
-        
+
         expected = {}
         for line in lines:
             if '|' in line:
                 key, value = line.split('|', 1)
-                expected[key.strip()] = value.strip()
-        
+                expected[key.strip()] = normalize_text(value.strip())
+
         return expected
     except Exception as e:
         print(f"Error reading label file: {str(e)}", file=sys.stderr)

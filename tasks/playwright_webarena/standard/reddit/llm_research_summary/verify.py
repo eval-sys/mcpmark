@@ -49,6 +49,9 @@ def normalize_text(text):
     if not isinstance(text, str):
         return str(text)
 
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
     # Normalize whitespace
     text = " ".join(text.split())
 

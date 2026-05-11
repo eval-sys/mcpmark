@@ -60,6 +60,9 @@ def normalize_text(text):
     # Decode &amp; HTML entity
     text = text.replace("&amp;", "&")
 
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
     # Normalize whitespace
     text = " ".join(text.split())
 
