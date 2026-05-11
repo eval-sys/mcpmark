@@ -74,7 +74,7 @@ def verify() -> bool:
         15: ["assigned-anishathalye"],  # Issue #15
         # PRs
         21: ["assigned-anishathalye"],  # PR #21
-        22: ["assigned-anishathalye"],  # PR #22
+        22: ["assigned-jonhoo"],  # PR #22
         23: ["assigned-anishathalye"],  # PR #23
         24: ["assigned-anishathalye"],  # PR #24
     }
