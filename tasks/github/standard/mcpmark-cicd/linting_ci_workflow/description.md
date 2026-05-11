@@ -36,7 +36,7 @@ Create the file `.github/workflows/lint.yml` with:
 - Uses ubuntu-latest runner
 - Sets up Node.js version 18 using actions/setup-node
 - Installs dependencies with npm ci
-- Installs ESLint globally
+- Installs ESLint v8 globally (`npm install -g eslint@8`)
 - Runs ESLint on all JavaScript files in src/ directories
 - Fails the workflow if linting errors are found
 
