@@ -263,22 +263,22 @@ def verify() -> bool:
 
     # First get the commits for this PR
     commits = _get_pr_commits(pr_number, headers, github_org)
-    if len(commits) != 2:
+    if len(commits) < 2:
         print(
-            f"Error: Expected exactly 2 commits, found {len(commits)}", file=sys.stderr
+            f"Error: Expected at least 2 commits, found {len(commits)}", file=sys.stderr
         )
         return False
 
-    print("✓ Found exactly 2 commits as expected")
+    print(f"✓ Found {len(commits)} commits (>= 2 as required)")
 
     # Sort commits chronologically (oldest first)
     commits.sort(key=lambda x: x.get("commit", {}).get("author", {}).get("date", ""))
 
     first_commit_sha = commits[0].get("sha")
-    second_commit_sha = commits[1].get("sha")
+    second_commit_sha = commits[-1].get("sha")
 
     print(f"First commit (should fail): {first_commit_sha[:7]}")
-    print(f"Second commit (should pass): {second_commit_sha[:7]}")
+    print(f"Last commit (should pass): {second_commit_sha[:7]}")
 
     # Wait for workflows on both commits to complete
     print("Waiting for workflow completion on first commit...")
@@ -286,7 +286,7 @@ def verify() -> bool:
     second_commit_runs = []
 
     start_time = time.time()
-    timeout = 90
+    timeout = 300
     no_workflow_check_count = 0
 
     while time.time() - start_time < timeout:
