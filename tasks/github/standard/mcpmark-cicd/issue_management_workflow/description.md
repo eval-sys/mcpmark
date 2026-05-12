@@ -20,11 +20,26 @@ Create `.github/workflows/issue-automation.yml` that triggers on `issues` events
    - For issues with a title containing "Epic", create exactly 4 sub-issues with the pattern: "[SUBTASK] [Original Title] - Task N: [Task Name]"
    - Task names: 1. Requirements Analysis, 2. Design and Architecture, 3. Implementation, 4. Testing and Documentation
    - Links sub-issues to parent using "Related to #[parent-number]" in sub-issue body
-   - Updates parent issue body with "## Epic Tasks" checklist linking to sub-issue numbers
+   - Updates parent issue body with an "## Epic Tasks" checklist that links to sub-issue numbers. Each checklist line MUST contain the literal substring `- [ ] #<sub-issue-number>` (a GitHub-style task-list reference) AND the corresponding task name. The recommended line format is:
+
+     ```
+     - [ ] #<sub-issue-number> - Task <N>: <Task Name>
+     ```
+
+     Example for sub-issues #5–#8:
+
+     ```
+     ## Epic Tasks
+
+     - [ ] #5 - Task 1: Requirements Analysis
+     - [ ] #6 - Task 2: Design and Architecture
+     - [ ] #7 - Task 3: Implementation
+     - [ ] #8 - Task 4: Testing and Documentation
+     ```
    - All sub-issues get `enhancement` and `needs-review` labels
 
 ### 3. **auto-response** job:
-   - Checks if the issue author is creating their first issue in this repository (not first on GitHub globally, but first in this specific repo)
+   - Checks if the issue author is creating their first issue in this repository (not first on GitHub globally, but first in this specific repo). For the purpose of this check, automation-created sub-issues authored by `github-actions[bot]` do not count as prior issues by the human author.
    - If first issue in repo: adds `first-time-contributor` label and posts welcome message
    - Posts different responses based on issue type:
      - `bug` issues: comment must contain "Bug Report Guidelines"
@@ -82,18 +97,24 @@ Create a comprehensive pull request and merge it to main:
 - Merge the pull request to main branch
 
 **Step 5: Test the Workflow**
-Create test issues to demonstrate the issue automation workflow:
+Create test issues to demonstrate the issue automation workflow. Create them in the order listed below, and ensure that the **Bug issue is the very first issue you (the human author) open in this repository** so that the first-time-contributor logic fires on it.
+
+When writing the issue bodies, be careful about which priority keywords you include. Priority is matched against title OR body, with the highest match winning, so avoid adding higher-priority keywords (e.g. `critical`, `urgent`, `production`, `outage`) when you want a lower priority outcome.
 
 1. **Bug Issue**: "Bug: Login form validation not working"
-   - Expected: `bug`, `priority-high`, `needs-triage`→`needs-review`, milestone "v1.0.0"
+   - This must be the first issue authored by you in the repo (so that `first-time-contributor` is applied).
+   - Title/body should include high-priority wording (e.g. `important`, `high`, `blocking`) but MUST NOT contain any critical keyword (`critical`, `urgent`, `production`, `outage`).
+   - Expected: `bug`, `priority-high`, `first-time-contributor`, `needs-triage`→`needs-review`, milestone "v1.0.0"
    - Auto-response comment must contain "Bug Report Guidelines"
 
 2. **Epic Issue**: "Epic: Redesign user dashboard interface"
+   - Title/body should include high-priority wording (`important`, `high`, `blocking`) and MUST NOT contain any critical keyword.
    - Expected: `epic`, `priority-high`, `needs-triage`→`needs-review`, milestone "v1.0.0"
    - Must create 4 sub-issues with `enhancement` and `needs-review` labels
-   - Parent updated with "## Epic Tasks" checklist, sub-issues linked with "Related to #[parent-number]"
+   - Parent updated with "## Epic Tasks" checklist whose lines contain `- [ ] #<sub-issue-number>` plus the task name (see the example format under the task-breakdown job above), sub-issues linked back with "Related to #[parent-number]"
    - Auto-response comment must contain "Feature Request Process"
 
 3. **Maintenance Issue**: "Weekly maintenance cleanup and refactor"  
+   - Title/body should use medium/normal wording and MUST NOT contain any high or critical keyword.
    - Expected: `maintenance`, `priority-medium`, `needs-triage`→`needs-review`, no milestone
    - Auto-response comment must contain "Maintenance Guidelines"
