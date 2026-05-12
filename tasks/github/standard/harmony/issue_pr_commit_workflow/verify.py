@@ -139,6 +139,18 @@ def _get_pr_reviews(
     return []
 
 
+def _get_pr_review_comments(
+    pr_number: int, headers: Dict[str, str], org: str, repo: str = "harmony"
+) -> List[Dict]:
+    """Get all review comments (inline comments on code) for a PR."""
+    success, comments = _get_github_api(
+        f"pulls/{pr_number}/comments", headers, org, repo
+    )
+    if success and comments:
+        return comments
+    return []
+
+
 def _check_issue_comment_references(
     comments: List[Dict], pr_number: int, keywords: List[str]
 ) -> bool:
@@ -170,12 +182,21 @@ def _check_headings_and_content(
     return has_headings and has_keywords
 
 
-def _check_pr_review_content(reviews: List[Dict], keywords: List[str]) -> bool:
-    """Check if PR has review comments containing required keywords."""
+def _check_pr_review_content(
+    reviews: List[Dict], keywords: List[str], review_comments: Optional[List[Dict]] = None
+) -> bool:
+    """Check if PR has review bodies or inline review comments containing required keywords."""
+    # Check review top-level bodies
     for review in reviews:
         body = review.get("body", "")
         if body and all(keyword.lower() in body.lower() for keyword in keywords):
             return True
+    # Check inline review comments (code-level comments added during review)
+    if review_comments:
+        for comment in review_comments:
+            body = comment.get("body", "")
+            if body and all(keyword.lower() in body.lower() for keyword in keywords):
+                return True
     return False
 
 
@@ -334,7 +355,8 @@ def verify() -> bool:
     # 5. Check PR review comments
     print("5. Verifying PR review comments...")
     reviews = _get_pr_reviews(pr_number, headers, github_org)
-    if not _check_pr_review_content(reviews, REVIEW_KEYWORDS):
+    review_comments = _get_pr_review_comments(pr_number, headers, github_org)
+    if not _check_pr_review_content(reviews, REVIEW_KEYWORDS, review_comments):
         print(
             "Error: PR missing review comment with required technical keywords",
             file=sys.stderr,

@@ -219,7 +219,7 @@ def _check_merge_timeline(content: str) -> bool:
         "2025-08-06 | Merge pull request #29 from axion66/improve-readme-and-checks | 3efbf742533a375fc148d75513597e139329578b",
         "2025-08-06 | Merge pull request #30 from Yuan-ManX/harmony-format | 9d653a4c7382abc42d115014d195d9354e7ad357",
         "2025-08-06 | Merge pull request #28 from dkqjrm/fix-typo-format-md | 161e5fe2a57c63e9f8353c4c5b8faa3c3854bb5f",
-        "2025-08-05 | Merge pull request #26 from jordan-wu-97/jordan/fix-function-call-atomic-bool | 82b3afb9eb043343f322c937262cc50405e892c3",
+        "2025-08-06 | Merge pull request #26 from jordan-wu-97/jordan/fix-function-call-atomic-bool | 82b3afb9eb043343f322c937262cc50405e892c3",
         "2025-08-05 | Merge pull request #18 from openai/dev/scl/better-ci | b255cbeb6274adbea774f26fd9590922ce8874ed",
         "2025-08-05 | Merge pull request #21 from Tialo/main | 058ef3257c24fb099aac7960c10ce51c8e55d9fe",
         "2025-08-05 | Merge branch 'main' into dev/scl/better-ci | 6375a15ea1b0a486cbb1468964cf8f5800ff5a5c",

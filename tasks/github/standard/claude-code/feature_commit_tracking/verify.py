@@ -129,16 +129,23 @@ def verify_task() -> bool:
     }
 
     # Expected feature commits based on exploration
+    # For CHANGELOG Version 1.0.65, two valid answers exist:
+    # - 94dcaca5: merge commit that brought 1.0.65 into pr/2466-QwertyJack-main branch
+    # - 5faa082d: the actual commit that first added 1.0.65 content to CHANGELOG.md on main
     expected_features = {
-        "Shell Completion Scripts": "8a0febdd09bda32f38c351c0881784460d69997d",
-        "CHANGELOG Version 1.0.65": "94dcaca5d71ad82644ae97f3a2b0c5eb8b63eae0",
-        "Rust Extraction Improvements": "50e58affdf1bfc7d875202bc040ebe0dcfb7d332",
+        "Shell Completion Scripts": ["8a0febdd09bda32f38c351c0881784460d69997d"],
+        "CHANGELOG Version 1.0.65": [
+            "94dcaca5d71ad82644ae97f3a2b0c5eb8b63eae0",
+            "5faa082d6e4e5300485daafb94615fe133175055",
+        ],
+        "Rust Extraction Improvements": ["50e58affdf1bfc7d875202bc040ebe0dcfb7d332"],
     }
 
     # Expected authors for each commit
     expected_authors = {
         "8a0febdd09bda32f38c351c0881784460d69997d": "gitmpr",
         "94dcaca5d71ad82644ae97f3a2b0c5eb8b63eae0": "QwertyJack",
+        "5faa082d6e4e5300485daafb94615fe133175055": "actions-user",
         "50e58affdf1bfc7d875202bc040ebe0dcfb7d332": "alokdangre",
     }
 
@@ -146,6 +153,7 @@ def verify_task() -> bool:
     expected_messages = {
         "8a0febdd09bda32f38c351c0881784460d69997d": "feat: add shell completions (bash, zsh, fish)",
         "94dcaca5d71ad82644ae97f3a2b0c5eb8b63eae0": "Merge branch 'anthropics:main' into main",
+        "5faa082d6e4e5300485daafb94615fe133175055": "chore: Update CHANGELOG.md",
         "50e58affdf1bfc7d875202bc040ebe0dcfb7d332": "Enhance Rust extraction and output handling in workflows",
     }
 
@@ -153,6 +161,7 @@ def verify_task() -> bool:
     expected_dates = {
         "8a0febdd09bda32f38c351c0881784460d69997d": "2025-08-01",
         "94dcaca5d71ad82644ae97f3a2b0c5eb8b63eae0": "2025-08-02",
+        "5faa082d6e4e5300485daafb94615fe133175055": "2025-07-31",
         "50e58affdf1bfc7d875202bc040ebe0dcfb7d332": "2025-08-09",
     }
 
@@ -197,7 +206,7 @@ def verify_task() -> bool:
     for feature in features:
         found_features[feature["name"]] = feature["sha"]
 
-    for feature_name, expected_sha in expected_features.items():
+    for feature_name, expected_shas in expected_features.items():
         if feature_name not in found_features:
             print(
                 f"Error: Feature '{feature_name}' not found in table", file=sys.stderr
@@ -205,9 +214,9 @@ def verify_task() -> bool:
             return False
 
         actual_sha = found_features[feature_name]
-        if actual_sha != expected_sha:
+        if actual_sha not in expected_shas:
             print(
-                f"Error: Wrong SHA for '{feature_name}'. Expected: {expected_sha}, Got: {actual_sha}",
+                f"Error: Wrong SHA for '{feature_name}'. Expected one of: {expected_shas}, Got: {actual_sha}",
                 file=sys.stderr,
             )
             return False
@@ -216,8 +225,12 @@ def verify_task() -> bool:
 
     # 5. Verify each commit exists and has correct author
     print("5. Verifying commit details...")
+    all_expected_shas = set()
+    for shas in expected_features.values():
+        all_expected_shas.update(shas)
+
     for feature in features:
-        if feature["sha"] in expected_features.values():
+        if feature["sha"] in all_expected_shas:
             success, commit_data = _verify_commit_exists(
                 feature["sha"], headers, github_org
             )
