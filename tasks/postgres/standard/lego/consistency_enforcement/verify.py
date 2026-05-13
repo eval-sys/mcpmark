@@ -1,6 +1,5 @@
 """
 Verification script for PostgreSQL LEGO Task 1: Parts Consistency Fix & Constraints
-Version 2.1: Relaxed consistency check to allow for one known corner case mismatch.
 """
 
 import os
@@ -82,17 +81,15 @@ def get_mismatch_count(cur) -> int:
 def verify_data_consistency(conn) -> bool:
     """
     TASK 1 VERIFICATION: Checks if the initial data fix was successful.
-    (Relaxed: Allows for one corner-case mismatch).
     """
-    print("\n-- Verifying Task 1: Data Consistency Fix (Relaxed) --")
+    print("\n-- Verifying Task 1: Data Consistency Fix --")
     with conn.cursor() as cur:
         count = get_mismatch_count(cur)
-        # RELAXED CONDITION: Allow 0 or 1 mismatch to pass.
-        if count > 1:
-            print(f"❌ FAIL: Found {count} sets with inconsistent part counts. Expected 0 or 1 after fix.")
+        if count > 0:
+            print(f"❌ FAIL: Found {count} sets with inconsistent part counts. Expected 0 after fix.")
             return False
-        
-        print("✅ PASS: Data consistency check passed (allowing for one known mismatch).")
+
+        print("✅ PASS: All sets have consistent part counts.")
         return True
 
 
