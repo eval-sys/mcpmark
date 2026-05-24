@@ -18,13 +18,13 @@ Build RLS policies for a social platform where users create posts and comments i
 - **DELETE**: Only channel owners can delete channels
 
 ### 3. Posts Table Access Rules:
-- **SELECT**: Users can read all posts in channels they have access to
+- **SELECT**: Users can read all posts in channels they have access to. (Authors do NOT get a separate read privilege — visibility is determined solely by channel accessibility.)
 - **INSERT**: Authenticated users can create posts in any channel
 - **UPDATE**: Post authors OR channel moderators OR channel owners can edit posts
 - **DELETE**: Post authors OR channel moderators OR channel owners can delete posts
 
 ### 4. Comments Table Access Rules:
-- **SELECT**: Users can read comments on posts they can access
+- **SELECT**: Users can read comments on posts they can access. (Comment authors do NOT get a separate read privilege — visibility follows the post's channel accessibility only.)
 - **INSERT**: Authenticated users can comment on posts they can see
 - **UPDATE**: Comment authors OR post authors OR channel moderators OR channel owners can edit comments
 - **DELETE**: Comment authors OR post authors OR channel moderators OR channel owners can delete comments
