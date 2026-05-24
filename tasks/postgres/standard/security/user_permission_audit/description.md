@@ -12,7 +12,7 @@ You've been hired as a security consultant to audit the PostgreSQL database perm
 4. **Identify security issues**:
    - **Dangling users**: A *dangling user* is a database role that has been granted privileges on one or more business tables but is **not** assigned to any of the expected business roles in `USER_ROLE` below. (This definition naturally excludes PostgreSQL system roles such as `postgres`, `pg_read_all_data`, etc., since they aren't granted on business tables directly.)
    - **Missing permissions**: Users lacking permissions required for their business role
-   - **Excessive permissions**: Users with unnecessary permissions that should be revoked
+   - **Excessive permissions**: Any privilege that does not belong to the user's expected business role. **This includes every grant currently held by a dangling user** — each grant must still be reported as a separate `EXCESSIVE_PERMISSION` row in addition to the per-user `DANGLING_USER` row.
 
 ## Expected permissions by role (what they SHOULD have)
 

@@ -26,18 +26,16 @@ def setup_rls_environment():
         cur = conn.cursor()
 
         # Defensive cleanup: ROLEs are cluster-level objects and survive
-        # `DROP DATABASE` of a previous task run. Drop stale ones so the
-        # agent's `CREATE ROLE theme_analyst` and verify's `CREATE ROLE
-        # test_user` don't fail with "role already exists".
-        for stale_role in ("theme_analyst", "test_user"):
-            try:
-                cur.execute(f"DROP OWNED BY {stale_role} CASCADE;")
-            except psycopg2.Error:
-                pass  # role may not exist or own nothing
-            try:
-                cur.execute(f"DROP ROLE IF EXISTS {stale_role};")
-            except psycopg2.Error as e:
-                print(f"⚠ Could not drop stale role {stale_role}: {e}")
+        # `DROP DATABASE` of a previous task run. Drop stale `test_user`
+        # (created by verify.py) so re-runs don't trip over it.
+        try:
+            cur.execute("DROP OWNED BY test_user CASCADE;")
+        except psycopg2.Error:
+            pass  # role may not exist or own nothing
+        try:
+            cur.execute("DROP ROLE IF EXISTS test_user;")
+        except psycopg2.Error as e:
+            print(f"⚠ Could not drop stale role test_user: {e}")
 
         # 1. Users Table (with correct field name for verification)
         cur.execute("""
