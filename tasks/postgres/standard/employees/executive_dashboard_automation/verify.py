@@ -339,12 +339,15 @@ def verify_materialized_views(conn) -> bool:
 def verify_stored_procedures(conn) -> bool:
     """Verify that stored procedure was created."""
     with conn.cursor() as cur:
-        # Check if procedure exists
+        # Check if the routine exists in pg_proc. pg_proc lists both
+        # FUNCTION and PROCEDURE entries, so we don't have to filter on
+        # type — accepts either form of "stored procedure".
         cur.execute("""
-            SELECT routine_name FROM information_schema.routines 
-            WHERE routine_schema = 'employees' 
-            AND routine_type = 'FUNCTION'
-            AND routine_name = 'generate_monthly_report'
+            SELECT p.proname
+            FROM pg_proc p
+            JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'employees'
+              AND p.proname = 'generate_monthly_report'
         """)
         procedures = [row[0] for row in cur.fetchall()]
         

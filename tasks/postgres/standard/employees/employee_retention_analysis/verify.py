@@ -136,11 +136,11 @@ def verify_high_risk_results(conn) -> bool:
             e.id AS employee_id,
             CONCAT(e.first_name, ' ', e.last_name) AS full_name,
             d.dept_name AS current_department,
-            (CURRENT_DATE - e.hire_date)::INTEGER AS tenure_days,
+            (DATE '2002-08-01' - e.hire_date)::INTEGER AS tenure_days,
             cs.current_amount::INTEGER AS current_salary,
             CASE
-                WHEN dr.retention_rate < 80  AND (CURRENT_DATE - e.hire_date) < 1095 THEN 'high_risk'
-                WHEN dr.retention_rate < 85  AND (CURRENT_DATE - e.hire_date) < 1825 THEN 'medium_risk'
+                WHEN dr.retention_rate < 80  AND (DATE '2002-08-01' - e.hire_date) < 1095 THEN 'high_risk'
+                WHEN dr.retention_rate < 85  AND (DATE '2002-08-01' - e.hire_date) < 1825 THEN 'medium_risk'
                 ELSE 'low_risk'
             END AS risk_category
             FROM employees.employee e
