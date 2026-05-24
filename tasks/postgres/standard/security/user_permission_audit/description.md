@@ -10,7 +10,7 @@ You've been hired as a security consultant to audit the PostgreSQL database perm
 2. **Catalog all database users and roles**: Use `pg_user`, `pg_roles`, and `pg_auth_members` to find all accounts
 3. **Analyze current permissions**: Use `information_schema.table_privileges` to map permissions
 4. **Identify security issues**:
-   - **Dangling users**: Inactive accounts that should be removed
+   - **Dangling users**: A *dangling user* is a database role that has been granted privileges on one or more business tables but is **not** assigned to any of the expected business roles in `USER_ROLE` below. (This definition naturally excludes PostgreSQL system roles such as `postgres`, `pg_read_all_data`, etc., since they aren't granted on business tables directly.)
    - **Missing permissions**: Users lacking permissions required for their business role
    - **Excessive permissions**: Users with unnecessary permissions that should be revoked
 
@@ -95,8 +95,8 @@ CREATE TABLE security_audit_results (
     audit_id SERIAL PRIMARY KEY,
     audit_type VARCHAR(50) NOT NULL, -- 'DANGLING_USERS', 'MISSING_PERMISSIONS', 'EXCESSIVE_PERMISSIONS'
     total_issues INTEGER NOT NULL,
-    users_affected INTEGER NOT NULL,
-    tables_affected INTEGER NOT NULL
+    users_affected INTEGER NOT NULL,   -- COUNT(DISTINCT username) for this audit_type
+    tables_affected INTEGER NOT NULL   -- COUNT(DISTINCT table_name) for this audit_type; NULL table_name does not count (so DANGLING_USERS is 0)
 );
 ```
 
@@ -108,7 +108,7 @@ CREATE TABLE security_audit_details (
     issue_type VARCHAR(50) NOT NULL, -- 'DANGLING_USER', 'MISSING_PERMISSION', 'EXCESSIVE_PERMISSION'
     table_name VARCHAR(50), -- NULL for dangling users
     permission_type VARCHAR(20), -- 'SELECT', 'INSERT', 'UPDATE', 'DELETE', NULL for dangling users
-    expected_access BOOLEAN NOT NULL -- TRUE if user should have access, FALSE if should not
+    expected_access BOOLEAN NOT NULL -- TRUE if user should have access (MISSING_PERMISSION); FALSE otherwise (EXCESSIVE_PERMISSION, DANGLING_USER)
 );
 ```
 
@@ -117,19 +117,5 @@ CREATE TABLE security_audit_details (
 Your audit should populate both tables with:
 - **Summary data**: High-level counts of different types of security issues
 - **Detailed findings**: Specific permission gaps for each user and table combination
-
-## Business Role Expectations
-
-Analyze usernames and infer their intended business roles based on naming patterns:
-
-- **analytics_user** → Analytics Team (needs user behavior and statistics data)
-- **marketing_user** → Marketing Department (needs customer and product data for campaigns)  
-- **customer_service** → Customer Service (needs user profiles and order management)
-- **finance_user** → Finance Team (needs financial and order data)
-- **product_manager** → Product Management (needs full product catalog access)
-- **security_auditor** → Security Team (needs audit logs and credential data)
-- **developer_user** → Development Team (needs limited access for testing)
-- **backup_user** → Backup Service (needs read-only access to all business data)
-- **temp_contractor, old_employee, test_account** → Inactive/Temporary (should have NO permissions)
 
 The verification process will check that your findings correctly identify the actual permission gaps in the system by comparing against expected results.
