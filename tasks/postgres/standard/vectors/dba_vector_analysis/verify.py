@@ -92,7 +92,25 @@ def verify_vector_analysis_columns(conn) -> Dict[str, Any]:
             if extra_vectors:
                 results['issues'].append(f"Non-existing: {extra_vectors}")
 
-            if not missing and not extra and count > 0 and not missing_vectors and not extra_vectors:
+            # Verify analysis values: dimensions and rows must match reality.
+            values_ok = True
+            cur.execute("""
+                SELECT table_name, column_name, dimensions, rows
+                FROM vector_analysis_columns
+                ORDER BY table_name, column_name;
+            """)
+            for tbl, col, dims, rows in cur.fetchall():
+                if dims != 1536:
+                    results['issues'].append(f"{tbl}.{col}: dimensions={dims}, expected 1536")
+                    values_ok = False
+                if (tbl, col) in actual_vector_columns:
+                    cur.execute(f'SELECT COUNT(*) FROM "{tbl}"')
+                    actual_rows = cur.fetchone()[0]
+                    if rows != actual_rows:
+                        results['issues'].append(f"{tbl}.{col}: rows={rows}, expected {actual_rows}")
+                        values_ok = False
+
+            if not missing and not extra and count > 0 and not missing_vectors and not extra_vectors and values_ok:
                 results['passed'] = True
 
     except psycopg2.Error as e:
@@ -167,7 +185,36 @@ def verify_vector_analysis_storage_consumption(conn) -> Dict[str, Any]:
             if extra_tables:
                 results['issues'].append(f"Agent analyzed non-vector tables: {extra_tables}")
 
-            if not missing and not extra and count > 0 and not missing_tables and not extra_tables:
+            # Verify analysis values for each row: size/byte/pct/count sanity.
+            values_ok = True
+            cur.execute("""
+                SELECT table_name, total_size_bytes, vector_data_bytes,
+                       regular_data_bytes, vector_storage_pct, row_count
+                FROM vector_analysis_storage_consumption
+                ORDER BY table_name;
+            """)
+            for tbl, total_b, vec_b, reg_b, pct, row_cnt in cur.fetchall():
+                if tbl not in actual_vector_tables:
+                    continue
+                cur.execute(f'SELECT COUNT(*) FROM "{tbl}"')
+                actual_rows = cur.fetchone()[0]
+                if row_cnt != actual_rows:
+                    results['issues'].append(f"{tbl}: row_count={row_cnt}, expected {actual_rows}")
+                    values_ok = False
+                if total_b is None or total_b <= 0:
+                    results['issues'].append(f"{tbl}: total_size_bytes={total_b}, expected > 0")
+                    values_ok = False
+                if vec_b is None or vec_b <= 0:
+                    results['issues'].append(f"{tbl}: vector_data_bytes={vec_b}, expected > 0")
+                    values_ok = False
+                if reg_b is None or reg_b < 0:
+                    results['issues'].append(f"{tbl}: regular_data_bytes={reg_b}, expected >= 0")
+                    values_ok = False
+                if pct is None or not (0 <= pct <= 100):
+                    results['issues'].append(f"{tbl}: vector_storage_pct={pct}, expected within [0, 100]")
+                    values_ok = False
+
+            if not missing and not extra and count > 0 and not missing_tables and not extra_tables and values_ok:
                 results['passed'] = True
 
     except psycopg2.Error as e:
@@ -240,7 +287,28 @@ def verify_vector_analysis_indices(conn) -> Dict[str, Any]:
             # Allow agent to find more indexes than just vector ones (they might include related indexes)
             # but at least they should find the vector-specific ones
 
-            if not missing and not extra and count > 0 and not missing_indexes:
+            # Verify analysis values: column_name, index_type, and index_size_bytes.
+            values_ok = True
+            actual_index_names = {ix for _s, _t, ix in actual_vector_indexes}
+            cur.execute("""
+                SELECT index_name, column_name, index_type, index_size_bytes
+                FROM vector_analysis_indices
+                ORDER BY table_name, index_name;
+            """)
+            for idx_name, col_name, idx_type, idx_size in cur.fetchall():
+                if idx_name not in actual_index_names:
+                    continue  # skip extra/unrelated indexes the agent may have added
+                if col_name != 'embedding':
+                    results['issues'].append(f"{idx_name}: column_name={col_name!r}, expected 'embedding'")
+                    values_ok = False
+                if (idx_type or '').lower() not in ('hnsw', 'ivfflat'):
+                    results['issues'].append(f"{idx_name}: index_type={idx_type!r}, expected 'hnsw' or 'ivfflat'")
+                    values_ok = False
+                if idx_size is None or idx_size <= 0:
+                    results['issues'].append(f"{idx_name}: index_size_bytes={idx_size}, expected > 0")
+                    values_ok = False
+
+            if not missing and not extra and count > 0 and not missing_indexes and values_ok:
                 results['passed'] = True
 
     except psycopg2.Error as e:
@@ -314,8 +382,6 @@ def main():
         total_checks = len(checks)
         print(f"Results: {passed_checks}/{total_checks} checks passed")
         if passed_checks == total_checks:
-            sys.exit(0)
-        elif passed_checks >= total_checks * 0.75:
             sys.exit(0)
         else:
             sys.exit(1)
