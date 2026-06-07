@@ -15,7 +15,7 @@ Do not try to use python code.
 Count the following information for the entire directory structure:
 
 - total number of files
-- total number of folders
+- total number of folders (exclude the folder named "complex structure")
 - total size of the hole folder (in bytes, include .DS_Store only in this subtask)
 
 **Format (one item per line):**
