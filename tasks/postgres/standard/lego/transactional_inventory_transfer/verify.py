@@ -293,7 +293,26 @@ def verify_business_rule_validation(conn) -> bool:
     finally:
         conn.rollback() # Rollback after third test
 
-    return test1_passed and test2_passed and test3_passed
+    # Test 4: Negative transfer quantity (should fail)
+    print("Test 4: Negative transfer quantity (should fail)")
+    test4_passed = False
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT transfer_parts(%s, %s, %s, %s, %s, %s)",
+                (14469, 14686, '3024', 15, -5, 'negative_transfer')
+            )
+            result = cur.fetchone()
+            print(f"❌ FAIL: Negative transfer should have failed but succeeded: {result[0]}")
+    except psycopg2.Error:
+        print(f"✅ PASS: Negative transfer correctly failed")
+        test4_passed = True
+    except Exception as e:
+        print(f"❌ FAIL: Negative transfer test failed with unexpected error: {e}")
+    finally:
+        conn.rollback()
+
+    return test1_passed and test2_passed and test3_passed and test4_passed
 
 
 def verify_insufficient_quantity_error(conn) -> bool:
@@ -341,49 +360,43 @@ def verify_insufficient_quantity_error(conn) -> bool:
 
 
 def verify_invalid_inventory_error(conn) -> bool:
-    """Test that transfer fails with invalid inventory IDs."""
-    print("\n-- Verifying Invalid Inventory Error --")
-    passed = False
-    try:
-        source_id = 99999  # Non-existent inventory
-        target_id = 14686
-        part_num = '3024'
-        color_id = 15
-        transfer_qty = 10
-        reason = 'invalid_test'
-        
-        target_initial = get_inventory_part_quantity(conn, target_id, part_num, color_id)
-        
-        with conn.cursor() as cur:
-            try:
+    """Test that transfer fails when any of inventory_id / part_num / color_id is invalid."""
+    print("\n-- Verifying Invalid Reference Errors --")
+
+    # Each case: (label, source_id, target_id, part_num, color_id)
+    cases = [
+        ("invalid source inventory", 99999, 14686, '3024', 15),
+        ("invalid target inventory", 14469, 99999, '3024', 15),
+        ("invalid part_num",          14469, 14686, 'NOT_A_REAL_PART', 15),
+        ("invalid color_id",          14469, 14686, '3024', 99999),
+    ]
+    transfer_qty = 10
+    reason = 'invalid_test'
+    all_passed = True
+    for label, source_id, target_id, part_num, color_id in cases:
+        try:
+            with conn.cursor() as cur:
                 cur.execute(
                     "SELECT transfer_parts(%s, %s, %s, %s, %s, %s)",
                     (source_id, target_id, part_num, color_id, transfer_qty, reason)
                 )
                 result = cur.fetchone()
-                print(f"❌ FAIL: Transfer should have failed but succeeded: {result[0]}")
-            except psycopg2.Error as e:
-                print(f"✅ PASS: Transfer correctly failed with an exception.")
-                # Rollback the aborted transaction
-                conn.rollback()
-                
-                target_final = get_inventory_part_quantity(conn, target_id, part_num, color_id)
-                if target_final != target_initial:
-                    print(f"❌ FAIL: Target quantity changed from {target_initial} to {target_final}")
-                else:
-                    print("✅ PASS: Database state unchanged after invalid inventory error")
-                    passed = True
-    finally:
-        conn.rollback()
-    return passed
+                print(f"❌ FAIL ({label}): Transfer should have failed but succeeded: {result[0]}")
+                all_passed = False
+        except psycopg2.Error:
+            print(f"✅ PASS ({label}): Transfer correctly failed with an exception.")
+        finally:
+            conn.rollback()
+    return all_passed
 
 
 def verify_audit_logging(conn) -> bool:
     """
-    Test that audit logging captures both successful and failed transfers.
-    This function uses commits to separate test cases and work around the
-    transactional paradox of logging a failure within a transaction that
-    is about to be rolled back by the client.
+    Test audit logging behavior:
+      - Part 1: a successful transfer must produce a log row within the transaction.
+      - Part 2: if the function raises (e.g., self-transfer), the whole transaction
+        rolls back — any log row the function may have written disappears too.
+        This is standard PostgreSQL transaction semantics for RAISE EXCEPTION.
     """
     print("\n-- Verifying Audit Logging --")
     
@@ -432,9 +445,7 @@ def verify_audit_logging(conn) -> bool:
                     "SELECT transfer_parts(14469, 14469, '3024', 15, 5, 'audit_test_fail')"
                 )
         except psycopg2.Error:
-            # This is the expected failure path.
-            # The function should have logged the failure before raising the error.
-            # Now, we check the log table.
+            # Expected: self-transfer raises an exception, aborting the transaction.
             pass
         
         # The transaction is now in an aborted state. We must rollback to issue new commands.
@@ -465,13 +476,13 @@ def verify_exact_quantity_transfer(conn) -> bool:
     target_id = 14686  # Use a fixed target inventory
     
     try:
-        # Find a part with a small quantity that doesn't conflict with the target inventory
+        # Find a non-spare part with a small quantity that doesn't conflict with the target inventory
         with conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT inventory_id, part_num, color_id, quantity
                 FROM public.lego_inventory_parts
-                WHERE quantity BETWEEN 5 AND 20 AND inventory_id != %s
+                WHERE quantity BETWEEN 5 AND 20 AND inventory_id != %s AND is_spare = false
                 LIMIT 1
                 """,
                 (target_id,)

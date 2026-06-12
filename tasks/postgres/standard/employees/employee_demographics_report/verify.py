@@ -119,7 +119,7 @@ emp_age AS (
   SELECT
     e.id AS employee_id,
     e.hire_date,
-    EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.birth_date))::INT AS age_years
+    EXTRACT(YEAR FROM AGE(DATE '2002-08-01', e.birth_date))::INT AS age_years
   FROM employees.employee e
   WHERE e.birth_date IS NOT NULL
 )
@@ -133,7 +133,7 @@ SELECT
   END AS age_group,
   COUNT(*)::INT AS employee_count,
   AVG(cs.amount) AS avg_salary,
-  AVG((CURRENT_DATE - a.hire_date)::INT) AS avg_tenure_days
+  AVG((DATE '2002-08-01' - a.hire_date)::INT) AS avg_tenure_days
 FROM emp_age a
 JOIN current_salary cs ON cs.employee_id = a.employee_id
 WHERE a.age_years >= 20

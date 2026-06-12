@@ -134,14 +134,21 @@ def _check_pr_squash_merged(
     if not success or not commit:
         return False
 
-    # For squash and merge, the commit will have exactly one parent
-    # and the commit message typically includes the PR number
+    # Squash and merge produces a single new commit with one parent (the base
+    # branch tip); regular merge produces a commit with two parents. The
+    # message-content check distinguishes squash from rebase: GitHub's squash
+    # commit either auto-appends `(#N)` (when commit_title is left unset) or
+    # carries the agent-supplied commit_title (which in practice mirrors the
+    # PR title). Rebase, by contrast, preserves the original per-commit
+    # messages, which carry neither signal.
     parents = commit.get("parents", [])
     commit_message = commit.get("commit", {}).get("message", "")
+    pr_title = pr.get("title", "")
 
-    # Squash and merge commits have exactly 1 parent (the base branch)
-    # Regular merge commits have 2 parents (base and head branches)
-    if len(parents) == 1 and f"#{pr_number}" in commit_message:
+    if len(parents) == 1 and (
+        f"#{pr_number}" in commit_message
+        or (pr_title and pr_title in commit_message)
+    ):
         return True
 
     return False

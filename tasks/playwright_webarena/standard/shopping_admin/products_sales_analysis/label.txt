@@ -1,10 +1,10 @@
-YogaProducts|171
+YogaProducts|172
 WH11Price|$54.00
 ZeroQuantityProducts|150
-LowestProduct|Sprite Stasis Ball 55 cm foot:5
-QuestLumaflexQuantity|6
+LowestProduct|Sprite Stasis Ball 55 cm:5
+SecondCheapestQuantity|6
 DashboardRevenue|$0.00
 SarahMillerEmail|helloworld@yahoo.com
-TotalCustomers|72
+TotalCustomers|70
 PendingOrders|10
 GraceNguyenOrderID|000000189

@@ -255,7 +255,8 @@ class GitHubStateManager(BaseStateManager):
 
         # Safety check: Prevent importing to public repositories
         # Public repos would send @ mention notifications to real users, causing spam
-        if not private:
+        # Exception: mcpmark-cicd needs to be public for GitHub Actions workflows to work properly
+        if not private and "mcpmark-cicd" not in template_dir.name:
             error_msg = (
                 "ERROR: Cannot import template to a public repository.\n\n"
                 "Reason: The template contains @ mentions of real GitHub users from the original\n"

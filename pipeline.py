@@ -113,7 +113,7 @@ def main():
     parser.add_argument(
         "--reasoning-effort",
         default="default",
-        choices=["default", "minimal", "low", "medium", "high"],
+        choices=["default", "minimal", "low", "medium", "high", "xhigh", "max"],
         help="Reasoning effort level for supported models (default: None)",
     )
 

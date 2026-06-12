@@ -12,7 +12,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"MCP_MESSAGES: {messages_path}")
+    print(f"MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -26,6 +26,7 @@ def get_model_response():
             if (
                 message.get("role") == "assistant"
                 and message.get("status") == "completed"
+                and message.get("type") == "message"
             ):
                 content = message.get("content", [])
                 for item in content:
@@ -37,6 +38,22 @@ def get_model_response():
     except Exception as e:
         print(f"Error reading messages file: {str(e)}", file=sys.stderr)
         return None
+
+
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
 
 
 def parse_answer_format(text):
@@ -65,7 +82,7 @@ def parse_answer_format(text):
     for line in lines:
         if "|" in line:
             key, value = line.split("|", 1)
-            result[key.strip()] = value.strip()
+            result[key.strip()] = normalize_text(value.strip())
 
     return result
 
@@ -83,7 +100,7 @@ def load_expected_answer(label_path):
         for line in lines:
             if "|" in line:
                 key, value = line.split("|", 1)
-                expected[key.strip()] = value.strip()
+                expected[key.strip()] = normalize_text(value.strip())
 
         return expected
     except Exception as e:
@@ -120,20 +137,13 @@ def compare_answers(model_answer, expected_answer):
                 )
 
         elif key == "CartTotal":
-            # For price fields, only support $XX.XX format
-            # Check if model value has correct format
-            if not model_value.startswith("$"):
+            # Compare amount only — strip $ and , so format variations don't fail a correct value
+            expected_clean = expected_value.replace("$", "").replace(",", "")
+            model_clean = model_value.replace("$", "").replace(",", "")
+            if expected_clean != model_clean:
                 mismatches.append(
-                    f"{key}: incorrect format - expected '$XX.XX' format, got '{model_value}'"
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
-            else:
-                # Normalize and compare values
-                expected_clean = expected_value.replace("$", "").replace(",", "")
-                model_clean = model_value.replace("$", "").replace(",", "")
-                if expected_clean != model_clean:
-                    mismatches.append(
-                        f"{key}: expected '{expected_value}', got '{model_value}'"
-                    )
 
         elif key == "ReviewCount":
             # Check review count matches
@@ -143,8 +153,8 @@ def compare_answers(model_answer, expected_answer):
                 )
 
         elif key == "LatestReviewer":
-            # Check reviewer name (allow partial match for names)
-            if expected_value.lower() not in model_value.lower() and model_value.lower() not in expected_value.lower():
+            # Case-insensitive exact match
+            if expected_value.lower() != model_value.lower():
                 mismatches.append(
                     f"{key}: expected '{expected_value}', got '{model_value}'"
                 )

@@ -13,7 +13,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"MCP_MESSAGES: {messages_path}")
+    print(f"MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -39,6 +39,22 @@ def get_model_response():
     except Exception as e:
         print(f"Error reading messages file: {str(e)}", file=sys.stderr)
         return None
+
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
+
 
 def parse_answer_format(text):
     """
@@ -66,7 +82,7 @@ def parse_answer_format(text):
     for line in lines:
         if "|" in line:
             key, value = line.split("|", 1)
-            result[key.strip()] = value.strip()
+            result[key.strip()] = normalize_text(value.strip())
 
     return result
 
@@ -93,7 +109,7 @@ def load_expected_answer(label_path):
         for line in lines:
             if "|" in line:
                 key, value = line.split("|", 1)
-                expected[key.strip()] = value.strip()
+                expected[key.strip()] = normalize_text(value.strip())
 
         return expected
     except Exception as e:
@@ -115,20 +131,26 @@ def compare_answers(model_answer, expected_answer):
 
         # Special handling for different types of values
         if key in ["Battery1Price", "Battery2Price", "InitialSubtotal", "FinalSubtotal"]:
-            # For price fields, only support $XX.XX format
-            # Check if model value has correct format
-            if not model_value.startswith("$"):
+            # Compare amount only — strip $ and , so format variations don't fail a correct value
+            expected_clean = expected_value.replace("$", "").replace(",", "")
+            model_clean = model_value.replace("$", "").replace(",", "")
+            if expected_clean != model_clean:
                 mismatches.append(
-                    f"{key}: incorrect format - expected '$XX.XX' format, got '{model_value}'"
+                    f"{key}: expected '{expected_value}', got '{model_value}'"
                 )
-            else:
-                # Normalize and compare values
-                expected_clean = expected_value.replace("$", "").replace(",", "")
-                model_clean = model_value.replace("$", "").replace(",", "")
-                if expected_clean != model_clean:
+
+        elif key in ["AdvancedSearchResults", "ComparisonCount", "TeaReviews",
+                     "CartUniqueProducts", "CartTotalQuantity", "TeaRating"]:
+            # Strip % so "95" and "95%" both compare as 95
+            try:
+                if int(model_value.replace("%", "")) != int(expected_value.replace("%", "")):
                     mismatches.append(
                         f"{key}: expected '{expected_value}', got '{model_value}'"
                     )
+            except ValueError:
+                mismatches.append(
+                    f"{key} should be numeric: got '{model_value}'"
+                )
 
         else:
             # Exact match for other fields

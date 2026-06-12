@@ -3,6 +3,10 @@ from notion_client import Client
 from tasks.utils import notion_utils
 
 
+def _norm(s: str) -> str:
+    return s.replace("’", "'").replace(" ", " ")
+
+
 def verify(notion: Client, main_id: str = None) -> bool:
     """
     Verifies that restaurants from Day 1 of Travel Itinerary have corresponding expense entries.
@@ -125,7 +129,7 @@ def verify(notion: Client, main_id: str = None) -> bool:
             expense_text = "".join(
                 t.get("plain_text", "") for t in expense_prop.get("title", [])
             )
-            if expense_text.strip() != restaurant_name:
+            if _norm(expense_text.strip()) != _norm(restaurant_name):
                 continue
 
             # Check Date
@@ -152,9 +156,7 @@ def verify(notion: Client, main_id: str = None) -> bool:
                 comment_text = "".join(
                     t.get("plain_text", "") for t in comment_prop.get("rich_text", [])
                 )
-                if comment_text.strip().replace(
-                    "\u202f", " "
-                ) != expected_description.replace("\u202f", " "):
+                if _norm(comment_text.strip()) != _norm(expected_description):
                     continue
 
             found_matching_expense = True

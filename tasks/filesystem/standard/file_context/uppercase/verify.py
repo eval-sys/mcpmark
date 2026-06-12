@@ -64,7 +64,8 @@ def verify_uppercase_content(test_dir: Path) -> bool:
 
             # Check if uppercase content is the uppercase version of original
             expected_uppercase = original_content.upper()
-
+            uppercase_content = uppercase_content.strip()
+            expected_uppercase = expected_uppercase.strip()
             if uppercase_content != expected_uppercase:
                 print(f"| ❌ File '{filename}' content is not properly converted to uppercase")
                 return False

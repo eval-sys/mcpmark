@@ -5,16 +5,16 @@ Perform a comprehensive products and sales analysis in the Magento Admin panel t
 1. if need to login, login with username 'admin' and password 'admin1234'
 
 2. Analyze product inventory and catalog details, perform the following:
-   - Search for all products containing 'Yoga' in their name - count the exact number of results
-   - Clear the search and find the product with SKU 'WH11' - record its exact price
+   - Filter by Name containing 'Yoga' - count the exact number of results
+   - Clear all filters and find the product with SKU 'WH11' - record its exact price
    - Apply a filter to show only products with Quantity = 0.0000 - count how many products match
 
 3. To identify top-selling products and revenue metrics, navigate to the Dashboard and from the Bestsellers table:
-   - Identify the product with lowest price and lowest quantity - record the product name and quantity sold
+   - Among the products tied for the lowest sales quantity, identify the one with the lowest price - record its name and sales quantity
    - Find the second cheapest product in the table - record its exact quantity sold
    - Note the total Revenue amount displayed in the dashboard
 
-4. Father all customers' information and demographics:
+4. Gather all customers' information and demographics:
    - Find customer 'Sarah Miller' - record her exact email address
    - Count the total number of customers shown in the grid
 
@@ -30,7 +30,7 @@ YogaProducts|count
 WH11Price|price
 ZeroQuantityProducts|count
 LowestProduct|name:quantity
-QuestLumaflexQuantity|quantity
+SecondCheapestQuantity|quantity
 DashboardRevenue|amount
 SarahMillerEmail|email
 TotalCustomers|count
@@ -46,9 +46,9 @@ YogaProducts|XX
 WH11Price|$XX.XX
 ZeroQuantityProducts|XX
 LowestProduct|Product Name Here:XX
-QuestLumaflexQuantity|XX
+SecondCheapestQuantity|XX
 DashboardRevenue|$XX.XX
-SarahMillerEmail|email@example.com
+SarahMillerEmail|<customer email>
 TotalCustomers|XX
 PendingOrders|X
 GraceNguyenOrderID|00000XXXX

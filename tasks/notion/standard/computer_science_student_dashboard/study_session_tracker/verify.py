@@ -106,10 +106,19 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
         )
         return False
 
-    # (2) Verify ordering
-    if not (index_previous_date < index_new_date < index_divider_after_previous):
+    # (2) Verify ordering: new date paragraph must come AFTER the last consecutive
+    #     to-do under the 2022-09-02 paragraph and BEFORE the divider that follows.
+    last_previous_todo_idx = index_previous_date
+    walk = index_previous_date + 1
+    while walk < len(all_blocks) and all_blocks[walk].get("type") == "to_do":
+        last_previous_todo_idx = walk
+        walk += 1
+
+    if not (last_previous_todo_idx < index_new_date < index_divider_after_previous):
         print(
-            "Error: The 2025-01-29 section is positioned incorrectly.", file=sys.stderr
+            "Error: The 2025-01-29 section is positioned incorrectly "
+            "(must sit after the existing 2022-09-02 to-do items and before the divider).",
+            file=sys.stderr,
         )
         return False
 
@@ -122,29 +131,42 @@ def verify(notion: Client, main_id: str | None = None) -> bool:
         "⚡ Practice system design problems",
         "🎯 Complete data structures assignment",
     ]
-    expected_todos: Dict[str, bool] = {
-        _normalize_string(t): False for t in expected_texts
-    }
+    expected_set = {_normalize_string(t) for t in expected_texts}
 
-    # Look through the blocks that lie between the new date mention and the divider
-    for block in all_blocks[index_new_date + 1 : index_divider_after_previous]:
+    # The blocks between the new date paragraph and the divider must be EXACTLY
+    # the four expected to-dos, directly beneath the date mention.
+    new_section_blocks = all_blocks[index_new_date + 1 : index_divider_after_previous]
+    if len(new_section_blocks) != 4:
+        print(
+            f"Error: Expected exactly 4 blocks directly beneath the 2025-01-29 date "
+            f"(before the divider), found {len(new_section_blocks)}.",
+            file=sys.stderr,
+        )
+        return False
+
+    found_texts: set[str] = set()
+    for block in new_section_blocks:
         if block.get("type") != "to_do":
-            # Any non to-do block inside this range indicates mis-placement.
-            # We simply ignore it – correctness is determined by presence of required to-dos.
-            continue
-
+            print(
+                f"Error: Block directly beneath the 2025-01-29 date is not a to-do "
+                f"(got type '{block.get('type')}').",
+                file=sys.stderr,
+            )
+            return False
         plain_text = notion_utils.get_block_plain_text(block).strip()
         plain_text_norm = _normalize_string(plain_text)
-        if plain_text_norm in expected_todos:
-            # (3a) Verify the to-do is unchecked
-            if block["to_do"].get("checked", False):
-                print(f"Error: To-do '{plain_text}' is checked.", file=sys.stderr)
-                return False
-            expected_todos[plain_text_norm] = True
+        if block["to_do"].get("checked", False):
+            print(f"Error: To-do '{plain_text}' is checked.", file=sys.stderr)
+            return False
+        found_texts.add(plain_text_norm)
 
-    missing_items = [text for text, found in expected_todos.items() if not found]
+    missing_items = [t for t in expected_set if t not in found_texts]
     if missing_items:
         print(f"Error: Missing to-do items: {missing_items}", file=sys.stderr)
+        return False
+    extra_items = [t for t in found_texts if t not in expected_set]
+    if extra_items:
+        print(f"Error: Unexpected to-do items: {extra_items}", file=sys.stderr)
         return False
 
     # ---------------------------------------------------------------------

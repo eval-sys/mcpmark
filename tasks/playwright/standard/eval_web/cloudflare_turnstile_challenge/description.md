@@ -20,4 +20,3 @@ Use Playwright MCP tools to complete Cloudflare Turnstile authentication challen
 - Use the provided test credentials: testuser / password123
 - Page shows success message inline, does not redirect to separate success page
 - Wait for all UI state changes before proceeding to next step
-- Verify both Turnstile completion and form submission success

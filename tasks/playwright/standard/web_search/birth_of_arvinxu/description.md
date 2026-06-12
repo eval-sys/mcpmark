@@ -4,5 +4,4 @@ Use Playwright MCP tools to search for information about the X profile https://x
 
 ## Requirements:
 
-Extract the answer in specific format:
-   - just year,like 1990, 2001
+Output ONLY the 4-digit birth year (e.g. `1990`, `2001`), with no other text — no prose, units, punctuation, quotes, or surrounding whitespace.

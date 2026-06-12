@@ -5,19 +5,17 @@ Our marketing team is planning a new promotion for our bestselling fitness produ
 1. If need to login, login with username 'admin' and password 'admin1234'
 
 2. Start by checking our current bestsellers:
-   - Identify the top 3 bestselling products based on their Price	and Quantity - record their names, prices, and quantities sold
-   - Note the total Revenue amount displayed
-   - Check if any of these bestsellers appear in the Top Search Terms table - if yes, record the search term and its usage count, else output 'No:0'
+   - Identify the top 3 bestselling products based on their Price and Quantity - record their names, prices, and quantities sold
+   - Check if any of these bestsellers appear in the Top Search Terms table - if yes, record the search term and its usage count, else output 'None:0'
 
 3. Investigate these bestselling products in detail:
-   - For each of the top 3 bestsellers identified, search for them by name and record:
+   - For each of the top 3 bestsellers, open the product page linked from the Bestsellers row and record:
      - Their SKU
-     - Current inventory quantity
+     - Salable Quantity
      - Whether they are 'Enabled' or 'Disabled'
 
-4. Check if we have existing promotions for these products:
-   - Look for any active rules that might apply to fitness/yoga products
-   - Find if there's a rule offering percentage discount - record the rule name and discount percentage
+4. Check existing Cart Price Rules (Marketing → Promotions → Cart Price Rules):
+   - Find the rule that offers a percentage discount on the entire order (not tied to a specific product) - record the rule name and discount percentage
    - Count total number of active rules
 
 5. Analyze customer purchasing patterns:
@@ -27,16 +25,15 @@ Our marketing team is planning a new promotion for our bestselling fitness produ
 6. Review our top customers who might be interested:
    - Find the customer who appears in the Last Orders section of the dashboard with the highest total
    - Look up this customer in the All Customers list and record his email and customer group
-   - Count how many other customers are in the same group
+   - Count how many customers are in the same group
 
 7. Compile your findings and output them in the following exact format:
 
 ```
 <answer>
-Bestseller1|name:price:quantity:sku:inventory:status
-Bestseller2|name:price:quantity:sku:inventory:status
-Bestseller3|name:price:quantity:sku:inventory:status
-TotalRevenue|amount
+Bestseller1|name:price:quantity:sku:salable_quantity:status
+Bestseller2|name:price:quantity:sku:salable_quantity:status
+Bestseller3|name:price:quantity:sku:salable_quantity:status
 BestsellerInSearch|term:count
 PercentageDiscountRule|name:percentage
 ActiveRulesCount|count
@@ -53,13 +50,12 @@ SameGroupCustomers|count
 Bestseller1|Product Name:$XX.XX:X:XXX(SKU):X:Enabled/Disabled
 Bestseller2|Product Name:$XX.XX:X:XXX(SKU):X:Enabled/Disabled
 Bestseller3|Product Name:$XX.XX:X:XXX(SKU):X:Enabled/Disabled
-TotalRevenue|$XX.XX
 BestsellerInSearch|Term:X or None:0
 PercentageDiscountRule|Rule Name:XX%
 ActiveRulesCount|X
 TotalOrders|X
-MostRecentOrderID|X or None
-TopCustomer|Customer Name:email@example.com:Group Name
+MostRecentOrderID|X
+TopCustomer|Customer Name:<customer email>:Group Name
 SameGroupCustomers|X
 </answer>
 ```

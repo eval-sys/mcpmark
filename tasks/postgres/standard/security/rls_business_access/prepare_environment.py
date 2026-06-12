@@ -25,6 +25,18 @@ def setup_rls_environment():
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()
 
+        # Defensive cleanup: ROLEs are cluster-level objects and survive
+        # `DROP DATABASE` of a previous task run. Drop stale `test_user`
+        # (created by verify.py) so re-runs don't trip over it.
+        try:
+            cur.execute("DROP OWNED BY test_user CASCADE;")
+        except psycopg2.Error:
+            pass  # role may not exist or own nothing
+        try:
+            cur.execute("DROP ROLE IF EXISTS test_user;")
+        except psycopg2.Error as e:
+            print(f"⚠ Could not drop stale role test_user: {e}")
+
         # 1. Users Table (with correct field name for verification)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (

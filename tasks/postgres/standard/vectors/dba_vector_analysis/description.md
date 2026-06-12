@@ -54,7 +54,7 @@ CREATE TABLE vector_analysis_columns (
     column_name VARCHAR(100),
     dimensions INTEGER,
     data_type VARCHAR(50),
-    has_constraints BOOLEAN,
+    has_constraints BOOLEAN,  -- true if the column has any non-default constraint (NOT NULL, CHECK, FK); false otherwise
     rows BIGINT
 );
 ```

@@ -137,3 +137,5 @@ Debug and fix the query to produce accurate results. Then create a table with yo
 2. **Create a table** called `customer_analysis_fixed` in the `public` schema with your corrected query results. The table should have the same columns as the original query output.
 
 **Important**: The business logic and output columns should remain the same - only fix the data accuracy issues.
+
+**Note on payments**: A rental's revenue is determined by the rental itself — every payment recorded against a rental counts toward the customer who made that rental, regardless of which `customer_id` happens to appear on the payment row.

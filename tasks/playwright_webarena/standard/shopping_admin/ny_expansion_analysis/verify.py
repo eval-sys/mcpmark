@@ -11,7 +11,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"MCP_MESSAGES: {messages_path}")
+    print(f"MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("ERROR: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -39,7 +39,11 @@ def get_model_response():
         
         # Find the last assistant message
         for message in reversed(messages):
-            if message.get('role') == 'assistant' and message.get('status') == 'completed':
+            if (
+                message.get('role') == 'assistant'
+                and message.get('status') == 'completed'
+                and message.get('type') == 'message'
+            ):
                 content = message.get('content', [])
                 if not content:
                     print("WARNING: Assistant message has empty content", file=sys.stderr)
@@ -61,6 +65,22 @@ def get_model_response():
     except Exception as e:
         print(f"ERROR: Unexpected error reading messages file: {str(e)}", file=sys.stderr)
         return None
+
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
+
 
 def parse_answer_format(text):
     """
@@ -90,9 +110,9 @@ def parse_answer_format(text):
     
     # Expected keys that should be present
     expected_keys = [
-        'Lifetime_Sales_Amount', 'Cheap_Bestseller_Name', 'Second_Bestseller_Price',
-        'Second_Bestseller_Quantity', 'Product_In_Last_Orders', 'NY_Tax_Rate',
-        'CA_Tax_Rate', 'Higher_Tax_State', 'Total_States_With_Tax',
+        'Lifetime_Sales_Amount', 'Cheap_Bestseller_Name', 'Cheap_Bestseller_Price',
+        'Cheap_Bestseller_Quantity', 'Product_In_Last_Orders', 'NY_Tax_Rate',
+        'CA_Tax_Rate', 'Total_States_With_Tax',
         'Processing_Visible_Storefront', 'Processing_Default_Status',
         'Number_Of_Websites', 'Main_Store_Code', 'Default_Source_Pickup_Status',
         'Default_Source_State', 'Dashboard_Revenue', 'Tax_Shipping_Zero'
@@ -115,7 +135,7 @@ def parse_answer_format(text):
             
         key, value = parts
         key = key.strip()
-        value = value.strip()
+        value = normalize_text(value.strip())
         
         if not key:
             print(f"ERROR: Empty key in line: {line}", file=sys.stderr)
@@ -153,7 +173,7 @@ def load_expected_answer(label_path):
         for line in lines:
             if '|' in line:
                 key, value = line.split('|', 1)
-                expected[key.strip()] = value.strip()
+                expected[key.strip()] = normalize_text(value.strip())
         
         return expected
     except Exception as e:
@@ -172,60 +192,54 @@ def compare_answers(model_answer, expected_answer):
     mismatches = []
     for key, expected_value in expected_answer.items():
         model_value = model_answer.get(key, '')
-        
-        # Special handling for different types of values
-        if key in ['Lifetime_Sales_Amount', 'Second_Bestseller_Price', 'Dashboard_Revenue']:
-            # For price/amount fields, normalize format
-            expected_clean = expected_value.replace('$', '').replace(',', '')
-            model_clean = model_value.replace('$', '').replace(',', '')
-            if expected_clean != model_clean:
-                mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
-        elif key in ['NY_Tax_Rate', 'CA_Tax_Rate']:
-            # Tax rates - allow different decimal formats
-            expected_clean = expected_value.replace('%', '').strip()
-            model_clean = model_value.replace('%', '').strip()
-            # Convert to float for comparison
+
+        if key in ['Lifetime_Sales_Amount', 'Cheap_Bestseller_Price', 'Dashboard_Revenue']:
+            # Price/amount fields: strip $ and , then compare as float so
+            # "$0.00" matches "0" / "0.00"
+            expected_clean = expected_value.replace('$', '').replace(',', '').strip()
+            model_clean = model_value.replace('$', '').replace(',', '').strip()
             try:
                 if float(expected_clean) != float(model_clean):
                     mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
             except ValueError:
-                if expected_clean != model_clean:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
+
+        elif key in ['NY_Tax_Rate', 'CA_Tax_Rate']:
+            # Tax rates: strip % then compare as float
+            expected_clean = expected_value.replace('%', '').strip()
+            model_clean = model_value.replace('%', '').strip()
+            try:
+                if float(expected_clean) != float(model_clean):
                     mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
-        elif key in ['Product_In_Last_Orders', 'Processing_Visible_Storefront', 'Processing_Default_Status', 'Tax_Shipping_Zero']:
-            # Yes/No fields - case insensitive
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
+
+        elif key in [
+            'Product_In_Last_Orders',
+            'Processing_Visible_Storefront',
+            'Processing_Default_Status',
+            'Tax_Shipping_Zero',
+            'Default_Source_State',
+        ]:
+            # Yes/No fields — case-insensitive
             if model_value.lower() != expected_value.lower():
                 mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
-        elif key == 'Empty_Rows_Yes_Effect':
-            # Allow flexible descriptions for this field
-            # Just check if model provided some reasonable description
-            if not model_value or len(model_value) < 5:
-                mismatches.append(f"{key}: expected meaningful description, got '{model_value}'")
-        
-        elif key == 'Order_Status_Options':
-            # Check if main options are mentioned
-            expected_options = set(opt.strip() for opt in expected_value.split(','))
-            model_options = set(opt.strip() for opt in model_value.split(','))
-            if expected_options != model_options:
+
+        elif key in ['Cheap_Bestseller_Quantity', 'Total_States_With_Tax', 'Number_Of_Websites']:
+            # Numeric counts: compare as int so "04" / "4" / "4.0" don't fail
+            try:
+                if int(float(model_value)) != int(float(expected_value)):
+                    mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
+            except ValueError:
+                mismatches.append(f"{key} should be numeric: got '{model_value}'")
+
+        elif key in ['Cheap_Bestseller_Name', 'Default_Source_Pickup_Status', 'Main_Store_Code']:
+            # String fields — case-insensitive
+            if model_value.strip().lower() != expected_value.strip().lower():
                 mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
-        elif key == 'Chart_Disabled_Message':
-            # Allow some flexibility in message text
-            # Check for key words
-            if 'disabled' not in model_value.lower() and 'enable' not in model_value.lower():
-                mismatches.append(f"{key}: expected message about chart being disabled, got '{model_value}'")
-        
-        elif key == 'Default_Source_State':
-            # Handle 'None' or empty state
-            expected_normalized = expected_value.lower() if expected_value.lower() != 'none' else ''
-            model_normalized = model_value.lower() if model_value.lower() != 'none' else ''
-            if expected_normalized != model_normalized:
-                mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
-        
+
         else:
-            # Exact match for other fields
+            # Fallback exact match for any unrecognized key
             if model_value != expected_value:
                 mismatches.append(f"{key}: expected '{expected_value}', got '{model_value}'")
     

@@ -14,10 +14,13 @@ An evaluation suite for agentic models in real MCP tool environments (Notion / G
 
 MCPMark provides a reproducible, extensible benchmark for researchers and engineers: one-command tasks, isolated sandboxes, auto-resume for failures, unified metrics, and aggregated reports.
 
+> 🚀 **MCPMark Verified is out** — a version-pinned, stabilized subset of the standard tasks for reproducible evaluation. On the Verified set, `gpt-5.5` (xhigh) leads at **92.9%** and `kimi-k2.7` reaches **81.1%**. See [#264](https://github.com/eval-sys/mcpmark/pull/264).
+
 [![MCPMark](https://github.com/user-attachments/assets/dfc06a41-e387-45e3-bc98-db7097ffa3dc)](https://mcpmark.ai)
 
 ## News
 
+- 🚀 **12 Jun** — **MCPMark Verified** is out: a version-pinned, stabilized subset of the standard tasks. On the Verified set, `gpt-5.5` (xhigh) leads at **92.9%** and `kimi-k2.7` reaches **81.1%**. See [#264](https://github.com/eval-sys/mcpmark/pull/264).
 - 📣 **27 May** — The previous Notion Source Hub page is deprecated; please use the new link: [MCPMark Source Hub](https://gossamer-sawfish-47c.notion.site/MCPMark-Source-Hub-dc32b7e8cebd82b8959b81ae322df87a).
 - 📌 **21 Jan** — Pinned MCP server versions for reproducible benchmarks: GitHub MCP Server `v0.15.0` (switched to Docker for version control), Notion MCP Server `@1.9.1` (Notion released 2.0 but it has many bugs, not recommended). See [#246](https://github.com/eval-sys/mcpmark/pull/246).
 - 🔥 **13 Dec** — Added auto-compaction support (`--compaction-token`) to summarize long conversations and avoid context overflow during evaluation ([#236](https://github.com/eval-sys/mcpmark/pull/236])).

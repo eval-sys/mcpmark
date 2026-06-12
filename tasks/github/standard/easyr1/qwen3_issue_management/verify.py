@@ -27,34 +27,26 @@ def _get_github_api(
         return False, None
 
 
-def _search_github_issues(
-    query: str, headers: Dict[str, str]
-) -> Tuple[bool, Optional[List]]:
-    """Search GitHub issues using the search API."""
-    url = f"https://api.github.com/search/issues?q={query}&per_page=100"
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            return True, data.get("items", [])
-        else:
-            print(f"Search API error: {response.status_code}", file=sys.stderr)
-            return False, None
-    except Exception as e:
-        print(f"Search exception: {e}", file=sys.stderr)
-        return False, None
-
-
 def _check_qwen3_issues_reopened(headers: Dict[str, str]) -> Tuple[bool, List]:
     """Check if all Qwen3 issues have been reopened and tagged."""
-    # Search for all issues mentioning qwen3 (both open and closed)
-    github_org = os.environ.get("GITHUB_EVAL_ORG")
-    success, all_qwen3_issues = _search_github_issues(
-        f"repo:{github_org}/EasyR1 qwen3", headers
-    )
+    # /search/issues is unreliable on freshly-imported repos (no index yet) and
+    # rejects unencoded queries. Fetch issues directly and filter client-side.
+    success, issues = _get_github_api("issues?state=all&per_page=100", headers)
+    if not success or issues is None:
+        print("Error: Could not fetch issues for Qwen3 check", file=sys.stderr)
+        return False, []
 
-    if not success or not all_qwen3_issues:
-        print("Error: Could not search for Qwen3 issues", file=sys.stderr)
+    # Exclude the summary issue itself — it mentions qwen3 by design but isn't
+    # one of the reopened issues it describes.
+    all_qwen3_issues = [
+        i for i in issues
+        if i.get("pull_request") is None
+        and i.get("title") != "Reopened Qwen3 Issues Summary"
+        and "qwen3" in ((i.get("title") or "") + " " + (i.get("body") or "")).lower()
+    ]
+
+    if not all_qwen3_issues:
+        print("Error: No Qwen3 issues found", file=sys.stderr)
         return False, []
 
     reopened_issues = []

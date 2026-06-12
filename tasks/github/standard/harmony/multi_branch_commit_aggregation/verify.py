@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import requests
 from typing import Dict, Optional, Tuple
 import base64
@@ -195,31 +196,48 @@ def _check_cross_branch_analysis(content: str) -> bool:
         )
         return False
 
-    # Verify the top 3 contributors with correct counts from main branch (order matters)
-    expected_contributors = [
+    # Top 1 and Top 2 are uniquely determined; Top 3 is tied between axion66 and
+    # zhuohan123 (both have 2 commits on main), so accept either.
+    fixed_top = [
         "scott-oai: 35 commits",
         "egorsmkv: 4 commits",
-        "axion66: 2 commits",
     ]
-
-    for contributor in expected_contributors:
-        if contributor not in content:
+    for entry in fixed_top:
+        if entry not in content:
             print(
-                f"Missing or incorrect contributor entry: {contributor}",
+                f"Missing or incorrect contributor entry: {entry}",
                 file=sys.stderr,
             )
             return False
+
+    tied_third = ("axion66: 2 commits", "zhuohan123: 2 commits")
+    if not any(t in content for t in tied_third):
+        print(
+            "Missing tied third contributor (axion66 or zhuohan123 at 2 commits)",
+            file=sys.stderr,
+        )
+        return False
 
     return True
 
 
 def _check_merge_timeline(content: str) -> bool:
     """Verify MERGE_TIMELINE.txt has correct format and expected merge commits."""
+    # Normalize any ISO 8601 timestamps in the DATE column down to YYYY-MM-DD so
+    # that "2025-08-06T23:21:08Z" or "2025-08-06 23:21:08" both compare equal to
+    # the canonical "2025-08-06". This keeps the SHA / message / ordering checks
+    # strict while accepting any reasonable date representation.
+    normalized = re.sub(
+        r"(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?",
+        r"\1",
+        content,
+    )
+
     expected_timeline = [
         "2025-08-06 | Merge pull request #29 from axion66/improve-readme-and-checks | 3efbf742533a375fc148d75513597e139329578b",
         "2025-08-06 | Merge pull request #30 from Yuan-ManX/harmony-format | 9d653a4c7382abc42d115014d195d9354e7ad357",
         "2025-08-06 | Merge pull request #28 from dkqjrm/fix-typo-format-md | 161e5fe2a57c63e9f8353c4c5b8faa3c3854bb5f",
-        "2025-08-05 | Merge pull request #26 from jordan-wu-97/jordan/fix-function-call-atomic-bool | 82b3afb9eb043343f322c937262cc50405e892c3",
+        "2025-08-06 | Merge pull request #26 from jordan-wu-97/jordan/fix-function-call-atomic-bool | 82b3afb9eb043343f322c937262cc50405e892c3",
         "2025-08-05 | Merge pull request #18 from openai/dev/scl/better-ci | b255cbeb6274adbea774f26fd9590922ce8874ed",
         "2025-08-05 | Merge pull request #21 from Tialo/main | 058ef3257c24fb099aac7960c10ce51c8e55d9fe",
         "2025-08-05 | Merge branch 'main' into dev/scl/better-ci | 6375a15ea1b0a486cbb1468964cf8f5800ff5a5c",
@@ -228,9 +246,9 @@ def _check_merge_timeline(content: str) -> bool:
         "2025-08-05 | Merge pull request #17 from openai/dev/scl/add-docs-to-cargo | 64bca4cf327ebeafa0bbd0345650d86e2d02142f",
     ]
 
-    # Verify each expected timeline entry exists in the content
+    # Verify each expected timeline entry exists in the normalized content
     for i, expected_line in enumerate(expected_timeline):
-        if expected_line not in content:
+        if expected_line not in normalized:
             print(f"Missing expected timeline entry {i + 1} in MERGE_TIMELINE.txt", file=sys.stderr)
             print(f"Expected: {expected_line}", file=sys.stderr)
             return False

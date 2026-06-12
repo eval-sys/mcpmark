@@ -3,7 +3,7 @@
 
 /*
 ================================================================================
-EXPECTED VECTOR DATABASE STRUCTURE (created by vectors_setup.py)
+EXPECTED VECTOR DATABASE STRUCTURE (created by prepare_environment.py)
 ================================================================================
 
 Tables with Vector Columns:

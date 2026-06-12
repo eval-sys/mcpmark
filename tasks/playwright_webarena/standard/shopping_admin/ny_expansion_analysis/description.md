@@ -11,13 +11,13 @@ Our company is planning to expand sales operations to New York state and needs a
 
 3. Since we're expanding to New York, we need check tax:
    - Find and record the exact tax rate for New York state
-   - Compare it with California's tax rate - record which state has a higher rate
+   - Also record California's tax rate as a reference
    - Count how many different US states currently have tax configurations
 
-4. You need to understand our order status of stores processing for the NY market:
-   - Filter orders to show only statuses that are 'Visible On Storefront = Yes'
-   - Among these visible statuses, identify if exists one has the status code 'processing' (Yes or No),
-   - Check if this 'processing' status is set as a 'Default Status' (Yes or No)
+4. Review the order status configuration for the NY market:
+   In Stores → Settings → Order Status, focus on rows where 'Visible On Storefront' is 'Yes':
+   - Identify if any of them has the status code 'processing' (Yes or No)
+   - For that 'processing' status, record whether 'Default Status' is Yes or No
 
 
 5. Since New York orders might need special handling, check all stores:
@@ -25,7 +25,7 @@ Our company is planning to expand sales operations to New York state and needs a
    - Record the store code for the first Main Website Store
 
 6. For inventory planning, check the sources of it:
-   - Check if the Default Source is currently 'Enabled' or shows as 'Disabled' for Pickup Location
+   - For the Default Source, check whether its 'Pickup Location' column is 'Enabled' or 'Disabled'
    - Click the 'Edit' link for the Default Source and check if there's a 'State/Province' field (Yes or No)
 
 7. Finally, return to the Dashboard and examine the revenue metrics:
@@ -38,19 +38,18 @@ Our company is planning to expand sales operations to New York state and needs a
 <answer>
 Lifetime_Sales_Amount|amount
 Cheap_Bestseller_Name|name
-Second_Bestseller_Price|price
-Second_Bestseller_Quantity|quantity
+Cheap_Bestseller_Price|price
+Cheap_Bestseller_Quantity|quantity
 Product_In_Last_Orders|yes_or_no
 NY_Tax_Rate|rate
 CA_Tax_Rate|rate
-Higher_Tax_State|state
 Total_States_With_Tax|count
 Processing_Visible_Storefront|Yes_or_No
 Processing_Default_Status|Yes_or_No
 Number_Of_Websites|count
 Main_Store_Code|code
 Default_Source_Pickup_Status|status
-Default_Source_State|state_or_none
+Default_Source_State|yes_or_no
 Dashboard_Revenue|amount
 Tax_Shipping_Zero|yes_or_no
 </answer>
@@ -61,19 +60,18 @@ Tax_Shipping_Zero|yes_or_no
 <answer>
 Lifetime_Sales_Amount|$XX.XX
 Cheap_Bestseller_Name|Product Name Here
-Second_Bestseller_Price|$XX.XX
-Second_Bestseller_Quantity|XX
+Cheap_Bestseller_Price|$XX.XX
+Cheap_Bestseller_Quantity|XX
 Product_In_Last_Orders|Yes/No
 NY_Tax_Rate|X.XXXX
 CA_Tax_Rate|X.XXXX
-Higher_Tax_State|XX
 Total_States_With_Tax|XX
 Processing_Visible_Storefront|Yes/No
 Processing_Default_Status|Yes/No
 Number_Of_Websites|X
 Main_Store_Code|code_here
 Default_Source_Pickup_Status|Enabled/Disabled
-Default_Source_State|State or None
+Default_Source_State|Yes/No
 Dashboard_Revenue|$XX.XX
 Tax_Shipping_Zero|Yes/No
 </answer>

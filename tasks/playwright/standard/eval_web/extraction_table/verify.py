@@ -13,11 +13,26 @@ import re
 import csv
 from io import StringIO
 
-# Expected CSV header (must match exactly, including spaces)
-EXPECTED_HEADER_LINE = "Title, Rating, Likes, Views, Replies"
+# Expected CSV columns (order in output is flexible, but the set must match)
 EXPECTED_HEADERS = ["Title", "Rating", "Likes", "Views", "Replies"]
+
+
+def _load_expected_rows():
+    """Load ground-truth rows from data.csv as a set of normalized tuples."""
+    path = os.path.join(os.path.dirname(__file__), "data.csv")
+    expected = set()
+    with open(path, newline='') as f:
+        reader = csv.reader(f)
+        next(reader)  # skip header
+        for row in reader:
+            cells = [c.strip() for c in row]
+            expected.add((cells[0], float(cells[1]), int(cells[2]), int(cells[3]), int(cells[4])))
+    return expected
+
+
+EXPECTED_ROWS = _load_expected_rows()
 # Exact number of data rows (must match data.csv exactly)
-EXPECTED_DATA_ROWS = 97
+EXPECTED_DATA_ROWS = len(EXPECTED_ROWS)
 
 
 def get_model_response():
@@ -26,7 +41,7 @@ def get_model_response():
     Returns the last assistant message text.
     """
     messages_path = os.getenv("MCP_MESSAGES")
-    print(f"| MCP_MESSAGES: {messages_path}")
+    print(f"| MCP_MESSAGES: {messages_path}", file=sys.stderr)
     if not messages_path:
         print("| Warning: MCP_MESSAGES environment variable not set", file=sys.stderr)
         return None
@@ -71,9 +86,9 @@ def extract_csv_from_response(response):
     lines = response.split('\n')
     csv_start = -1
 
-    # Stricter header matching: look for lines containing "Title" and "Rating"
+    # Stricter header matching: look for lines containing all expected column names
     for i, line in enumerate(lines):
-        if "Title" in line and "Rating" in line and "Likes" in line:
+        if all(h in line for h in EXPECTED_HEADERS):
             csv_start = i
             break
 
@@ -110,11 +125,6 @@ def validate_csv_data(csv_text):
         if len(lines) != expected_total_rows:
             return False, f"| CSV total row count mismatch, expected: {expected_total_rows} rows, actual: {len(lines)} rows"
 
-        # Check header row format (must match exactly)
-        header_line = lines[0].strip()
-        if header_line != EXPECTED_HEADER_LINE:
-            return False, f"| Header format mismatch, expected: '{EXPECTED_HEADER_LINE}', actual: '{header_line}'"
-
         # Parse CSV to validate structure
         csv_reader = csv.reader(StringIO(csv_text))
         rows = list(csv_reader)
@@ -125,16 +135,25 @@ def validate_csv_data(csv_text):
             if len(row) != expected_columns:
                 return False, f"| Row {i+1} column count incorrect, expected: {expected_columns} columns, actual: {len(row)} columns"
 
+        # Check header columns — order can vary, but the set must match exactly
+        header_cells = [c.strip() for c in rows[0]]
+        if set(header_cells) != set(EXPECTED_HEADERS):
+            missing_h = set(EXPECTED_HEADERS) - set(header_cells)
+            extra_h = set(header_cells) - set(EXPECTED_HEADERS)
+            return False, f"| Header columns mismatch, missing: {sorted(missing_h)}, extra: {sorted(extra_h)}"
+        col_idx = {name: i for i, name in enumerate(header_cells)}
+
         # Validate data row format
         valid_rows = 0
+        seen = set()
         for i, row in enumerate(rows[1:], 2):  # Skip header, start from row 2
             # Check if each column has data
             if not all(cell.strip() for cell in row):
                 return False, f"| Row {i} contains empty data"
 
             # Check numeric column format (Rating, Likes, Views, Replies should not have quotes)
-            for col_idx, col_name in [(1, "Rating"), (2, "Likes"), (3, "Views"), (4, "Replies")]:
-                value = row[col_idx].strip()
+            for col_name in ("Rating", "Likes", "Views", "Replies"):
+                value = row[col_idx[col_name]].strip()
 
                 # Check for quotes (should not have any)
                 if value.startswith('"') and value.endswith('"'):
@@ -150,11 +169,24 @@ def validate_csv_data(csv_text):
                     if not value.isdigit():
                         return False, f"| Row {i} {col_name} should be pure digits, actual: {value}"
 
+            seen.add((
+                row[col_idx["Title"]].strip(),
+                float(row[col_idx["Rating"]].strip()),
+                int(row[col_idx["Likes"]].strip()),
+                int(row[col_idx["Views"]].strip()),
+                int(row[col_idx["Replies"]].strip()),
+            ))
             valid_rows += 1
 
         # Validate number of data rows
         if valid_rows != EXPECTED_DATA_ROWS:
             return False, f"| Valid data row count mismatch, expected: {EXPECTED_DATA_ROWS} rows, actual: {valid_rows} rows"
+
+        # Validate row contents match data.csv exactly (order independent)
+        missing = EXPECTED_ROWS - seen
+        extra = seen - EXPECTED_ROWS
+        if missing or extra:
+            return False, f"| Row content mismatch, missing: {len(missing)} row(s), extra: {len(extra)} row(s); sample missing: {sorted(missing)[:2]}"
 
         return True, f"| CSV validation successful: format matches data.csv exactly, {valid_rows} valid data rows"
 

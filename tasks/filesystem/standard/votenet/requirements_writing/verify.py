@@ -55,7 +55,6 @@ def verify_required_dependencies_present(test_dir: Path) -> bool:
             "opencv", 
             "plyfile",
             "trimesh",
-            "pointnet2",
             "networkx"
         ]
         

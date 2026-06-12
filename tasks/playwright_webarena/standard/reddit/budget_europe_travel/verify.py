@@ -7,22 +7,22 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 
 BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
+
 def normalize_text(text):
     """
-    Normalize text for comparison by handling different quote styles and whitespace.
+    Normalize text for comparison by collapsing whitespace.
     """
     if not isinstance(text, str):
         return str(text)
-    
-    # Replace various quote styles with standard quotes
-    text = text.replace('\'', "'").replace('\'', "'")
-    text = text.replace('"', '"').replace('"', '"')
-    text = text.replace('&amp;', '&')
-    
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
     # Normalize whitespace
-    text = ' '.join(text.split())
-    
+    text = " ".join(text.split())
+
     return text.strip()
+
 
 async def verify() -> bool:
     """
@@ -193,7 +193,7 @@ async def verify() -> bool:
                     wiki_title_elem = page.locator(selector)
                     if await wiki_title_elem.count():
                         title_text = await wiki_title_elem.first.text_content()
-                        if expected_wiki_title in title_text:
+                        if title_text and normalize_text(title_text) == normalize_text(expected_wiki_title):
                             wiki_title_found = True
                             break
                 
@@ -257,37 +257,13 @@ async def verify() -> bool:
             else:
                 print("✓ On search results page for 'travel insurance Europe'", file=sys.stderr)
                 
-                # Check for upvoted posts
-                upvote_found = False
-                
-                # Method 1: Check for "Retract upvote" button (indicates user has upvoted)
-                retract_buttons = page.locator('button:has-text("Retract upvote")')
+                # Postmill renders vote buttons as icon-only (no text node), so
+                # match the title attribute. The title flips from "Upvote" to
+                # "Retract upvote" when the current user has upvoted.
+                retract_buttons = page.locator('button[title="Retract upvote"]')
                 if await retract_buttons.count() > 0:
                     print("✓ Found upvoted post (Retract upvote button present)", file=sys.stderr)
-                    upvote_found = True
-                
-                # Method 2: Check for posts with upvote count >= 1
-                if not upvote_found:
-                    # Look for vote counts
-                    vote_elements = page.locator('div.vote, span.vote-count, [class*="vote"]')
-                    
-                    for i in range(await vote_elements.count()):
-                        vote_elem = vote_elements.nth(i)
-                        vote_text = await vote_elem.text_content()
-                        try:
-                            # Extract number from vote text
-                            import re
-                            numbers = re.findall(r'\d+', vote_text)
-                            if numbers:
-                                vote_count = int(numbers[0])
-                                if vote_count >= 1:
-                                    print(f"✓ Found post with {vote_count} upvote(s)", file=sys.stderr)
-                                    upvote_found = True
-                                    break
-                        except:
-                            continue
-                
-                if not upvote_found:
+                else:
                     print("❌ ERROR: No upvoted posts found in search results", file=sys.stderr)
                     verification_passed = False
             

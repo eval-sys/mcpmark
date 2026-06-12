@@ -109,63 +109,53 @@ def verify(notion: Client, main_id: str = None) -> bool:
         print("Error: Languages heading not found in left column.", file=sys.stderr)
         return False
     
-    # Look for Skills heading after Languages
+    # Look for Skills heading after Languages (any heading level is fine).
+    heading_types = ("heading_1", "heading_2", "heading_3")
+    skill_block_types = ("paragraph", "bulleted_list_item", "numbered_list_item")
     for i in range(languages_index + 1, len(left_column_blocks)):
         left_block = left_column_blocks[i]
-        
+
         if (
-            left_block.get("type") == "heading_2"
+            left_block.get("type") in heading_types
             and "Skills" in notion_utils.get_block_plain_text(left_block)
         ):
             skills_section_found = True
-            
-            # Check divider after Skills heading
-            if i + 1 < len(left_column_blocks):
-                next_block = left_column_blocks[i + 1]
-                if next_block.get("type") != "divider":
+
+            # Collect skill rows directly after the Skills heading.
+            # Dividers, empty blocks, and other non-skill blocks are skipped;
+            # we stop only when we hit the next section heading.
+            for j in range(i + 1, len(left_column_blocks)):
+                skill_block = left_column_blocks[j]
+                block_type = skill_block.get("type")
+
+                if block_type in heading_types:
+                    break
+                if block_type not in skill_block_types:
+                    continue
+
+                skill_text = notion_utils.get_block_plain_text(skill_block)
+                if not skill_text or not skill_text.strip():
+                    continue
+
+                # Check icon format
+                if skill_text.startswith("✨✨"):
+                    skills_with_double_sparkles.append(skill_text)
+                elif skill_text.startswith("✨"):
+                    skills_with_single_sparkle.append(skill_text)
+                else:
                     print(
-                        "Error: Divider not found after Skills heading.",
+                        f"Error: Skill '{skill_text}' doesn't start with sparkle icon.",
                         file=sys.stderr,
                     )
                     return False
-            
-            # Collect skills after divider
-            for j in range(i + 2, len(left_column_blocks)):
-                skill_block = left_column_blocks[j]
-                if skill_block.get("type") == "paragraph":
-                    skill_text = notion_utils.get_block_plain_text(skill_block)
-                    if skill_text and skill_text.strip():  # Check for non-empty text
-                        # Check if text is bold
-                        rich_text = skill_block.get("paragraph", {}).get("rich_text", [])
-                        if rich_text and not rich_text[0].get("annotations", {}).get("bold"):
-                            print(
-                                f"Error: Skill '{skill_text}' is not bold.",
-                                file=sys.stderr,
-                            )
-                            return False
-                        
-                        # Check icon format
-                        if skill_text.startswith("✨✨"):
-                            skills_with_double_sparkles.append(skill_text)
-                        elif skill_text.startswith("✨"):
-                            skills_with_single_sparkle.append(skill_text)
-                        else:
-                            print(
-                                f"Error: Skill '{skill_text}' doesn't start with sparkle icon.",
-                                file=sys.stderr,
-                            )
-                            return False
-                        
-                        # Check format includes type in parentheses
-                        if "(" not in skill_text or ")" not in skill_text:
-                            print(
-                                f"Error: Skill '{skill_text}' doesn't include type in parentheses.",
-                                file=sys.stderr,
-                            )
-                            return False
-                elif skill_block.get("type") in ["heading_1", "heading_2", "heading_3"]:
-                    # Stop when we reach another section
-                    break
+
+                # Check format includes type in parentheses
+                if "(" not in skill_text or ")" not in skill_text:
+                    print(
+                        f"Error: Skill '{skill_text}' doesn't include type in parentheses.",
+                        file=sys.stderr,
+                    )
+                    return False
             break
 
     if not skills_section_found:

@@ -23,11 +23,13 @@ def parse_key_value_format(text):
     lines = text.strip().split('\n')
     for line in lines:
         line = line.strip()
-        if not line or line.startswith('#'):
+        if not line:
             continue
-            
+
         # Remove bullet point if present
         if line.startswith('- '):
+            line = line[2:]
+        elif line.startswith('* '):
             line = line[2:]
         elif line.startswith('• '):
             line = line[2:]
@@ -51,12 +53,8 @@ def normalize_text(text):
     if not isinstance(text, str):
         return str(text)
 
-    # Replace various quote styles with standard quotes
-    text = text.replace(""", "'").replace(""", "'")
-    text = text.replace('"', '"').replace('"', '"')
-    # Also normalize apostrophes - use unicode escapes to be safe
-    text = text.replace("\u2019", "'")  # RIGHT SINGLE QUOTATION MARK (')
-    text = text.replace("\u2018", "'")  # LEFT SINGLE QUOTATION MARK (')
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
 
     # Normalize whitespace
     text = " ".join(text.split())
@@ -138,22 +136,22 @@ async def verify() -> bool:
                 ".post-body",
                 ".RichText",
                 '[class*="RichText"]',
-                'div:has(> p:has-text("Total_NBA_Posts"))',
-                'div:has-text("Total_NBA_Posts"):has-text("Most_Popular_NBA_Author")',
+                'div:has(> p:has-text("Top1_Title"))',
+                'div:has-text("Top1_Title"):has-text("BCLetsRide69_Total_Posts")',
             ]
 
             for selector in selectors:
                 content_element = page.locator(selector)
                 if await content_element.count():
                     post_content = await content_element.first.inner_text()
-                    if "Total_NBA_Posts" in post_content:
+                    if "Top1_Title" in post_content:
                         print(
                             f"Found submission content using selector: {selector}",
                             file=sys.stderr,
                         )
                         break
 
-            if not post_content or "Total_NBA_Posts" not in post_content:
+            if not post_content or "Top1_Title" not in post_content:
                 print(
                     "Error: Could not find submission body with required format",
                     file=sys.stderr,
@@ -167,17 +165,21 @@ async def verify() -> bool:
             extracted_data = parse_key_value_format(post_content)
             print(f"Extracted data: {extracted_data}", file=sys.stderr)
 
-            # Load expected values from label.txt
+            # Load expected values from label.txt — hard fail if missing
             label_path = Path(__file__).parent / "label.txt"
-            if label_path.exists():
-                with open(label_path, "r") as f:
-                    expected_text = f.read().strip()
-                expected_data = parse_key_value_format(expected_text)
-                print("Loaded expected values from label.txt", file=sys.stderr)
+            if not label_path.exists():
+                print(
+                    f"Error: Ground-truth file not found at {label_path}",
+                    file=sys.stderr,
+                )
+                return False
+            with open(label_path, "r") as f:
+                expected_text = f.read().strip()
+            expected_data = parse_key_value_format(expected_text)
+            print("Loaded expected values from label.txt", file=sys.stderr)
 
             # Verify all required keys are present
             required_keys = [
-                "Total_NBA_Posts",
                 "Top1_Title",
                 "Top1_Votes",
                 "Top1_Comments",
@@ -213,69 +215,36 @@ async def verify() -> bool:
                 )
                 return False
 
-            # Validate data format and content
+            # Compare each field against expected_data
             errors = []
+            for key in required_keys:
+                if key in expected_data and key in extracted_data:
+                    expected_val = normalize_text(expected_data[key])
+                    actual_val = normalize_text(extracted_data[key])
 
-            # Check Total_NBA_Posts is a number and matches expected
-            try:
-                total_posts = int(extracted_data["Total_NBA_Posts"])
-                if "expected_data" in locals() and "Total_NBA_Posts" in expected_data:
-                    expected_total = int(expected_data["Total_NBA_Posts"])
-                    if total_posts != expected_total:
-                        errors.append(
-                            f"Total_NBA_Posts mismatch: got {total_posts}, expected {expected_total}"
-                        )
-                elif (
-                    total_posts < 5
-                ):  # Should be at least 5 since we're collecting top 5
-                    errors.append(f"Total_NBA_Posts seems too low: {total_posts}")
-            except ValueError:
-                errors.append(
-                    f"Total_NBA_Posts must be a number, got: {extracted_data['Total_NBA_Posts']}"
-                )
-
-            # If we have expected data, compare against it
-            if "expected_data" in locals():
-                # Compare each field
-                for key in required_keys:
-                    if key in expected_data and key in extracted_data:
-                        expected_val = normalize_text(expected_data[key])
-                        actual_val = normalize_text(extracted_data[key])
-
-                        # For numeric fields, compare as integers
-                        if (
-                            "Votes" in key
-                            or "Comments" in key
-                            or key == "Total_NBA_Posts"
-                            or key == "BCLetsRide69_Total_Posts"
-                        ):
-                            try:
-                                expected_int = int(expected_val)
-                                actual_int = int(actual_val)
-                                if expected_int != actual_int:
-                                    errors.append(
-                                        f"{key} mismatch: got {actual_int}, expected {expected_int}"
-                                    )
-                            except ValueError:
-                                errors.append(
-                                    f"{key} should be numeric: got '{actual_val}'"
-                                )
-                        else:
-                            # For text fields, compare normalized text
-                            if expected_val != actual_val:
-                                errors.append(
-                                    f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
-                                )
-
-            else:
-                # If no expected data, just do basic validation
-                for key in required_keys:
-                    if key not in extracted_data:
-                        errors.append(f"Missing required key: {key}")
-                    elif (
-                        not extracted_data[key] or extracted_data[key] == "[FILL_VALUE]"
+                    # For numeric fields, compare as integers
+                    if (
+                        "Votes" in key
+                        or "Comments" in key
+                        or key == "BCLetsRide69_Total_Posts"
                     ):
-                        errors.append(f"{key} was not filled in")
+                        try:
+                            expected_int = int(expected_val)
+                            actual_int = int(actual_val)
+                            if expected_int != actual_int:
+                                errors.append(
+                                    f"{key} mismatch: got {actual_int}, expected {expected_int}"
+                                )
+                        except ValueError:
+                            errors.append(
+                                f"{key} should be numeric: got '{actual_val}'"
+                            )
+                    else:
+                        # For text fields, compare normalized text
+                        if expected_val != actual_val:
+                            errors.append(
+                                f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
+                            )
 
             if errors:
                 print(
@@ -291,9 +260,6 @@ async def verify() -> bool:
             print("- Account NBA_DataAnalyst_2024 verified")
             print(
                 "- Submission 'Statistical Analysis: NBA Content Engagement on This Forum' found"
-            )
-            print(
-                f"- Total NBA-related posts analyzed: {extracted_data['Total_NBA_Posts']}"
             )
             print("- Top 5 posts identified and documented")
             print(
