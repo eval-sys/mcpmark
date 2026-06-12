@@ -8,7 +8,7 @@ Design a comprehensive reporting and automation system for executive dashboard a
    * `department_name` (varchar) — department name
    * `total_employees` (integer) — current active employee count
    * `avg_salary` (decimal) — average current salary
-   * `total_payroll` (bigint) — total monthly payroll cost
+   * `total_payroll` (bigint) — sum of current salary amounts for active employees in the department
    * `manager_name` (varchar) — current department manager name
 
    **View 2: `exec_hiring_trends`**  

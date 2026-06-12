@@ -12,7 +12,7 @@ Generate a comprehensive employee demographics and basic statistics report for t
    * `age_group` (varchar) — age range ('20-29', '30-39', '40-49', '50-59', '60+')
    * `employee_count` (integer) — number of current employees in age group
    * `avg_salary` (decimal) — average current salary for age group
-   * `avg_tenure_days` (decimal) — average days of service
+   * `avg_tenure_days` (decimal) — average days of service as of the reference date `2002-08-01`
 
 3. **Create the birth month distribution table** — build a table called `birth_month_distribution` in the `employees` schema with:
    * `birth_month` (integer) — month number (1-12)
@@ -26,7 +26,7 @@ Generate a comprehensive employee demographics and basic statistics report for t
    * `still_employed` (integer) — how many from that year are still employed
    * `retention_rate` (decimal) — percentage still employed (still_employed/employees_hired * 100)
 
-5. **Apply age group classification** based on current age:
+5. **Apply age group classification** based on each employee's age as of the reference date `2002-08-01`. Only include age groups that contain at least one current employee — empty buckets must not appear in `age_group_analysis`.
    * **20-29**: Ages 20-29
    * **30-39**: Ages 30-39  
    * **40-49**: Ages 40-49

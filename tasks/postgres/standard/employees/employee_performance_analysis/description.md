@@ -25,3 +25,7 @@ Create a comprehensive employee performance evaluation system that analyzes care
 5. **Calculate salary equity metrics** — populate the department table with current salary statistics for active employees only to identify potential pay equity issues across departments.
 
 The analysis should help leadership make informed decisions about promotions, salary adjustments, and talent retention strategies.
+
+### Important Notes
+
+- Do NOT use ROUND functions - keep the full precision of calculated values

@@ -4,7 +4,7 @@ Implement a data consistency enforcement system for the LEGO database. The syste
 For any given `set_num`, the following invariant must be maintained:
 `lego_sets.num_parts = SUM(quantity)` FROM `lego_inventory_parts` WHERE `inventory_id` IN (latest inventory for that set) AND `is_spare` = false
 
-**Important**: If a set has no inventory records, the consistency check should be skipped.
+**Important**: If a set has no inventory records (or no non-spare parts in its latest inventory), treat the actual part count as `0`. The consistency check still applies — `num_parts` must equal `0` for such sets.
 
 # Your Tasks:
 
@@ -15,7 +15,7 @@ Write a single `SELECT` query to find all sets where the stored `num_parts` does
 
 1.  **Find the Latest Inventory**: For each `set_num`, find its latest inventory id by getting the `MAX(version)` from the `lego_inventories` table.
 2.  **Calculate Actual Part Count**: For these latest inventories, join with `lego_inventory_parts` and calculate the `SUM(quantity)`, but only for parts where `is_spare` is false.
-3.  **Compare and Filter**: Join this calculated result back to the `lego_sets` table and return the rows where `lego_sets.num_parts` is different from your calculated sum.
+3.  **Compare and Filter**: `LEFT JOIN` this calculated result back to the `lego_sets` table and return the rows where `lego_sets.num_parts` is different from your calculated sum, using `COALESCE(actual_parts, 0)` so that sets without inventory are also surfaced when their `num_parts` is non-zero.
 
 ## Task 2: Fix Existing Inconsistencies
 

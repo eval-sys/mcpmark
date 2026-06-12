@@ -94,7 +94,10 @@ def verify_rls_implementation():
                 SET email = 'alice.updated@example.com'
                 WHERE id = '11111111-1111-1111-1111-111111111111'
             """)
-            test_results.append("✓ Users can update their own profile")
+            if cur.rowcount > 0:
+                test_results.append("✓ Users can update their own profile")
+            else:
+                test_results.append("✗ User update affected 0 rows (RLS too restrictive on own profile)")
         except Exception as e:
             test_results.append(f"✗ User cannot update own profile: {e}")
 
@@ -125,7 +128,10 @@ def verify_rls_implementation():
                 SET description = 'Updated by Alice'
                 WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
             """)
-            test_results.append("✓ Channel owners can update their channels")
+            if cur.rowcount > 0:
+                test_results.append("✓ Channel owners can update their channels")
+            else:
+                test_results.append("✗ Channel owner update affected 0 rows (RLS too restrictive on own channel)")
         except Exception as e:
             test_results.append(f"✗ Channel owner cannot update channel: {e}")
 
@@ -156,7 +162,10 @@ def verify_rls_implementation():
                 SET title = 'Updated by Alice'
                 WHERE id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
             """)
-            test_results.append("✓ Post authors can update their posts")
+            if cur.rowcount > 0:
+                test_results.append("✓ Post authors can update their posts")
+            else:
+                test_results.append("✗ Post author update affected 0 rows (RLS too restrictive on own post)")
         except Exception as e:
             test_results.append(f"✗ Post author cannot update post: {e}")
 
@@ -168,7 +177,10 @@ def verify_rls_implementation():
                 SET content = 'Moderated by Bob'
                 WHERE id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
             """)
-            test_results.append("✓ Channel moderators can update posts in their channels")
+            if cur.rowcount > 0:
+                test_results.append("✓ Channel moderators can update posts in their channels")
+            else:
+                test_results.append("✗ Moderator update affected 0 rows (RLS too restrictive on moderator path)")
         except Exception as e:
             test_results.append(f"✗ Channel moderator cannot update post: {e}")
 
@@ -199,7 +211,10 @@ def verify_rls_implementation():
                 SET content = 'Updated by Bob himself'
                 WHERE id = '99999999-9999-9999-9999-999999999999'
             """)
-            test_results.append("✓ Comment authors can update their comments")
+            if cur.rowcount > 0:
+                test_results.append("✓ Comment authors can update their comments")
+            else:
+                test_results.append("✗ Comment author update affected 0 rows (RLS too restrictive on own comment)")
         except Exception as e:
             test_results.append(f"✗ Comment author cannot update comment: {e}")
 
@@ -211,7 +226,10 @@ def verify_rls_implementation():
                 SET content = 'Moderated by post author Alice'
                 WHERE id = '99999999-9999-9999-9999-999999999999'
             """)
-            test_results.append("✓ Post authors can moderate comments on their posts")
+            if cur.rowcount > 0:
+                test_results.append("✓ Post authors can moderate comments on their posts")
+            else:
+                test_results.append("✗ Post author moderation affected 0 rows (RLS too restrictive on post-author path)")
         except Exception as e:
             test_results.append(f"✗ Post author cannot moderate comment: {e}")
 
@@ -247,20 +265,29 @@ def verify_rls_implementation():
         # Test 7: Content visibility based on user context
         print("\n7. Testing content visibility...")
 
-        # Count posts visible to Alice
+        # Count posts visible to Alice (general+tech-talk public channels: 3 posts)
         cur.execute("SET app.current_user_id = '11111111-1111-1111-1111-111111111111';")  # Alice
         cur.execute("SELECT COUNT(*) FROM posts;")
         alice_posts = cur.fetchone()[0]
 
-        # Count posts visible to Eve
+        # Count posts visible to Eve (same two public channels: 3 posts; she does NOT see her own
+        # post in the private 'random' channel since she's not owner/moderator there)
         cur.execute("SET app.current_user_id = '55555555-5555-5555-5555-555555555555';")  # Eve
         cur.execute("SELECT COUNT(*) FROM posts;")
         eve_posts = cur.fetchone()[0]
 
-        if alice_posts >= 2 and eve_posts >= 1:  # Alice should see posts in channels she has access to
+        # Count posts visible to Charlie (owner of private 'random' channel: 3 public + 1 own = 4)
+        cur.execute("SET app.current_user_id = '33333333-3333-3333-3333-333333333333';")  # Charlie
+        cur.execute("SELECT COUNT(*) FROM posts;")
+        charlie_posts = cur.fetchone()[0]
+
+        if alice_posts == 3 and eve_posts == 3 and charlie_posts == 4:
             test_results.append("✓ Content visibility varies correctly based on user context")
         else:
-            test_results.append(f"✗ Content visibility issue: Alice sees {alice_posts}, Eve sees {eve_posts}")
+            test_results.append(
+                f"✗ Content visibility issue: Alice sees {alice_posts} (expected 3), "
+                f"Eve sees {eve_posts} (expected 3), Charlie sees {charlie_posts} (expected 4)"
+            )
 
         # Test 8: Anonymous user access
         print("\n8. Testing anonymous user restrictions...")
@@ -271,9 +298,10 @@ def verify_rls_implementation():
             anon_users = cur.fetchone()[0]
 
             # Anonymous users should be able to see public user profiles per requirements
-            # Count public users that should be visible
+            # Count public users that should be visible (re-counted under anon's view; with
+            # correct RLS this equals the total number of public users)
             cur.execute("SELECT COUNT(*) FROM users WHERE is_public = true;")
-            public_users = cur.fetchone()[0] if cur.rowcount > 0 else 0
+            public_users = cur.fetchone()[0]
 
             if anon_users == public_users and anon_users > 0:
                 test_results.append(f"✓ Anonymous users can see {anon_users} public user profiles (correct)")
@@ -282,7 +310,9 @@ def verify_rls_implementation():
             else:
                 test_results.append(f"✗ Anonymous users can see {anon_users} users but expected {public_users} public users")
         except Exception as e:
-            test_results.append("✓ Anonymous users properly restricted")
+            # An exception here usually means the policy failed to handle empty/NULL session
+            # context (e.g., `current_setting('app.current_user_id')::UUID` on empty string).
+            test_results.append(f"✗ Anonymous-user query raised an exception: {e}")
 
         # Print results
         print("\n" + "="*60)

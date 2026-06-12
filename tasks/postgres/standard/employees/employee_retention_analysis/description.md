@@ -13,7 +13,7 @@ Analyze employee retention patterns and identify factors contributing to turnove
    * `employee_id` (bigint) — the employee's ID  
    * `full_name` (varchar) — concatenated first and last name
    * `current_department` (varchar) — current department name
-   * `tenure_days` (integer) — days with the company
+   * `tenure_days` (integer) — days with the company as of the reference date `2002-08-01`
    * `current_salary` (integer) — current salary amount
    * `risk_category` (varchar) — risk level ('high_risk', 'medium_risk', 'low_risk')
    
@@ -25,7 +25,7 @@ Analyze employee retention patterns and identify factors contributing to turnove
    * `avg_tenure_days` (decimal) — average tenure in days for employees who left that year
    * `avg_final_salary` (decimal) — average final salary of departed employees that year
 
-4. **Apply risk assessment criteria** for current employees:
+4. **Apply risk assessment criteria** for current employees (measure tenure as of the reference date `2002-08-01`):
    * **High risk**: Employees in departments with retention rate < 80% AND tenure < 1095 days (3 years)
    * **Medium risk**: Employees in departments with retention rate < 85% AND tenure < 1825 days (5 years)  
    * **Low risk**: All other current employees

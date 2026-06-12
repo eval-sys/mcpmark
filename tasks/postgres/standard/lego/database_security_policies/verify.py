@@ -183,16 +183,19 @@ def test_theme_analyst_access(conn) -> bool:
                 return False
             print("✅ PASS: Reference tables appear to be accessible.")
 
-            # Test 4 & 5: Check related tables
+            # Test 4 & 5: Check related tables — counts must match exactly
+            # what is reachable through theme_id=18 (Star Wars: 65081-1 + K8008-1).
             cur.execute("SELECT COUNT(*) FROM lego_inventories;")
-            if cur.fetchone()[0] == 0:
-                print("❌ FAIL: No inventories are visible for the allowed sets.")
+            inv_count = cur.fetchone()[0]
+            if inv_count != 2:
+                print(f"❌ FAIL: Expected 2 inventories for Star Wars sets, got {inv_count}.")
                 cur.execute("RESET ROLE;")
                 return False
-            
+
             cur.execute("SELECT COUNT(*) FROM lego_inventory_parts;")
-            if cur.fetchone()[0] == 0:
-                print("❌ FAIL: No inventory parts are visible for the allowed sets.")
+            parts_count = cur.fetchone()[0]
+            if parts_count != 3:
+                print(f"❌ FAIL: Expected 3 inventory parts for Star Wars sets, got {parts_count}.")
                 cur.execute("RESET ROLE;")
                 return False
             print("✅ PASS: Related tables (inventories, inventory_parts) are correctly filtered.")

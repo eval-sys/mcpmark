@@ -36,8 +36,10 @@ Create a PostgreSQL function to handle inventory part transfers between LEGO set
    - Verify both inventory IDs exist in `lego_inventories` table
    - Verify part exists in `lego_parts` table
    - Verify color exists in `lego_colors` table
-   - Check source has sufficient quantity (including spare parts)
+   - Check the source's non-spare row for this `(part_num, color_id)` has sufficient quantity
    - Prevent self-transfers (source and target cannot be the same)
+
+   *Note: The function operates on non-spare rows only (`is_spare = false`).*
 
    **Validation B: Business Rules**
    - Maximum transfer quantity is 500 parts per operation
@@ -52,26 +54,22 @@ Create a PostgreSQL function to handle inventory part transfers between LEGO set
    - Calculate transfer feasibility
 
    **Step B: Source Inventory Update**
-   - Decrease quantity in source inventory
+   - Decrease quantity on the source's non-spare row
    - If quantity becomes zero, delete the row
-   - Handle spare parts appropriately (maintain `is_spare` flag)
 
    **Step C: Target Inventory Update**
-   - Check if part exists in target inventory
+   - Check if a non-spare row for `(part_num, color_id)` exists in target inventory
    - If exists: increase quantity
-   - If not exists: insert new record
-   - Handle spare parts appropriately
+   - If not exists: insert a new non-spare row (`is_spare = false`)
 
    **Step D: Audit Logging**
    - Log successful transfers with details
-   - Log failed transfers with error messages
    - Include transfer reason and status
 
 5. **Error handling requirements**:
    - Use `RAISE EXCEPTION` with descriptive error messages
    - Handle all validation failures gracefully
    - Ensure complete rollback on any failure
-   - Log all attempts (successful and failed)
 
 6. **Return value**:
    - Return success message: `'Successfully transferred {quantity} parts ({part_num}, color_id: {color_id}) from inventory {source_id} to inventory {target_id}. Reason: {reason}'`
@@ -81,7 +79,7 @@ Create a PostgreSQL function to handle inventory part transfers between LEGO set
 
 - **Transaction Safety**: All operations wrapped in transaction block
 - **Data Integrity**: No partial updates possible
-- **Audit Trail**: Complete logging of all transfer attempts
+- **Audit Trail**: Logging of successful transfer attempts
 - **Validation**: Comprehensive input and business rule validation
 - **Error Recovery**: Failed transfers leave database unchanged
 - **Performance**: Use appropriate locking to prevent race conditions
@@ -105,8 +103,7 @@ SELECT transfer_parts(14469, 14469, '3024', 15, 10, 'self_transfer');
 ## Verification Criteria:
 
 - Function handles all validation rules correctly
-- Audit logging captures all transfer attempts
-- Failed transfers are properly logged with error details
+- Audit logging captures successful transfer attempts
 - Self-transfers are prevented
 - Quantity limits are enforced
 - Database state remains consistent after failures

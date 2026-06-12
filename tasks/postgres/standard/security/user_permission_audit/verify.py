@@ -97,6 +97,34 @@ def verify_security_audit():
             }
         }
 
+        # Validate structure first — if the schema is wrong, abort before parsing.
+        structure_valid = True
+        for i, finding in enumerate(findings):
+            if len(finding) != 6:
+                print(f"| FAIL: Finding {i + 1} has wrong number of columns (expected 6, got {len(finding)})")
+                structure_valid = False
+                continue
+
+            _detail_id, username, issue_type, _table_name, _permission_type, expected_access = finding
+
+            if not username:
+                print(f"| FAIL: Finding {i + 1} missing username")
+                structure_valid = False
+
+            if issue_type not in ['DANGLING_USER', 'MISSING_PERMISSION', 'EXCESSIVE_PERMISSION']:
+                print(f"| FAIL: Finding {i + 1} invalid issue_type: {issue_type}")
+                structure_valid = False
+
+            if expected_access not in [True, False]:
+                print(f"| FAIL: Finding {i + 1} invalid expected_access: {expected_access}")
+                structure_valid = False
+
+        if not structure_valid:
+            print("| FAIL: aborting further checks because finding rows have invalid structure")
+            return False
+
+        print("| ✓ structure is valid")
+
         found_dangling = set()
         found_missing_permissions = set()
         found_excessive_permissions = set()
@@ -130,53 +158,41 @@ def verify_security_audit():
         missing_excessive_perms = expected_findings['excessive_permissions'] - found_excessive_permissions
         extra_excessive_perms = found_excessive_permissions - expected_findings['excessive_permissions']
 
-        # Validate structure
-        structure_valid = True
-        for i, finding in enumerate(findings):
-            if len(finding) != 6:  # Should have 6 columns
-                print(f"| FAIL: Finding {i + 1} has wrong number of columns (expected 6, got {len(finding)})")
-                structure_valid = False
-                continue
-
-            detail_id, username, issue_type, table_name, permission_type, expected_access = finding
-
-            if not username:
-                print(f"| FAIL: Finding {i + 1} missing username")
-                structure_valid = False
-
-            if issue_type not in ['DANGLING_USER', 'MISSING_PERMISSION', 'EXCESSIVE_PERMISSION']:
-                print(f"| FAIL: Finding {i + 1} invalid issue_type: {issue_type}")
-                structure_valid = False
-
-            if expected_access not in [True, False]:
-                print(f"| FAIL: Finding {i + 1} invalid expected_access: {expected_access}")
-                structure_valid = False
-
-        if structure_valid:
-            print(f"| ✓ structure is valid")
-
         # Check for missing findings
         all_correct = True
 
         print(f"| Expected dangling users: {expected_findings['dangling_users']} Found: {found_dangling}")
         if missing_dangling:
-            print(f"| Missing dangling users: {missing_dangling}")
+            print(f"| FAIL: Missing dangling users (not reported): {missing_dangling}")
+            all_correct = False
+        if extra_dangling:
+            print(f"| FAIL: Unexpected dangling users (extra): {extra_dangling}")
             all_correct = False
 
         print(
-            f"| Expected missing permissions: {len(expected_findings['missing_permissions'])} Found: {len(found_missing_permissions)} Missing: {len(missing_missing_perms)}")
+            f"| Expected missing permissions: {len(expected_findings['missing_permissions'])} Found: {len(found_missing_permissions)} Not reported: {len(missing_missing_perms)} Extra: {len(extra_missing_perms)}")
         if missing_missing_perms:
-            print(f"| Missing 'missing permission' findings:")
+            print(f"| FAIL: Missing 'missing permission' findings:")
             for perm in sorted(missing_missing_perms):
                 print(f"|   - {perm[0]} should be granted {perm[2]} on {perm[1]}")
             all_correct = False
+        if extra_missing_perms:
+            print(f"| FAIL: Unexpected 'missing permission' findings:")
+            for perm in sorted(extra_missing_perms):
+                print(f"|   - {perm[0]} / {perm[1]} / {perm[2]} (not expected as missing)")
+            all_correct = False
 
         print(
-            f"| Expected excessive permissions: {len(expected_findings['excessive_permissions'])} Found: {len(found_excessive_permissions)} Missing: {len(missing_excessive_perms)}")
+            f"| Expected excessive permissions: {len(expected_findings['excessive_permissions'])} Found: {len(found_excessive_permissions)} Not reported: {len(missing_excessive_perms)} Extra: {len(extra_excessive_perms)}")
         if missing_excessive_perms:
-            print(f"| Missing 'excessive permission' findings:")
+            print(f"| FAIL: Missing 'excessive permission' findings:")
             for perm in sorted(missing_excessive_perms):
                 print(f"|   - {perm[0]} should have {perm[2]} revoked on {perm[1]}")
+            all_correct = False
+        if extra_excessive_perms:
+            print(f"| FAIL: Unexpected 'excessive permission' findings:")
+            for perm in sorted(extra_excessive_perms):
+                print(f"|   - {perm[0]} / {perm[1]} / {perm[2]} (not expected as excessive)")
             all_correct = False
 
         # Check audit summary table
@@ -204,13 +220,19 @@ def verify_security_audit():
                 else:
                     print(f"| ✓ {audit_type} summary matches expected values")
 
-        # Assert exact counts match expected
-        assert len(found_dangling) == 3, f"Expected 3 dangling users, found {len(found_dangling)}"
-        assert len(found_missing_permissions) == 13, f"Expected 13 missing permissions, found {len(found_missing_permissions)}"
-        assert len(found_excessive_permissions) == 13, f"Expected 13 excessive permissions, found {len(found_excessive_permissions)}"
+        # Exact-count sanity checks (catch e.g. duplicate findings that summary missed).
+        count_correct = True
+        for label, found_set, expected_count in [
+            ("dangling users", found_dangling, 3),
+            ("missing permissions", found_missing_permissions, 13),
+            ("excessive permissions", found_excessive_permissions, 13),
+        ]:
+            if len(found_set) != expected_count:
+                print(f"| FAIL: Expected {expected_count} {label}, found {len(found_set)}")
+                count_correct = False
 
-        if all_correct and structure_valid and summary_correct:
-            print("| ✓ All assertions passed")
+        if all_correct and structure_valid and summary_correct and count_correct:
+            print("| ✓ All checks passed")
             return True
         else:
             return False
