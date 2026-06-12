@@ -16,4 +16,4 @@ Modify the structure of the Standard Operating Procedure page in Notion by reorg
 - Position the "Tools" section in the left column
 - Position the "Terminologies" section in the right column
 - In the "Tools" column, add links to the Notion and Figma pages using appropriate reference blocks
-- Preserve the original child pages from the "Tools" section in a toggle block placed below the column layout, with the toggle titled "original pages"
+- Preserve access to the original Notion and Figma child pages from the "Tools" section inside a toggle titled "original pages", positioned below the column layout (the original pages must remain reachable from this toggle)

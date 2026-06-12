@@ -1,11 +1,11 @@
 **Task Overview**
 
-My IT knowledge base contains pages whose verification status has expired:
+My IT knowledge base contains pages whose verification has lapsed and needs re-verification:
 
 **Task Requirements**
 1. Locate the database named **"IT Homepage"** inside the main page **"It Trouble Shooting Hub"**.
-2. Within that database, find every page (except for **"It Inventory"**) where the **Verification** property state contains `expired`.
-3. For **each** expired page:
+2. Within that database, find every page (except for **"It Inventory"**) where the **Verification** property state is `unverified`.
+3. For **each** such page:
    • Insert a **callout block** at the very top (as the first child block) whose rich-text content is:
      `VERIFICATION EXPIRED - This page needs review and re-verification`
    • Set the callout’s icon to ⚠️.

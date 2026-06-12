@@ -4,7 +4,17 @@ from notion_client import Client
 from tasks.utils import notion_utils
 
 
-def verify_todo_database_correspondence(all_blocks, activities_by_day, _):
+def _normalize_apos(s: str) -> str:
+    """Normalise curly apostrophes (U+2018, U+2019) to straight ones for comparison.
+
+    The seed Travel Itinerary database uses a curly apostrophe in entries like
+    'Rikuro's Namba Main Branch'. Agents that retype the name with a straight
+    apostrophe would otherwise fail substring matching here.
+    """
+    return s.replace("’", "'").replace("‘", "'")
+
+
+def verify_todo_database_correspondence(all_blocks, activities_by_day, visited_count):
     """
     Verify that to-do items in the overview page correspond exactly to database activities.
     """
@@ -59,12 +69,15 @@ def verify_todo_database_correspondence(all_blocks, activities_by_day, _):
             if db_activity["city"]:
                 expected_format += f" - {db_activity['city']}"
 
-            # Find matching to-do item
+            # Find matching to-do item (apostrophe-normalised)
+            expected_format_norm = _normalize_apos(expected_format)
+            db_name_norm = _normalize_apos(db_activity["name"])
             matching_todo = None
             for todo in page_todos:
+                todo_text_norm = _normalize_apos(todo["text"])
                 if (
-                    expected_format in todo["text"]
-                    or db_activity["name"] in todo["text"]
+                    expected_format_norm in todo_text_norm
+                    or db_name_norm in todo_text_norm
                 ):
                     matching_todo = todo
                     break
@@ -86,18 +99,22 @@ def verify_todo_database_correspondence(all_blocks, activities_by_day, _):
                 )
                 return False
 
-    # Verify summary count matches checked to-dos
+    # Verify summary count matches the database's true visited count
+    expected_summary = (
+        f"Total activities visited (from Day 1 to Day 3): {visited_count}"
+    )
     for block in all_blocks:
         if block.get("type") == "paragraph":
             block_text = notion_utils.get_block_plain_text(block)
-            if "Total activities visited (from Day 1 to Day 3): 8" in block_text:
+            if expected_summary in block_text:
                 print(
-                    f"Success: Daily Itinerary Overview page created with correct structure. All {checked_todos_count} visited activities match database."
+                    f"Success: Daily Itinerary Overview page created with correct structure. All {visited_count} visited activities match database."
                 )
                 return True
 
     print(
-        f"Error: Summary shows incorrect visited activity count. Expected: {checked_todos_count} (based on checked to-do items)",
+        f"Error: Summary does not show the expected count {visited_count}. "
+        f"Expected line containing: {expected_summary!r}",
         file=sys.stderr,
     )
     return False
@@ -107,7 +124,11 @@ def verify(notion: Client, main_id: str = None) -> bool:
     """
     Verifies that the Daily Itinerary Overview page has been created correctly.
     """
-    # Find the main Japan Travel Planner page
+    # Find the main Japan Travel Planner page.
+    # If main_id is supplied (the normal harness path) we MUST resolve it
+    # successfully; falling back to a global title search in that case can
+    # silently pick up a different copy of the page (e.g. another task's GT).
+    # The title fallback is only used when main_id was not supplied at all.
     page_id = None
     if main_id:
         found_id, object_type = notion_utils.find_page_or_database_by_id(
@@ -115,9 +136,15 @@ def verify(notion: Client, main_id: str = None) -> bool:
         )
         if found_id and object_type == "page":
             page_id = found_id
-
-    if not page_id:
+        else:
+            print(
+                f"Error: Could not resolve main_id {main_id!r} to an accessible page.",
+                file=sys.stderr,
+            )
+            return False
+    else:
         page_id = notion_utils.find_page(notion, "Japan Travel Planner")
+
     if not page_id:
         print("Error: Main 'Japan Travel Planner' page not found.", file=sys.stderr)
         return False
@@ -137,19 +164,6 @@ def verify(notion: Client, main_id: str = None) -> bool:
             if parent.get("type") == "page_id" and parent.get("page_id") == page_id:
                 overview_page_id = result["id"]
                 break
-
-        if not overview_page_id:
-            # Alternative method: check page title directly
-            for result in response.get("results", []):
-                title_list = (
-                    result.get("properties", {}).get("title", {}).get("title", [])
-                )
-                for title_obj in title_list:
-                    if "Daily Itinerary Overview" in title_obj.get("plain_text", ""):
-                        overview_page_id = result["id"]
-                        break
-                if overview_page_id:
-                    break
 
     except Exception as e:
         print(
@@ -268,7 +282,6 @@ def verify(notion: Client, main_id: str = None) -> bool:
 
             # Organize database activities by day
             activities_by_day = {"Day 1": [], "Day 2": [], "Day 3": []}
-            visited_count = 0
 
             for result in db_activities:
                 properties = result.get("properties", {})
@@ -299,7 +312,6 @@ def verify(notion: Client, main_id: str = None) -> bool:
                     elif prop_type == "checkbox":
                         if prop_value.get("checkbox"):
                             activity_info["visited"] = True
-                            visited_count += 1
 
                     # Get day info
                     elif "day" in prop_name.lower() and prop_type in [
@@ -318,6 +330,14 @@ def verify(notion: Client, main_id: str = None) -> bool:
                 # Add to appropriate day if day is specified
                 if activity_info["day"] and activity_info["name"]:
                     activities_by_day[activity_info["day"]].append(activity_info)
+
+            # Visited count is restricted to Day 1-3, matching the summary text
+            visited_count = sum(
+                1
+                for day_acts in activities_by_day.values()
+                for a in day_acts
+                if a["visited"]
+            )
 
             # Now verify to-do items match database activities
             return verify_todo_database_correspondence(
