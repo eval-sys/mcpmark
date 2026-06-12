@@ -1,4 +1,4 @@
-Complete the following tasks on One Stop Market (http://localhost:7770):
+Complete the following tasks on One Stop Market:
 
 **Task Requirements:**
 
@@ -6,8 +6,8 @@ Complete the following tasks on One Stop Market (http://localhost:7770):
    - Record price and SKU of first 3 products
 
 2. Search for 'tabletop' with price range $100.00-$200.00:
-   - Find the cheapest tabletop that has the highest review rating with at least 3 reviews.
    - Record search results count
+   - Among tabletops with at least 3 reviews, find the one with the highest rating % (if tied, choose the cheapest)
    - Record price of required tabletop
 
 3. In "Computers & Accessories" subcategory with price filter $0.00-$9,999.99:
@@ -27,7 +27,7 @@ Complete the following tasks on One Stop Market (http://localhost:7770):
 
 6. Calculate:
    - Sum of 3 chocolate product prices
-   - Price difference: cheapest tabletop minus cheapest computer accessory
+   - Price difference: selected tabletop (from step 2) minus cheapest computer accessory (from step 3)
    - Whether sum of 3 comparison items < $60
 
 **Output Format:**

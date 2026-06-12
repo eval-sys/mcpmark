@@ -4,8 +4,7 @@ I'm conducting research on NBA player discussions in online sports communities. 
 
 1. Register a new account with username 'NBA_DataAnalyst_2024' and password 'Research#2024!'
 
-2. Navigate to the sports forum and search for posts containing 'NBA' in their titles:
-   - Collect data from the 5 NBA-related posts with the most comments
+2. Navigate to the sports forum and browse its posts to find posts whose titles contain 'NBA'. From these, collect the 5 with the most comments:
    - For each post, record: the exact post title, vote count, comment count, and the username of the person who submitted it
 
 3. Visit the user profile of 'BCLetsRide69':
@@ -16,7 +15,6 @@ I'm conducting research on NBA player discussions in online sports communities. 
    - Body text must be EXACTLY these lines without anything (keep the keys as-is, only replace the values after the colon, follow the markdown format):
 
 ```
-- Total_NBA_Posts|FILL_VALUE
 - Top1_Title|FILL_VALUE
 - Top1_Votes|FILL_VALUE
 - Top1_Comments|FILL_VALUE

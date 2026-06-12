@@ -11,6 +11,22 @@ from playwright.async_api import (
 BASE_URL = os.getenv("WEBARENA_BASE_URL", "http://localhost:9999").rstrip("/")
 
 
+def normalize_text(text):
+    """
+    Normalize text for comparison by collapsing whitespace.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
+
+    # Normalize whitespace
+    text = " ".join(text.split())
+
+    return text.strip()
+
+
 async def verify() -> bool:
     """
     Verifies that the daily routine tracking setup has been completed correctly on the forum.
@@ -77,7 +93,7 @@ async def verify() -> bool:
             # Check if the content exists in the page
             content_found = False
             article_content = await page.locator("article").text_content()
-            if article_content and expected_content in article_content:
+            if article_content and normalize_text(expected_content) in normalize_text(article_content):
                 content_found = True
 
             if not content_found:

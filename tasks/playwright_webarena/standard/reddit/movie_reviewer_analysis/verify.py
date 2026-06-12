@@ -52,15 +52,16 @@ def parse_key_value_format(text):
 
 def normalize_text(text):
     """
-    Normalize text for comparison by handling different quote styles and whitespace.
+    Normalize text for comparison by decoding the &amp; HTML entity and collapsing whitespace.
     """
     if not isinstance(text, str):
         return str(text)
 
-    # Replace various quote styles with standard quotes
-    text = text.replace(""", "'").replace(""", "'")
-    text = text.replace('"', '"').replace('"', '"')
+    # Decode &amp; HTML entity
     text = text.replace("&amp;", "&")
+
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("“", '"').replace("”", '"')
 
     # Normalize whitespace
     text = " ".join(text.split())
@@ -171,13 +172,18 @@ async def verify() -> bool:
             extracted_data = parse_key_value_format(post_content)
             print(f"Extracted data: {extracted_data}", file=sys.stderr)
 
-            # Load expected values from label.txt
+            # Load expected values from label.txt — hard fail if missing
             label_path = Path(__file__).parent / "label.txt"
-            if label_path.exists():
-                with open(label_path, "r") as f:
-                    expected_text = f.read().strip()
-                expected_data = parse_key_value_format(expected_text)
-                print("Loaded expected values from label.txt", file=sys.stderr)
+            if not label_path.exists():
+                print(
+                    f"Error: Ground-truth file not found at {label_path}",
+                    file=sys.stderr,
+                )
+                return False
+            with open(label_path, "r") as f:
+                expected_text = f.read().strip()
+            expected_data = parse_key_value_format(expected_text)
+            print("Loaded expected values from label.txt", file=sys.stderr)
 
             # Verify all required keys are present
             required_keys = [
@@ -208,65 +214,37 @@ async def verify() -> bool:
                 )
                 return False
 
-            # Validate data format and content
+            # Compare each field against expected_data
             errors = []
+            for key in required_keys:
+                if key in expected_data and key in extracted_data:
+                    expected_val = normalize_text(expected_data[key])
+                    actual_val = normalize_text(extracted_data[key])
 
-            # Check Total_Year_Posts is a number and matches expected
-            try:
-                total_posts = int(extracted_data["Total_Year_Posts"])
-                if "expected_data" in locals() and "Total_Year_Posts" in expected_data:
-                    expected_total = int(expected_data["Total_Year_Posts"])
-                    if total_posts != expected_total:
-                        errors.append(
-                            f"Total_Year_Posts mismatch: got {total_posts}, expected {expected_total}"
-                        )
-            except ValueError:
-                errors.append(
-                    f"Total_Year_Posts must be a number, got: {extracted_data['Total_Year_Posts']}"
-                )
-
-            # If we have expected data, compare against it
-            if "expected_data" in locals():
-                # Compare each field
-                for key in required_keys:
-                    if key in expected_data and key in extracted_data:
-                        expected_val = normalize_text(expected_data[key])
-                        actual_val = normalize_text(extracted_data[key])
-
-                        # For numeric fields, compare as integers
-                        if (
-                            "Upvotes" in key
-                            or "Comments" in key
-                            or key == "Total_Year_Posts"
-                            or key == "Total_Image_Posts_5Pages"
-                        ):
-                            try:
-                                expected_int = int(expected_val)
-                                actual_int = int(actual_val)
-                                if expected_int != actual_int:
-                                    errors.append(
-                                        f"{key} mismatch: got {actual_int}, expected {expected_int}"
-                                    )
-                            except ValueError:
-                                errors.append(
-                                    f"{key} should be numeric: got '{actual_val}'"
-                                )
-                        else:
-                            # For text fields, compare normalized text
-                            if expected_val != actual_val:
-                                errors.append(
-                                    f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
-                                )
-
-            else:
-                # If no expected data, just do basic validation
-                for key in required_keys:
-                    if key not in extracted_data:
-                        errors.append(f"Missing required key: {key}")
-                    elif (
-                        not extracted_data[key] or extracted_data[key] == "[FILL_VALUE]"
+                    # For numeric fields, compare as integers
+                    if (
+                        "Upvotes" in key
+                        or "Comments" in key
+                        or key == "Total_Year_Posts"
+                        or key == "Total_Image_Posts_5Pages"
                     ):
-                        errors.append(f"{key} was not filled in")
+                        try:
+                            expected_int = int(expected_val)
+                            actual_int = int(actual_val)
+                            if expected_int != actual_int:
+                                errors.append(
+                                    f"{key} mismatch: got {actual_int}, expected {expected_int}"
+                                )
+                        except ValueError:
+                            errors.append(
+                                f"{key} should be numeric: got '{actual_val}'"
+                            )
+                    else:
+                        # For text fields, compare normalized text
+                        if expected_val != actual_val:
+                            errors.append(
+                                f"{key} mismatch: got '{actual_val}', expected '{expected_val}'"
+                            )
 
             if errors:
                 print(

@@ -1,4 +1,4 @@
-Products70Plus|7
+Products70Plus|6
 CheapestReviewedSKU|B014HDAUAA
 CheapestReviewedPrice|$0.99
 ComparisonCount|2

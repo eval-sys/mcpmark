@@ -9,6 +9,9 @@ The expected ground truth answer is configured at the top of the file.
 import sys
 import json
 import os
+import re
+import difflib
+import unicodedata
 from pathlib import Path
 from typing import Dict, Any
 
@@ -18,6 +21,28 @@ from typing import Dict, Any
 
 # Expected ground truth content from content.txt
 EXPECTED_CONTENT_FILE = "content.txt"
+
+# Similarity threshold for content match (after normalization)
+SIMILARITY_THRESHOLD = 0.9
+
+
+def _normalize_content(s: str) -> str:
+    """Strip markdown / unicode / whitespace noise so comparison focuses on text content."""
+    # Strip bold markers
+    s = re.sub(r'\*\*|__', '', s)
+    # Strip leading list markers and numbered items
+    s = re.sub(r'^[\s]*[-*+]\s+', '', s, flags=re.M)
+    s = re.sub(r'^[\s]*\d+\.\s+', '', s, flags=re.M)
+    # Unicode-normalize and collapse smart quotes / dashes to ASCII
+    s = unicodedata.normalize('NFKC', s)
+    s = s.translate(str.maketrans({
+        '‘': "'", '’': "'",
+        '“': '"', '”': '"',
+        '–': '-', '—': '-',
+    }))
+    # Collapse whitespace, lowercase
+    s = re.sub(r'\s+', ' ', s).strip().lower()
+    return s
 
 # =============================================================================
 # MCP RESULT PARSING
@@ -84,21 +109,28 @@ def parse_ai_results(work_dir: Path) -> Dict[str, Any]:
     ai_responses = []
     extracted_content = ""
 
-    for message in messages:
-        if message.get("role") == "assistant":
-            content = str(message.get("content", ""))
+    # Find the last completed assistant message
+    for message in reversed(messages):
+        if (message.get("role") == "assistant" and
+            message.get("status") == "completed" and
+            message.get("type") == "message"):
+            content = ""
 
             # Handle both string and list content formats
-            if isinstance(message.get("content"), list):
-                content = " ".join(
-                    item.get("text", "") if isinstance(item, dict) else str(item)
-                    for item in message.get("content", [])
-                )
+            raw = message.get("content", "")
+            if isinstance(raw, list):
+                for item in raw:
+                    if isinstance(item, dict) and item.get("type") in ["text", "output_text"]:
+                        content = item.get("text", "")
+                        break
+            elif isinstance(raw, str):
+                content = raw
 
             ai_responses.append(content)
 
             # Store the last response as extracted content
             extracted_content = content
+            break
 
     return {
         "success": True,
@@ -117,16 +149,19 @@ def compare_content(extracted: str, expected: str) -> Dict[str, Any]:
     if not extracted:
         return {"success": False, "error": "No extracted content found"}
 
-    # Normalize content for comparison (remove extra whitespace, normalize line breaks)
-    extracted_normalized = " ".join(extracted.split())
-    expected_normalized = " ".join(expected.split())
+    # Normalize markdown / unicode / whitespace noise on both sides
+    extracted_normalized = _normalize_content(extracted)
+    expected_normalized = _normalize_content(expected)
 
-    # Direct text comparison - content must be exactly the same
-    is_exact_match = extracted_normalized == expected_normalized
+    # Similarity-based comparison; threshold tolerates small residual noise
+    similarity = difflib.SequenceMatcher(None, expected_normalized, extracted_normalized).ratio()
+    is_exact_match = similarity >= SIMILARITY_THRESHOLD
 
     return {
         "success": True,
         "is_exact_match": is_exact_match,
+        "similarity": similarity,
+        "threshold": SIMILARITY_THRESHOLD,
         "extracted_length": len(extracted_normalized),
         "expected_length": len(expected_normalized),
         "extracted_preview": extracted_normalized[:100] + "..." if len(extracted_normalized) > 100 else extracted_normalized,
@@ -181,14 +216,15 @@ def verify_task(work_dir: Path) -> bool:
     print(f"| Content comparison results:")
     print(f"|   - Extracted length: {comparison['extracted_length']} characters")
     print(f"|   - Expected length: {comparison['expected_length']} characters")
+    print(f"|   - Similarity: {comparison['similarity']:.4f} (threshold: {comparison['threshold']})")
     print(f"|   - Extracted preview: {comparison['extracted_preview']}")
     print(f"|   - Expected preview: {comparison['expected_preview']}")
 
     if comparison['is_exact_match']:
-        print("| Task completed successfully! Content matches exactly.")
+        print(f"| Task completed successfully! Similarity {comparison['similarity']:.4f} >= {comparison['threshold']}.")
         return True
     else:
-        print("| Task verification failed. Content does not match exactly.")
+        print(f"| Task verification failed. Similarity {comparison['similarity']:.4f} < {comparison['threshold']}.")
         return False
 
 

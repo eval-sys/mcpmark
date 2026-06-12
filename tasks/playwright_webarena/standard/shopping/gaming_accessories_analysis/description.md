@@ -2,7 +2,7 @@
 
 **Task Requirements:**
 
-1. In Video Games category, count products with customer rating 70% or higher in the first 2 pages
+1. In Video Games category, count products with customer rating 70% or higher in the first 2 pages (products without any rating do not count)
 
 2. Sort products by price (ascending) and identify the cheapest product that has customer reviews
 

@@ -50,6 +50,11 @@ class ModelConfig:
             "api_key_var": "OPENAI_API_KEY",
             "litellm_input_model_name": "openai/gpt-5.2",
         },
+        "gpt-5.5": {
+            "provider": "openai",
+            "api_key_var": "OPENAI_API_KEY",
+            "litellm_input_model_name": "openai/gpt-5.5",
+        },
         "gpt-5": {
             "provider": "openai",
             "api_key_var": "OPENAI_API_KEY",
