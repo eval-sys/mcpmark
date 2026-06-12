@@ -8,7 +8,7 @@ This guide walks you through preparing your Notion environment for MCPMark and a
 
 1. **Duplicate the MCPMark Source Pages**
    Copy the template database and pages into your workspace from the public template following this tutorial:
-   [Duplicate MCPMark Source](https://painted-tennis-ebc.notion.site/MCPBench-Source-Hub-23181626b6d7805fb3a7d59c63033819).
+   [Duplicate MCPMark Source](https://gossamer-sawfish-47c.notion.site/MCPMark-Source-Hub-dc32b7e8cebd82b8959b81ae322df87a).
 
 2. **Set up the Source and Eval Hub for Environment Isolation**
    - Prepare **two separate Notion pages**:
