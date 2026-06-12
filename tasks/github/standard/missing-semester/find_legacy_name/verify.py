@@ -95,8 +95,11 @@ def verify() -> bool:
     # 2. Check that the content matches expected answer
     print("2. Verifying ANSWER.md content...")
     answer_content = answer_content.strip()
-    
-    if answer_content not in EXPECTED_CONTENTS:
+
+    # Match case-insensitively: the title and domain are accepted regardless of
+    # capitalization (e.g. "hacker tools" / "Hacker-Tools.github.io" both pass).
+    expected_lower = {c.lower() for c in EXPECTED_CONTENTS}
+    if answer_content.lower() not in expected_lower:
         print(f"Error: ANSWER.md content does not match expected answer(s)", file=sys.stderr)
         print(f"Expected one of: {sorted(EXPECTED_CONTENTS)}", file=sys.stderr)
         print(f"Found: {answer_content}", file=sys.stderr)
