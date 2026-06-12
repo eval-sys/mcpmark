@@ -14,10 +14,13 @@ An evaluation suite for agentic models in real MCP tool environments (Notion / G
 
 MCPMark provides a reproducible, extensible benchmark for researchers and engineers: one-command tasks, isolated sandboxes, auto-resume for failures, unified metrics, and aggregated reports.
 
+> 🚀 **MCPMark Verified is out** — a version-pinned, stabilized subset of the standard tasks for reproducible evaluation. On the Verified set, `gpt-5.5` (xhigh) leads at **92.9%** and `kimi-k2.7` reaches **81.1%**. See [#264](https://github.com/eval-sys/mcpmark/pull/264).
+
 [![MCPMark](https://github.com/user-attachments/assets/dfc06a41-e387-45e3-bc98-db7097ffa3dc)](https://mcpmark.ai)
 
 ## News
 
+- 🚀 **12 Jun** — **MCPMark Verified** is out: a version-pinned, stabilized subset of the standard tasks. On the Verified set, `gpt-5.5` (xhigh) leads at **92.9%** and `kimi-k2.7` reaches **81.1%**. See [#264](https://github.com/eval-sys/mcpmark/pull/264).
 - 📌 **21 Jan** — Pinned MCP server versions for reproducible benchmarks: GitHub MCP Server `v0.15.0` (switched to Docker for version control), Notion MCP Server `@1.9.1` (Notion released 2.0 but it has many bugs, not recommended). See [#246](https://github.com/eval-sys/mcpmark/pull/246).
 - 🔥 **13 Dec** — Added auto-compaction support (`--compaction-token`) to summarize long conversations and avoid context overflow during evaluation ([#236](https://github.com/eval-sys/mcpmark/pull/236])).
 - 🏅 **02 Dec** — Evaluated `gemini-3-pro-preview` (thinking: low): **Pass@1 50.6%** ± 2.3% — so close to `gpt-5-high` (51.6%)! Also `deepseek-v3.2-thinking` 36.8% and `deepseek-v3.2-chat` 29.7%
