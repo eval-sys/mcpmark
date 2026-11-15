@@ -200,6 +200,60 @@ def verify_rls_implementation():
         except psycopg2.Error:
             test_results.append("✓ Unauthorized users blocked from updating posts")
 
+        # Post DELETE authorization checks use actual RLS behavior.
+        print("\n4b. Testing post DELETE authorization...")
+
+        def check_post_delete_access(actor_id, post_id, expected_rows, role_label):
+            try:
+                # The verifier uses autocommit; explicitly roll back deletes.
+                cur.execute("BEGIN")
+                cur.execute(
+                    "SELECT set_config('app.current_user_id', %s, true)",
+                    (actor_id,)
+                )
+                cur.execute(
+                    "SELECT row_security_active('public.posts'::regclass)"
+                )
+                if cur.fetchone()[0] is not True:
+                    return False, f"{role_label}: RLS was not active"
+
+                cur.execute(
+                    "SELECT COUNT(*) FROM public.posts WHERE id = %s",
+                    (post_id,)
+                )
+                if cur.fetchone()[0] != 1:
+                    return False, f"{role_label}: target post not visible"
+
+                try:
+                    cur.execute(
+                        "DELETE FROM public.posts WHERE id = %s RETURNING id",
+                        (post_id,)
+                    )
+                    deleted = len(cur.fetchall())
+                    return (
+                        deleted == expected_rows,
+                        f"{role_label}: expected {expected_rows} deleted, got {deleted}"
+                    )
+                except psycopg2.Error as exc:
+                    if expected_rows == 0 and exc.pgcode == "42501":
+                        return True, f"{role_label}: DELETE permission denied"
+                    return False, f"{role_label}: DELETE error: {exc.pgcode}"
+            except psycopg2.Error as exc:
+                return False, f"{role_label}: setup error: {exc.pgcode}"
+            finally:
+                cur.execute("ROLLBACK")
+
+        for actor, post_id, expected, label in (
+            ("33333333-3333-3333-3333-333333333333", "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", 1, "Author"),
+            ("11111111-1111-1111-1111-111111111111", "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", 1, "Channel owner"),
+            ("22222222-2222-2222-2222-222222222222", "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", 1, "Moderator"),
+            ("55555555-5555-5555-5555-555555555555", "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", 0, "Outsider"),
+        ):
+            ok, detail = check_post_delete_access(
+                actor, post_id, expected, label
+            )
+            test_results.append(("✓ " if ok else "✗ ") + detail)
+
         # Test 5: Comment access controls
         print("\n5. Testing comment access controls...")
 
