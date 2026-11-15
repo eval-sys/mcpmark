@@ -35,6 +35,64 @@ def get_connection_params() -> dict:
         "password": os.getenv("POSTGRES_PASSWORD")
     }
 
+# Task-contract checks: validate the *declared* table schemas, not only rows.
+# PostgreSQL's format_type(..., NULL) reports the base type independent of
+# permissible typmods such as VARCHAR(255) and NUMERIC(18, 4).
+_EXPECTED_OUTPUT_COLUMNS = {
+    "employee_performance_analysis": {
+        "employee_id": "bigint",
+        "performance_category": "character varying",
+        "salary_growth_rate": "numeric",
+        "days_of_service": "integer",
+        "promotion_count": "integer",
+    },
+    "department_salary_analysis": {
+        "department_name": "character varying",
+        "avg_current_salary": "numeric",
+        "employee_count": "integer",
+        "salary_range_spread": "integer",
+    },
+}
+
+
+def verify_output_schema(conn) -> bool:
+    """Enforce the exact output column names and PostgreSQL base types.
+
+    Check only requirements explicitly specified by the task: column order,
+    typmods, optional CHECK/UNIQUE constraints and nullability are not scored.
+    Views are not accepted because the instructions require tables.
+    """
+    passed = True
+    with conn.cursor() as cur:
+        for table_name, expected in _EXPECTED_OUTPUT_COLUMNS.items():
+            cur.execute("""
+                SELECT a.attname, pg_catalog.format_type(a.atttypid, NULL)
+                FROM pg_catalog.pg_attribute AS a
+                JOIN pg_catalog.pg_class AS c ON c.oid = a.attrelid
+                JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'employees'
+                  AND c.relname = %s
+                  AND c.relkind IN ('r', 'p')
+                  AND a.attnum > 0
+                  AND NOT a.attisdropped
+            """, (table_name,))
+            observed = dict(cur.fetchall())
+            if observed != expected:
+                missing = sorted(set(expected) - set(observed))
+                extra = sorted(set(observed) - set(expected))
+                wrong_types = {
+                    col: {"expected": expected[col], "actual": observed[col]}
+                    for col in sorted(set(expected) & set(observed))
+                    if observed[col] != expected[col]
+                }
+                print(f"❌ {table_name} output schema mismatch: "
+                      f"missing={missing}, extra={extra}, wrong_types={wrong_types}")
+                passed = False
+            else:
+                print(f"✅ {table_name} declared columns and types match the task contract")
+    return passed
+
+
 def verify_performance_results(conn) -> bool:
     """Verify the employee performance analysis results."""
     with conn.cursor() as cur:
@@ -202,7 +260,9 @@ def main():
         conn = psycopg2.connect(**conn_params)
 
         # Verify results
-        success = verify_performance_results(conn) and verify_department_results(conn)
+        success = (verify_output_schema(conn)
+                   and verify_performance_results(conn)
+                   and verify_department_results(conn))
 
         conn.close()
 
