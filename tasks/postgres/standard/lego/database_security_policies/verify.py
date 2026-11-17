@@ -198,6 +198,31 @@ def test_theme_analyst_access(conn) -> bool:
                 print(f"❌ FAIL: Expected 3 inventory parts for Star Wars sets, got {parts_count}.")
                 cur.execute("RESET ROLE;")
                 return False
+            # A matching count does not imply authorization. Check each visible
+            # inventory against the role-visible permitted sets, and each visible
+            # inventory part against role-visible permitted inventories.
+            # Under this task's fixed official data, the preexisting counts of
+            # 2 and 3 then also establish completeness of the result.
+            cur.execute(
+                "SELECT i.id FROM lego_inventories AS i "
+                "LEFT JOIN lego_sets AS s ON s.set_num = i.set_num "
+                "WHERE s.set_num IS NULL LIMIT 1"
+            )
+            invalid_inventory = cur.fetchone()
+            if invalid_inventory:
+                print(f"❌ FAIL: Inventory {invalid_inventory[0]} is not associated with a permitted theme-visible set.")
+                cur.execute("RESET ROLE;")
+                return False
+            cur.execute(
+                "SELECT p.inventory_id FROM lego_inventory_parts AS p "
+                "LEFT JOIN lego_inventories AS i ON i.id = p.inventory_id "
+                "WHERE i.id IS NULL LIMIT 1"
+            )
+            invalid_part = cur.fetchone()
+            if invalid_part:
+                print(f"❌ FAIL: Inventory-part for inventory {invalid_part[0]} is not associated with a permitted visible inventory.")
+                cur.execute("RESET ROLE;")
+                return False
             print("✅ PASS: Related tables (inventories, inventory_parts) are correctly filtered.")
 
             # IMPORTANT: Always reset the role at the end
